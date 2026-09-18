@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BookOpen, Calendar, Clock, CheckCircle, AlertCircle, CalendarRange } from 'lucide-react';
+import { Users, BookOpen, Calendar, Clock, CheckCircle, AlertCircle, CalendarRange, LogIn, LogOut, CheckCircle2 } from 'lucide-react';
 import api from '../../../services/api';
 
 const Dashboard = () => {
@@ -50,6 +50,18 @@ const Dashboard = () => {
         { title: 'Lịch Thi', value: stats?.counts.exams || 0, icon: CalendarRange, color: 'text-orange-600', bg: 'bg-orange-100' }
     ];
 
+    const formatTimeOnly = (dateString) => {
+        if (!dateString) return null;
+        const d = new Date(dateString);
+        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
+    const formatDateOnly = (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return '';
         const d = new Date(dateString);
@@ -59,11 +71,47 @@ const Dashboard = () => {
         });
     };
 
+    const renderClassStatusBadge = (log) => {
+        const isComplete = (log.check_in_time && log.check_out_time) || log.status === 'Completed';
+        const isOnlyCheckout = !log.check_in_time && log.check_out_time;
+        const isOnlyCheckin = log.check_in_time && !log.check_out_time;
+
+        if (isComplete) {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+                    <CheckCircle2 size={13} className="text-emerald-600" />
+                    Đủ 2 buổi (Hoàn tất)
+                </span>
+            );
+        }
+        if (isOnlyCheckout) {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
+                    <AlertCircle size={13} className="text-amber-600" />
+                    Chỉ Cuối Giờ
+                </span>
+            );
+        }
+        if (isOnlyCheckin) {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 shadow-sm">
+                    <Clock size={13} className="text-blue-600" />
+                    Đã Check-in (Chờ về)
+                </span>
+            );
+        }
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
+                {log.status || 'Có mặt'}
+            </span>
+        );
+    };
+
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-gray-800">Tổng quan hệ thống</h1>
-                <p className="text-gray-500 mt-1">Dữ liệu thống kê tổng quát về quản lý sinh viên và điểm danh</p>
+                <p className="text-gray-500 mt-1">Dữ liệu thống kê tổng quát về quản lý sinh viên, điểm danh đầu giờ và cuối giờ</p>
             </div>
 
             {/* Stat Cards */}
@@ -86,47 +134,80 @@ const Dashboard = () => {
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {/* Lịch sử điểm danh Lớp */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50/40 to-teal-50/20">
                         <div className="flex items-center gap-2">
-                            <Clock size={20} className="text-primary-600" />
-                            <h2 className="text-lg font-bold text-gray-800">Điểm danh Lớp học gần đây</h2>
+                            <Clock size={20} className="text-emerald-600" />
+                            <h2 className="text-lg font-bold text-gray-800">Điểm danh Lớp học (Đầu giờ & Cuối giờ)</h2>
                         </div>
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg">
+                            Mới nhất
+                        </span>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto flex-1">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-100">
-                                    <th className="p-4 font-medium">Thời gian</th>
-                                    <th className="p-4 font-medium">Sinh viên</th>
-                                    <th className="p-4 font-medium">Môn / Phòng</th>
-                                    <th className="p-4 font-medium text-center">Trạng thái</th>
+                                <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100">
+                                    <th className="p-4 font-semibold">Sinh viên</th>
+                                    <th className="p-4 font-semibold">Môn / Phòng</th>
+                                    <th className="p-4 font-semibold text-center">Giờ vào (Check-in)</th>
+                                    <th className="p-4 font-semibold text-center">Giờ ra (Check-out)</th>
+                                    <th className="p-4 font-semibold text-center">Trạng thái</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-50">
                                 {stats?.recentActivity.classes.length > 0 ? (
-                                    stats.recentActivity.classes.map((log) => (
-                                        <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                            <td className="p-4 text-sm text-gray-600">{formatDate(log.check_in_time)}</td>
-                                            <td className="p-4">
-                                                <p className="font-semibold text-gray-800 text-sm">{log.full_name}</p>
-                                                <p className="text-xs text-gray-500">{log.student_code}</p>
-                                            </td>
-                                            <td className="p-4 text-sm text-gray-600">
-                                                <p className="font-medium">{log.course_name}</p>
-                                                <p className="text-xs text-gray-500">{log.room_name}</p>
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                    <CheckCircle size={12} />
-                                                    Thành công
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    stats.recentActivity.classes.map((log) => {
+                                        const checkInTime = formatTimeOnly(log.check_in_time);
+                                        const checkOutTime = formatTimeOnly(log.check_out_time);
+                                        const primaryDate = formatDateOnly(log.check_out_time || log.check_in_time);
+
+                                        return (
+                                            <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
+                                                <td className="p-4">
+                                                    <p className="font-semibold text-gray-800 text-sm">{log.full_name}</p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                                            {log.student_code}
+                                                        </span>
+                                                        <span className="text-xs text-gray-400">{primaryDate}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-sm text-gray-600">
+                                                    <p className="font-medium text-gray-800">{log.course_name}</p>
+                                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                                        Phòng: <span className="font-semibold text-gray-700">{log.room_name}</span>
+                                                    </p>
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    {checkInTime ? (
+                                                        <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <LogIn size={12} className="text-emerald-600" />
+                                                            {checkInTime}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400 italic">Chưa check-in</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    {checkOutTime ? (
+                                                        <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                                                            <LogOut size={12} className="text-blue-600" />
+                                                            {checkOutTime}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400 italic">Chưa check-out</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    {renderClassStatusBadge(log)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 ) : (
                                     <tr>
-                                        <td colSpan="4" className="p-8 text-center text-gray-500">
+                                        <td colSpan="5" className="p-8 text-center text-gray-500">
                                             Chưa có dữ liệu điểm danh lớp học
                                         </td>
                                     </tr>
@@ -137,44 +218,50 @@ const Dashboard = () => {
                 </div>
 
                 {/* Lịch sử điểm danh Thi */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-orange-50/30">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-orange-50/50 to-amber-50/20">
                         <div className="flex items-center gap-2">
                             <Clock size={20} className="text-orange-600" />
                             <h2 className="text-lg font-bold text-gray-800">Điểm danh Thi gần đây</h2>
                         </div>
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-lg">
+                            Phòng thi
+                        </span>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto flex-1">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-100">
-                                    <th className="p-4 font-medium">Thời gian</th>
-                                    <th className="p-4 font-medium">Sinh viên</th>
-                                    <th className="p-4 font-medium">Môn / Phòng</th>
-                                    <th className="p-4 font-medium text-center">Xác thực</th>
+                                <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100">
+                                    <th className="p-4 font-semibold">Thời gian</th>
+                                    <th className="p-4 font-semibold">Sinh viên</th>
+                                    <th className="p-4 font-semibold">Môn / Phòng</th>
+                                    <th className="p-4 font-semibold text-center">Xác thực</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-50">
                                 {stats?.recentActivity.exams.length > 0 ? (
                                     stats.recentActivity.exams.map((log) => (
-                                        <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                            <td className="p-4 text-sm text-gray-600">{formatDate(log.check_in_time)}</td>
+                                        <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
+                                            <td className="p-4 text-sm text-gray-600 font-mono text-xs">{formatDate(log.check_in_time)}</td>
                                             <td className="p-4">
                                                 <p className="font-semibold text-gray-800 text-sm">{log.full_name}</p>
-                                                <p className="text-xs text-gray-500">{log.student_code}</p>
+                                                <span className="text-xs font-mono font-medium text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
+                                                    {log.student_code}
+                                                </span>
                                             </td>
                                             <td className="p-4 text-sm text-gray-600">
-                                                <p className="font-medium">{log.course_name}</p>
-                                                <p className="text-xs text-gray-500">{log.exam_room}</p>
+                                                <p className="font-medium text-gray-800">{log.course_name}</p>
+                                                <p className="text-xs text-gray-500">Phòng: <span className="font-semibold text-gray-700">{log.exam_room}</span></p>
                                             </td>
                                             <td className="p-4 text-center">
                                                 {log.is_verified ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+                                                        <CheckCircle size={13} className="text-emerald-600" />
                                                         Hợp lệ
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                                                        <AlertCircle size={12} /> Cảnh báo
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                                                        <AlertCircle size={13} className="text-red-600" /> Cảnh báo
                                                     </span>
                                                 )}
                                             </td>

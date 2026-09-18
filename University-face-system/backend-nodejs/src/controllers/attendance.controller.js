@@ -3,7 +3,7 @@ const pool = require('../config/db');
 
 exports.verifyAttendance = async (req, res) => {
     try {
-        const { student_id, schedule_id, image_base64 } = req.body;
+        const { student_id, schedule_id, image_base64, attendance_type = 'check_in' } = req.body;
 
         if (!student_id || !image_base64) {
             return res.status(400).json({ success: false, message: 'Thiếu student_id hoặc image_base64' });
@@ -13,25 +13,103 @@ exports.verifyAttendance = async (req, res) => {
         const aiResponse = await AiService.verifyFace(student_id, image_base64);
 
         if (aiResponse.match) {
-            // 2. Nếu khớp, lưu lịch sử điểm danh vào database
-            // Kiểm tra xem schedule_id có được truyền lên không (điểm danh lớp học)
+            let attendanceResult = null;
+
+            // 2. Nếu khớp, lưu/cập nhật lịch sử điểm danh vào database
             if (schedule_id) {
-                 const [result] = await pool.query(
-                     'INSERT INTO class_attendance (student_id, schedule_id, check_in_time, status, confidence_score) VALUES (?, ?, NOW(), ?, ?)',
-                     [student_id, schedule_id, 'Present', aiResponse.confidence]
-                 );
+                const [existing] = await pool.query(
+                    'SELECT * FROM class_attendance WHERE student_id = ? AND schedule_id = ? ORDER BY id DESC LIMIT 1',
+                    [student_id, schedule_id]
+                );
+
+                if (attendance_type === 'check_out') {
+                    if (existing.length > 0) {
+                        const rec = existing[0];
+                        await pool.query(
+                            `UPDATE class_attendance 
+                             SET check_out_time = NOW(), check_out_confidence = ?, check_out_status = 'Completed', 
+                                 status = CASE WHEN check_in_time IS NOT NULL THEN 'Completed' ELSE 'Only Checked-out' END,
+                                 confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                             WHERE id = ?`,
+                            [aiResponse.confidence, aiResponse.confidence, rec.id]
+                        );
+                        attendanceResult = {
+                            action: 'check_out',
+                            check_in_time: rec.check_in_time,
+                            check_out_time: new Date(),
+                            status: rec.check_in_time ? 'Completed' : 'Only Checked-out',
+                            message: 'Điểm danh cuối giờ thành công'
+                        };
+                    } else {
+                        await pool.query(
+                            `INSERT INTO class_attendance (student_id, schedule_id, check_out_time, check_out_confidence, check_out_status, status, confidence_score) 
+                             VALUES (?, ?, NOW(), ?, 'Completed', 'Only Checked-out', ?)`,
+                            [student_id, schedule_id, aiResponse.confidence, aiResponse.confidence]
+                        );
+                        attendanceResult = {
+                            action: 'check_out',
+                            check_in_time: null,
+                            check_out_time: new Date(),
+                            status: 'Only Checked-out',
+                            message: 'Điểm danh cuối giờ thành công (Chưa có điểm danh đầu giờ)'
+                        };
+                    }
+                } else {
+                    // attendance_type === 'check_in'
+                    if (existing.length > 0) {
+                        const rec = existing[0];
+                        if (rec.check_in_time) {
+                            attendanceResult = {
+                                action: 'check_in',
+                                check_in_time: rec.check_in_time,
+                                check_out_time: rec.check_out_time,
+                                status: rec.status,
+                                message: 'Sinh viên đã được điểm danh đầu giờ trước đó'
+                            };
+                        } else {
+                            await pool.query(
+                                `UPDATE class_attendance 
+                                 SET check_in_time = NOW(), check_in_confidence = ?, check_in_status = 'Present',
+                                     status = CASE WHEN check_out_time IS NOT NULL THEN 'Completed' ELSE 'Checked-in' END,
+                                     confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                                 WHERE id = ?`,
+                                [aiResponse.confidence, aiResponse.confidence, rec.id]
+                            );
+                            attendanceResult = {
+                                action: 'check_in',
+                                check_in_time: new Date(),
+                                check_out_time: rec.check_out_time,
+                                status: rec.check_out_time ? 'Completed' : 'Checked-in',
+                                message: 'Điểm danh đầu giờ thành công'
+                            };
+                        }
+                    } else {
+                        await pool.query(
+                            `INSERT INTO class_attendance (student_id, schedule_id, check_in_time, check_in_confidence, check_in_status, status, confidence_score) 
+                             VALUES (?, ?, NOW(), ?, 'Present', 'Checked-in', ?)`,
+                            [student_id, schedule_id, aiResponse.confidence, aiResponse.confidence]
+                        );
+                        attendanceResult = {
+                            action: 'check_in',
+                            check_in_time: new Date(),
+                            check_out_time: null,
+                            status: 'Checked-in',
+                            message: 'Điểm danh đầu giờ thành công'
+                        };
+                    }
+                }
             }
-            // (Tuỳ chọn: Nếu là exam_schedule_id thì lưu vào exam_attendance)
 
             return res.status(200).json({
                 success: true,
-                message: 'Xác thực thành công',
-                confidence: aiResponse.confidence
+                message: attendanceResult?.message || 'Xác thực thành công',
+                confidence: aiResponse.confidence,
+                attendance: attendanceResult
             });
         } else {
             return res.status(401).json({
                 success: false,
-                message: 'Xác thực khuôn mặt thất bại. Không khớp với dữ liệu.',
+                message: 'Xác thực khuôn mặt thất bại. Không khớp với dữ liệu sinh viên.',
                 confidence: aiResponse.confidence
             });
         }
@@ -165,7 +243,7 @@ exports.quickCreateStudent = async (req, res) => {
 
 exports.autoIdentifyAndCheckIn = async (req, res) => {
     try {
-        const { image_base64 } = req.body;
+        const { image_base64, attendance_type = 'check_in', schedule_id = null } = req.body;
         if (!image_base64) {
             return res.status(400).json({ success: false, message: 'Thiếu image_base64' });
         }
@@ -201,43 +279,120 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
         const student = studentRows[0];
 
         // 3. Class schedule attendance info
-        const [classSchedules] = await pool.query(
-            `SELECT cs.id as schedule_id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
-             FROM class_schedules cs 
-             JOIN courses c ON cs.course_id = c.id 
-             ORDER BY cs.id DESC LIMIT 1`
-        );
+        let scheduleQuery = `
+            SELECT cs.id as schedule_id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
+            FROM class_schedules cs 
+            JOIN courses c ON cs.course_id = c.id
+        `;
+        let scheduleParams = [];
+        if (schedule_id) {
+            scheduleQuery += ' WHERE cs.id = ?';
+            scheduleParams.push(schedule_id);
+        } else {
+            scheduleQuery += ' ORDER BY cs.id DESC LIMIT 1';
+        }
+
+        const [classSchedules] = await pool.query(scheduleQuery, scheduleParams);
 
         let classAttendanceInfo = null;
         if (classSchedules.length > 0) {
             const sched = classSchedules[0];
             const [existingClassAtt] = await pool.query(
-                'SELECT * FROM class_attendance WHERE student_id = ? AND schedule_id = ?',
+                'SELECT * FROM class_attendance WHERE student_id = ? AND schedule_id = ? ORDER BY id DESC LIMIT 1',
                 [student.id, sched.schedule_id]
             );
 
-            if (existingClassAtt.length === 0) {
-                await pool.query(
-                    'INSERT INTO class_attendance (student_id, schedule_id, check_in_time, status, confidence_score) VALUES (?, ?, NOW(), ?, ?)',
-                    [student.id, sched.schedule_id, 'Present', aiRes.confidence]
-                );
+            let checkInTimeStr = null;
+            let checkOutTimeStr = null;
+            let statusText = '';
+            let isComplete = false;
+
+            if (attendance_type === 'check_out') {
+                if (existingClassAtt.length > 0) {
+                    const rec = existingClassAtt[0];
+                    await pool.query(
+                        `UPDATE class_attendance 
+                         SET check_out_time = NOW(), check_out_confidence = ?, check_out_status = 'Completed', 
+                             status = CASE WHEN check_in_time IS NOT NULL THEN 'Completed' ELSE 'Only Checked-out' END,
+                             confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                         WHERE id = ?`,
+                        [aiRes.confidence, aiRes.confidence, rec.id]
+                    );
+                    checkInTimeStr = rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString('vi-VN') : null;
+                    checkOutTimeStr = new Date().toLocaleTimeString('vi-VN');
+                    isComplete = !!rec.check_in_time;
+                    statusText = isComplete 
+                        ? '✓ Hoàn thành buổi học (Đủ đầu giờ & cuối giờ)' 
+                        : '⚠️ Điểm danh cuối giờ (Chưa check-in đầu giờ)';
+                } else {
+                    await pool.query(
+                        `INSERT INTO class_attendance (student_id, schedule_id, check_out_time, check_out_confidence, check_out_status, status, confidence_score) 
+                         VALUES (?, ?, NOW(), ?, 'Completed', 'Only Checked-out', ?)`,
+                        [student.id, sched.schedule_id, aiRes.confidence, aiRes.confidence]
+                    );
+                    checkOutTimeStr = new Date().toLocaleTimeString('vi-VN');
+                    statusText = '⚠️ Điểm danh cuối giờ (Chưa check-in đầu giờ)';
+                }
+            } else {
+                // attendance_type === 'check_in'
+                if (existingClassAtt.length > 0) {
+                    const rec = existingClassAtt[0];
+                    checkInTimeStr = rec.check_in_time 
+                        ? new Date(rec.check_in_time).toLocaleTimeString('vi-VN') 
+                        : new Date().toLocaleTimeString('vi-VN');
+                    checkOutTimeStr = rec.check_out_time 
+                        ? new Date(rec.check_out_time).toLocaleTimeString('vi-VN') 
+                        : null;
+                    isComplete = !!rec.check_out_time;
+
+                    if (!rec.check_in_time) {
+                        await pool.query(
+                            `UPDATE class_attendance 
+                             SET check_in_time = NOW(), check_in_confidence = ?, check_in_status = 'Present',
+                                 status = CASE WHEN check_out_time IS NOT NULL THEN 'Completed' ELSE 'Checked-in' END,
+                                 confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                             WHERE id = ?`,
+                            [aiRes.confidence, aiRes.confidence, rec.id]
+                        );
+                    }
+                    statusText = isComplete 
+                        ? '✓ Hoàn thành buổi học (Đủ đầu giờ & cuối giờ)' 
+                        : '✓ Đã điểm danh đầu giờ';
+                } else {
+                    await pool.query(
+                        `INSERT INTO class_attendance (student_id, schedule_id, check_in_time, check_in_confidence, check_in_status, status, confidence_score) 
+                         VALUES (?, ?, NOW(), ?, 'Present', 'Checked-in', ?)`,
+                        [student.id, sched.schedule_id, aiRes.confidence, aiRes.confidence]
+                    );
+                    checkInTimeStr = new Date().toLocaleTimeString('vi-VN');
+                    statusText = '✓ Đã điểm danh đầu giờ thành công';
+                }
             }
 
             classAttendanceInfo = {
                 course_code: sched.course_code,
                 course_name: sched.course_name,
                 room_name: sched.room_name,
-                check_in_time: new Date().toLocaleTimeString('vi-VN'),
-                status: 'Đã điểm danh bài giảng môn học'
+                attendance_type: attendance_type,
+                check_in_time: checkInTimeStr,
+                check_out_time: checkOutTimeStr,
+                is_complete: isComplete,
+                status: statusText
             };
         } else {
-            // Default active course attendance info for UI demo
+            // Default active course attendance demo info
+            const nowTime = new Date().toLocaleTimeString('vi-VN');
             classAttendanceInfo = {
                 course_code: 'COMP101',
                 course_name: 'Lập Trình Trí Tuệ Nhân Tạo & Nhận Diện Khuôn Mặt',
                 room_name: 'Phòng Lab 402',
-                check_in_time: new Date().toLocaleTimeString('vi-VN'),
-                status: 'Đã điểm danh tự động môn học ngày hôm nay'
+                attendance_type: attendance_type,
+                check_in_time: attendance_type === 'check_in' ? nowTime : null,
+                check_out_time: attendance_type === 'check_out' ? nowTime : null,
+                is_complete: false,
+                status: attendance_type === 'check_out' 
+                    ? 'Đã điểm danh cuối giờ buổi học' 
+                    : 'Đã điểm danh đầu giờ buổi học'
             };
         }
 

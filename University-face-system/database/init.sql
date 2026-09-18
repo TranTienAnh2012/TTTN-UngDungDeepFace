@@ -1,13 +1,13 @@
 CREATE DATABASE IF NOT EXISTS face_attendance_db;
 USE face_attendance_db;
 
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     course_code VARCHAR(20) NOT NULL,
     course_name VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE students (
+CREATE TABLE IF NOT EXISTS students (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     student_code VARCHAR(50) NOT NULL UNIQUE,
     full_name VARCHAR(100) NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE students (
     status VARCHAR(20)
 );
 
-CREATE TABLE class_schedules (
+CREATE TABLE IF NOT EXISTS class_schedules (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     course_id BIGINT(20),
     room_name VARCHAR(50),
@@ -26,18 +26,26 @@ CREATE TABLE class_schedules (
     FOREIGN KEY (course_id) REFERENCES courses(id)
 );
 
-CREATE TABLE class_attendance (
+CREATE TABLE IF NOT EXISTS class_attendance (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     student_id BIGINT(20),
     schedule_id BIGINT(20),
-    check_in_time DATETIME,
-    status VARCHAR(20),
-    confidence_score FLOAT,
+    check_in_time DATETIME NULL,
+    check_in_confidence FLOAT NULL,
+    check_in_status VARCHAR(50) DEFAULT 'Present',
+    check_out_time DATETIME NULL,
+    check_out_confidence FLOAT NULL,
+    check_out_status VARCHAR(50) NULL,
+    status VARCHAR(50) DEFAULT 'Checked-in',
+    confidence_score FLOAT NULL,
+    notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(id),
     FOREIGN KEY (schedule_id) REFERENCES class_schedules(id)
 );
 
-CREATE TABLE exam_schedules (
+CREATE TABLE IF NOT EXISTS exam_schedules (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     course_id BIGINT(20),
     exam_room VARCHAR(50),
@@ -48,7 +56,7 @@ CREATE TABLE exam_schedules (
     FOREIGN KEY (course_id) REFERENCES courses(id)
 );
 
-CREATE TABLE exam_eligibility (
+CREATE TABLE IF NOT EXISTS exam_eligibility (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     exam_schedule_id BIGINT(20),
     student_id BIGINT(20),
@@ -59,7 +67,7 @@ CREATE TABLE exam_eligibility (
     FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
-CREATE TABLE exam_attendance (
+CREATE TABLE IF NOT EXISTS exam_attendance (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     student_id BIGINT(20),
     exam_schedule_id BIGINT(20),
@@ -71,7 +79,7 @@ CREATE TABLE exam_attendance (
     FOREIGN KEY (exam_schedule_id) REFERENCES exam_schedules(id)
 );
 
-CREATE TABLE administrators (
+CREATE TABLE IF NOT EXISTS administrators (
     id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     username VARCHAR(50) UNIQUE,

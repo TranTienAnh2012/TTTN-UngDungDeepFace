@@ -4,13 +4,17 @@ import os
 import json
 import base64
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_db_connection():
     try:
         connection = mysql.connector.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            user=os.getenv("DB_USER", "appuser"),
-            password=os.getenv("DB_PASSWORD", "apppassword"),
+            host=os.getenv("DB_HOST", "127.0.0.1"),
+            port=int(os.getenv("DB_PORT", "3306")),
+            user=os.getenv("DB_USER", "root"),
+            password=os.getenv("DB_PASSWORD", "123456"),
             database=os.getenv("DB_NAME", "face_attendance_db")
         )
         return connection
