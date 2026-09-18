@@ -2,8 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 import numpy as np
+import os
+from dotenv import load_dotenv
 import db_mysql
 import face_processor
+
+load_dotenv()
 
 app = FastAPI(title="Face Attendance AI Service")
 
@@ -23,7 +27,7 @@ class Register3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = 0.68
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.60"))
 
 @app.post("/api/v1/identify")
 async def identify_face(req: IdentifyRequest):
@@ -40,6 +44,7 @@ async def identify_face(req: IdentifyRequest):
         return {"match": False, "box": pose_res["box"], "image_size": pose_res.get("image_size"), "student_id": None, "confidence": 0, "message": "No registered face embeddings in database"}
 
     best_student_id = None
+    best_student_info = None
     best_similarity = -1.0
 
     for s in all_students:
@@ -47,8 +52,10 @@ async def identify_face(req: IdentifyRequest):
         if sim > best_similarity:
             best_similarity = sim
             best_student_id = s["id"]
+            best_student_info = s
 
     is_match = bool(best_similarity >= MATCH_THRESHOLD)
+    print(f"[*] Identify: Best Match ID={best_student_id} ({best_student_info['full_name'] if best_student_info else 'N/A'}) - Sim: {best_similarity:.4f} - Match: {is_match} (Threshold: {MATCH_THRESHOLD})")
 
     return {
         "match": is_match,
@@ -57,8 +64,6 @@ async def identify_face(req: IdentifyRequest):
         "student_id": best_student_id if is_match else None,
         "confidence": float(best_similarity) if best_similarity > 0 else 0.0
     }
-
-
 
 @app.post("/api/v1/detect_pose")
 async def detect_pose(req: DetectPoseRequest):
@@ -88,6 +93,7 @@ async def verify_face(req: VerifyRequest):
     similarity = face_processor.compute_cosine_similarity(stored_embedding, current_embedding)
     is_match = bool(similarity >= MATCH_THRESHOLD)
     
+    print(f"[*] Verify Student ID={req.student_id}: Sim={similarity:.4f}, Match={is_match}")
     return {
         "match": is_match,
         "confidence": float(similarity)
@@ -114,7 +120,6 @@ async def register_face_3step(req: Register3StepRequest):
         
     return {"success": True}
 
-# Legacy route for backward compatibility if needed
 @app.post("/api/v1/register")
 async def register_face(req: VerifyRequest):
     embedding = face_processor.extract_embedding(req.image_base64)
@@ -126,11 +131,7 @@ async def register_face(req: VerifyRequest):
         raise HTTPException(status_code=500, detail="Failed to save")
     return {"success": True}
 
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
+    print(f"[*] Starting AI Service on port {port} (MATCH_THRESHOLD={MATCH_THRESHOLD})...")
     uvicorn.run(app, host="0.0.0.0", port=port)
