@@ -84,13 +84,39 @@ const FaceRecognition = () => {
         isProcessingRef.current = true;
         setIsProcessing(true);
 
+        // Downscale ảnh xuống 320px để tăng tốc độ gửi và xử lý AI
+        let imageToSend = imageSrc;
+        try {
+            imageToSend = await new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxW = 320;
+                    const scale = Math.min(1, maxW / img.width);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.75));
+                };
+                img.onerror = () => resolve(imageSrc);
+                img.src = imageSrc;
+            });
+        } catch (_) {
+            imageToSend = imageSrc;
+        }
+
+        // Abort controller: timeout 4 giây để tránh treo
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
         try {
             if (mode === 'auto' && isAutoScanning) {
-                // Send attendance_type ('check_in' | 'check_out') along with frame
-                const autoRes = await api.post('/attendance/auto-verify', { 
-                    image_base64: imageSrc,
+                const autoRes = await api.post('/attendance/auto-verify', {
+                    image_base64: imageToSend,
                     attendance_type: attendanceType
-                });
+                }, { signal: controller.signal });
+
+                clearTimeout(timeoutId);
 
                 if (autoRes.data.success) {
                     // Update bounding box
@@ -101,10 +127,8 @@ const FaceRecognition = () => {
                     } else {
                         setBox(null);
                         setFaceDetected(false);
-                        // Clear vote buffer when face lost
-                        voteBufferRef.current = [];
-                        setVoteProgress(0);
-                        setVoteLabel('');
+                    }
+
                     if (autoRes.data.match && !cooldownRef.current) {
                         // ── Multi-frame voting logic ──
                         const buffer = voteBufferRef.current;
@@ -112,10 +136,8 @@ const FaceRecognition = () => {
                             student_id: autoRes.data.student?.id,
                             confidence: autoRes.data.confidence
                         });
-                        // Keep only last VOTE_WINDOW frames
                         if (buffer.length > VOTE_WINDOW) buffer.shift();
 
-                        // Count votes for each student_id
                         const voteCounts = {};
                         buffer.forEach(v => {
                             if (v.student_id) {
@@ -123,7 +145,6 @@ const FaceRecognition = () => {
                             }
                         });
 
-                        // Find best candidate
                         const bestId = Object.keys(voteCounts)
                             .sort((a, b) => voteCounts[b] - voteCounts[a])[0];
                         const bestVotes = bestId ? voteCounts[bestId] : 0;
@@ -131,7 +152,6 @@ const FaceRecognition = () => {
                         setVoteProgress(bestVotes);
 
                         if (bestVotes >= VOTE_THRESHOLD) {
-                            // Confirmed! Calculate avg confidence of winning votes
                             const winConfidences = buffer
                                 .filter(v => String(v.student_id) === String(bestId))
                                 .map(v => v.confidence);
@@ -146,16 +166,12 @@ const FaceRecognition = () => {
                                 attendance_type: attendanceType,
                                 time: new Date().toLocaleTimeString('vi-VN')
                             };
-
                             setLastRecognized(newRecognized);
-
-                            // Add to recent scans list (max 5)
                             setRecentScans(prev => {
                                 const filtered = prev.filter(item => item.student.id !== newRecognized.student.id);
                                 return [newRecognized, ...filtered].slice(0, 5);
                             });
 
-                            // Reset buffer & start cooldown
                             voteBufferRef.current = [];
                             setVoteProgress(0);
                             setVoteLabel('');
@@ -164,10 +180,9 @@ const FaceRecognition = () => {
                         } else {
                             setVoteLabel(`Xác nhận ${bestVotes}/${VOTE_THRESHOLD}...`);
                         }
-                        // ─────────────────────────────
-
+                        // ──────────────────────────────
                     } else if (!autoRes.data.match) {
-                        // No match in this frame — don't reset buffer unless face lost
+                        // No match — reset buffer only if face also lost
                         if (!autoRes.data.box) {
                             voteBufferRef.current = [];
                             setVoteProgress(0);
@@ -176,7 +191,9 @@ const FaceRecognition = () => {
                     }
                 }
             } else if (mode === 'manual') {
-                const poseRes = await api.post('/face/detect-pose', { image_base64: imageSrc });
+                const poseRes = await api.post('/face/detect-pose', { image_base64: imageToSend },
+                    { signal: controller.signal });
+                clearTimeout(timeoutId);
                 if (poseRes.data.success && poseRes.data.box) {
                     setBox(poseRes.data.box);
                     setFaceDetected(true);
@@ -187,7 +204,13 @@ const FaceRecognition = () => {
                 }
             }
         } catch (err) {
-            // Ignore transient frame errors
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError' || err.name === 'CanceledError') {
+                console.warn('[FaceRecognition] Request timeout - bỏ qua frame này');
+                setBox(null);
+                setFaceDetected(false);
+            }
+            // Ignore other transient errors
         } finally {
             isProcessingRef.current = false;
             setIsProcessing(false);
@@ -195,7 +218,7 @@ const FaceRecognition = () => {
     }, [mode, isAutoScanning, attendanceType]);
 
     useEffect(() => {
-        const interval = setInterval(processCameraFrame, mode === 'auto' ? 1000 : 300);
+        const interval = setInterval(processCameraFrame, mode === 'auto' ? 1200 : 400);
         return () => clearInterval(interval);
     }, [processCameraFrame, mode]);
 
