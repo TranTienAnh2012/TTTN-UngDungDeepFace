@@ -105,8 +105,7 @@ const FaceRecognition = () => {
                         voteBufferRef.current = [];
                         setVoteProgress(0);
                         setVoteLabel('');
-                    }
-
+                    if (autoRes.data.match && !cooldownRef.current) {
                         // ── Multi-frame voting logic ──
                         const buffer = voteBufferRef.current;
                         buffer.push({
