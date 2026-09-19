@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Users, Settings, Home, LogOut, Camera, ScanFace, BookOpen, GraduationCap, Calendar, UserCheck, ClipboardList, Sparkles } from 'lucide-react';
+import { Users, Settings, Home, LogOut, Camera, ScanFace, BookOpen, GraduationCap, Calendar, UserCheck, ClipboardList, Sparkles, BarChart2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = () => {
@@ -24,8 +24,9 @@ const Sidebar = () => {
         {
             title: 'Lớp Học Phần',
             items: [
-                { path: '/admin/class-schedules', icon: Calendar, label: 'Lịch Học' },
-                { path: '/admin/class-attendance', icon: UserCheck, label: 'Điểm Danh Lớp' },
+                { path: '/admin/class-schedules',    icon: Calendar,  label: 'Lịch Học' },
+                { path: '/admin/class-attendance',   icon: UserCheck, label: 'Điểm Danh Lớp' },
+                { path: '/admin/attendance-report',  icon: BarChart2, label: 'Báo Cáo Điểm Danh' },
             ]
         },
         {

@@ -80,8 +80,8 @@ exit /b 1
 echo.
 echo ===============================================================================
 echo [X] LOI KET NOI DATABASE MYSQL!
-echo - Hay chac chan MySQL ^(XAMPP / Laragon / MySQL Service^) dang duoc BAT o cong 3306.
-echo - Kiem tra user va password trong file .env ^(Mac dinh: user=root, password=123456^).
+echo - Hay chac chan MySQL ^(XAMPP / Laragon / MySQL Service^) dang duoc BAT o cong 3309 ^(hoac 3306^).
+echo - Kiem tra user va password trong file .env ^(Kiem tra DB_PORT=3309 va DB_PASSWORD=^).
 echo ===============================================================================
 echo.
 pause

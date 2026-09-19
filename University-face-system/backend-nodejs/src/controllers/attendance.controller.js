@@ -457,3 +457,201 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
 };
 
 
+// ═══════════════════════════════════════════════
+//  GET /schedules/today  — lịch học hôm nay
+// ═══════════════════════════════════════════════
+exports.getTodaySchedules = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT cs.id, cs.room_name, cs.teacher_name,
+                   cs.start_time, cs.end_time,
+                   cs.is_recurring, cs.day_of_week,
+                   cs.period_start, cs.period_end,
+                   c.course_code, c.course_name,
+                   (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL)  AS checked_in_count,
+                   (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) AS checked_out_count
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE DATE(cs.start_time) = CURDATE()
+            ORDER BY cs.start_time ASC
+        `);
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getTodaySchedules:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /schedules/active — lịch đang trong giờ học
+// ═══════════════════════════════════════════════
+exports.getActiveSchedules = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT cs.id, cs.room_name, cs.teacher_name,
+                   cs.start_time, cs.end_time,
+                   c.course_code, c.course_name
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE NOW() BETWEEN cs.start_time AND cs.end_time
+            ORDER BY cs.start_time ASC
+        `);
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getActiveSchedules:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /attendance/session/:schedule_id  — trạng thái buổi học
+// ═══════════════════════════════════════════════
+exports.getSessionStatus = async (req, res) => {
+    try {
+        const { schedule_id } = req.params;
+
+        const [sched] = await pool.query(`
+            SELECT cs.*, c.course_code, c.course_name
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE cs.id = ?`, [schedule_id]);
+
+        if (sched.length === 0)
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lịch học' });
+
+        const s = sched[0];
+        const now = new Date();
+        const start = new Date(s.start_time);
+        const end   = new Date(s.end_time);
+        let phase = now < start ? 'not_started' : now > end ? 'ended' : 'ongoing';
+
+        const [[stats]] = await pool.query(`
+            SELECT
+                COUNT(*) AS total,
+                SUM(check_in_time IS NOT NULL)  AS checked_in,
+                SUM(check_out_time IS NOT NULL) AS checked_out,
+                SUM(status = 'Completed')       AS completed,
+                SUM(status = 'Absent' OR (check_in_time IS NULL AND check_out_time IS NULL)) AS absent
+            FROM class_attendance
+            WHERE schedule_id = ?`, [schedule_id]);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                schedule: {
+                    id: s.id,
+                    course_code: s.course_code,
+                    course_name: s.course_name,
+                    room_name: s.room_name,
+                    teacher_name: s.teacher_name,
+                    start_time: s.start_time,
+                    end_time: s.end_time,
+                    phase // 'not_started' | 'ongoing' | 'ended'
+                },
+                stats: {
+                    total:        stats.total        || 0,
+                    checked_in:   stats.checked_in   || 0,
+                    checked_out:  stats.checked_out  || 0,
+                    completed:    stats.completed     || 0,
+                    absent:       stats.absent        || 0
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi getSessionStatus:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /attendance/list/:schedule_id — danh sách điểm danh theo buổi
+// ═══════════════════════════════════════════════
+exports.getAttendanceBySchedule = async (req, res) => {
+    try {
+        const { schedule_id } = req.params;
+
+        const [rows] = await pool.query(`
+            SELECT
+                ca.id,
+                s.student_code, s.full_name, s.class_name, s.faculty,
+                ca.check_in_time,   ca.check_in_confidence,  ca.check_in_status,
+                ca.check_out_time,  ca.check_out_confidence, ca.check_out_status,
+                ca.status,
+                ca.confidence_score,
+                ca.notes,
+                ca.updated_at
+            FROM class_attendance ca
+            JOIN students s ON s.id = ca.student_id
+            WHERE ca.schedule_id = ?
+            ORDER BY ca.check_in_time ASC, ca.check_out_time ASC
+        `, [schedule_id]);
+
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getAttendanceBySchedule:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /attendance/report  — báo cáo điểm danh
+//  Query: ?date_from=&date_to=&course_id=&schedule_id=
+// ═══════════════════════════════════════════════
+exports.getAttendanceReport = async (req, res) => {
+    try {
+        const {
+            date_from,
+            date_to,
+            course_id,
+            schedule_id
+        } = req.query;
+
+        let where = ['1=1'];
+        let params = [];
+
+        if (schedule_id) {
+            where.push('ca.schedule_id = ?');
+            params.push(schedule_id);
+        } else {
+            if (date_from) { where.push('DATE(cs.start_time) >= ?'); params.push(date_from); }
+            if (date_to)   { where.push('DATE(cs.start_time) <= ?'); params.push(date_to); }
+            if (course_id) { where.push('cs.course_id = ?');         params.push(course_id); }
+        }
+
+        const [rows] = await pool.query(`
+            SELECT
+                ca.id,
+                s.student_code, s.full_name, s.class_name, s.faculty,
+                c.course_code,  c.course_name,
+                cs.room_name,   cs.teacher_name,
+                cs.start_time,  cs.end_time,
+                ca.check_in_time,  ca.check_in_confidence,  ca.check_in_status,
+                ca.check_out_time, ca.check_out_confidence, ca.check_out_status,
+                ca.status,
+                ca.confidence_score,
+                ca.notes
+            FROM class_attendance ca
+            JOIN students        s  ON s.id         = ca.student_id
+            JOIN class_schedules cs ON cs.id        = ca.schedule_id
+            JOIN courses         c  ON c.id         = cs.course_id
+            WHERE ${where.join(' AND ')}
+            ORDER BY cs.start_time DESC, s.student_code ASC
+        `, params);
+
+        // Summary stats
+        const total       = rows.length;
+        const checkedIn   = rows.filter(r => r.check_in_time).length;
+        const checkedOut  = rows.filter(r => r.check_out_time).length;
+        const completed   = rows.filter(r => r.status === 'Completed').length;
+        const absent      = rows.filter(r => !r.check_in_time && !r.check_out_time).length;
+
+        return res.status(200).json({
+            success: true,
+            summary: { total, checkedIn, checkedOut, completed, absent },
+            data: rows
+        });
+    } catch (error) {
+        console.error('Lỗi getAttendanceReport:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};

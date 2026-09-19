@@ -3,7 +3,7 @@ import Webcam from 'react-webcam';
 import { 
     Camera, CheckCircle, XCircle, Search, UserCheck, AlertTriangle, 
     User, BookOpen, Calendar, MapPin, Sparkles, RefreshCw, Layers,
-    LogIn, LogOut, Clock, CheckCircle2, AlertCircle, History
+    LogIn, LogOut, Clock, CheckCircle2, AlertCircle, History, ChevronDown
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -40,6 +40,12 @@ const FaceRecognition = () => {
     const [imageSize, setImageSize] = useState([640, 480]);
     const [faceDetected, setFaceDetected] = useState(false);
 
+    // ── Lịch học hôm nay & buổi được chọn ────────────────────────────────
+    const [todaySchedules, setTodaySchedules] = useState([]);
+    const [selectedScheduleId, setSelectedScheduleId] = useState(null);
+    const [loadingSchedules, setLoadingSchedules] = useState(false);
+    // ──────────────────────────────────────────────────────────────────────
+
     // Manual mode state
     const [students, setStudents] = useState([]);
     const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -47,9 +53,10 @@ const FaceRecognition = () => {
     const [matchedStudentInfo, setMatchedStudentInfo] = useState(null);
     const [manualResult, setManualResult] = useState(null);
 
-    // Load student list for manual mode option
+    // Load student list & today schedules on mount
     useEffect(() => {
         loadStudents();
+        loadTodaySchedules();
     }, []);
 
     const loadStudents = async () => {
@@ -70,6 +77,27 @@ const FaceRecognition = () => {
             }
         } catch (err) {
             console.error('Lỗi khi tải danh sách sinh viên:', err);
+        }
+    };
+
+    const loadTodaySchedules = async () => {
+        setLoadingSchedules(true);
+        try {
+            const res = await api.get('/schedules/today');
+            if (res.data.success) {
+                setTodaySchedules(res.data.data);
+                // Tự động chọn buổi học đang diễn ra, hoặc buổi đầu tiên
+                const now = Date.now();
+                const active = res.data.data.find(s =>
+                    new Date(s.start_time) <= now && new Date(s.end_time) >= now
+                );
+                const autoSelect = active || res.data.data[0];
+                if (autoSelect) setSelectedScheduleId(autoSelect.id);
+            }
+        } catch (err) {
+            console.error('Lỗi khi tải lịch học hôm nay:', err);
+        } finally {
+            setLoadingSchedules(false);
         }
     };
 
@@ -113,7 +141,8 @@ const FaceRecognition = () => {
             if (mode === 'auto' && isAutoScanning) {
                 const autoRes = await api.post('/attendance/auto-verify', {
                     image_base64: imageToSend,
-                    attendance_type: attendanceType
+                    attendance_type: attendanceType,
+                    schedule_id: selectedScheduleId || null
                 }, { signal: controller.signal });
 
                 clearTimeout(timeoutId);
@@ -215,7 +244,7 @@ const FaceRecognition = () => {
             isProcessingRef.current = false;
             setIsProcessing(false);
         }
-    }, [mode, isAutoScanning, attendanceType]);
+    }, [mode, isAutoScanning, attendanceType, selectedScheduleId]);
 
     useEffect(() => {
         const interval = setInterval(processCameraFrame, mode === 'auto' ? 1200 : 400);
@@ -330,6 +359,58 @@ const FaceRecognition = () => {
                         <span>Điểm Danh Cuối Giờ (Check-out)</span>
                     </button>
                 </div>
+            </div>
+
+            {/* ── Chọn Buổi Học ─────────────────────────────────────────────── */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-2 shrink-0">
+                        <Calendar size={18} className="text-indigo-500" />
+                        <span className="text-sm font-bold text-gray-700">Buổi học hôm nay:</span>
+                    </div>
+                    <div className="relative flex-1">
+                        <select
+                            value={selectedScheduleId || ''}
+                            onChange={e => setSelectedScheduleId(e.target.value ? Number(e.target.value) : null)}
+                            disabled={loadingSchedules}
+                            className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50 cursor-pointer"
+                        >
+                            <option value="">-- Không chọn buổi cụ thể (tự động lấy hôm nay) --</option>
+                            {todaySchedules.map(s => {
+                                const timeStart = new Date(s.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                                const timeEnd   = new Date(s.end_time).toLocaleTimeString('vi-VN',   { hour: '2-digit', minute: '2-digit' });
+                                return (
+                                    <option key={s.id} value={s.id}>
+                                        [{s.course_code}] {s.course_name} — {s.room_name} ({timeStart}–{timeEnd})
+                                        {s.checked_in_count > 0 ? ` ✓ ${s.checked_in_count} đã check-in` : ''}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                    <button
+                        onClick={loadTodaySchedules}
+                        disabled={loadingSchedules}
+                        title="Làm mới danh sách buổi học"
+                        className="shrink-0 p-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-all disabled:opacity-40"
+                    >
+                        <RefreshCw size={16} className={loadingSchedules ? 'animate-spin' : ''} />
+                    </button>
+                </div>
+                {selectedScheduleId && todaySchedules.find(s => s.id === selectedScheduleId) && (() => {
+                    const s = todaySchedules.find(x => x.id === selectedScheduleId);
+                    const now = new Date();
+                    const isActive = new Date(s.start_time) <= now && new Date(s.end_time) >= now;
+                    return (
+                        <div className={`mt-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                            <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                            {isActive ? '🟢 Buổi học đang diễn ra' : '⏸ Buổi học chưa bắt đầu / đã kết thúc'}
+                            {' · '}Đã check-in: <strong>{s.checked_in_count}</strong>
+                            {' · '}Đã check-out: <strong>{s.checked_out_count}</strong>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Main Layout Grid */}

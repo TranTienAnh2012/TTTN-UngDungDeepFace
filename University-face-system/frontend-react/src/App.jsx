@@ -17,6 +17,7 @@ import ClassSchedules from './pages/admin/ClassSchedules';
 import ClassAttendance from './pages/admin/ClassAttendance';
 import ExamSchedules from './pages/admin/ExamSchedules';
 import ExamAttendance from './pages/admin/ExamAttendance';
+import AttendanceReport from './pages/admin/AttendanceReport';
 
 // Public Face Verification UI
 const FaceVerification = () => (
@@ -62,6 +63,7 @@ function App() {
 
               <Route path="face-registration-demo" element={<FaceRegistration />} />
               <Route path="face-recognition" element={<FaceRecognition />} />
+              <Route path="attendance-report" element={<AttendanceReport />} />
               <Route path="settings" element={<div className="p-8 text-center text-gray-500">Trang Cài đặt (Đang phát triển)</div>} />
             </Route>
         </Routes>

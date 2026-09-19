@@ -1,6 +1,6 @@
-require('dotenv').config();
-const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: [path.join(__dirname, '.env'), path.join(__dirname, '..', '.env')] });
+const fs = require('fs');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
@@ -65,9 +65,9 @@ async function ensureTableColumns(connection) {
 
 async function initializeDatabase() {
     const host = process.env.DB_HOST || '127.0.0.1';
-    const port = Number(process.env.DB_PORT) || 3306;
+    const port = Number(process.env.DB_PORT) || 3309;
     const user = process.env.DB_USER || 'root';
-    const password = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : '123456';
+    const password = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : '';
     const dbName = process.env.DB_NAME || 'face_attendance_db';
 
     console.log('=====================================================');

@@ -20,9 +20,9 @@ def get_db_connection():
     try:
         connection = mysql.connector.connect(
             host=os.getenv("DB_HOST", "127.0.0.1"),
-            port=int(os.getenv("DB_PORT", "3306")),
+            port=int(os.getenv("DB_PORT", "3309")),
             user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", "123456"),
+            password=os.getenv("DB_PASSWORD", ""),
             database=os.getenv("DB_NAME", "face_attendance_db")
         )
         return connection
