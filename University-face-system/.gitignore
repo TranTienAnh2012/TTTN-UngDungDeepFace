@@ -1,10 +1,15 @@
 node_modules/
+*/node_modules/
 .env
 .env.*
 !.env.example
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
+venv/
+*/venv/
+*/.venv/
 temp-ui-repo/
 temp_doc.txt
-
+dist/
+build/

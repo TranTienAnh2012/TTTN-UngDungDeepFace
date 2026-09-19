@@ -4,8 +4,12 @@ import uvicorn
 import numpy as np
 import time
 import asyncio
+import os
+from dotenv import load_dotenv
 import db_mysql
 import face_processor
+
+load_dotenv()
 
 app = FastAPI(title="Face Attendance AI Service")
 
@@ -25,7 +29,7 @@ class Register3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = 0.68
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.60"))
 
 # ============================================================
 # Server-side result cache (Stage 2: non-AI speedup layer)
@@ -197,8 +201,6 @@ async def identify_face(req: IdentifyRequest):
         _update_cache(current_embedding, result)
 
     return result
-
-
 @app.post("/api/v1/detect_pose")
 async def detect_pose(req: DetectPoseRequest):
     result = face_processor.detect_face_pose(req.image_base64)
@@ -226,8 +228,11 @@ async def verify_face(req: VerifyRequest):
 
     similarity = face_processor.compute_cosine_similarity(stored_embedding, current_embedding)
     is_match = bool(similarity >= MATCH_THRESHOLD)
-
-    return {"match": is_match, "confidence": float(similarity)}
+    print(f"[*] Verify Student ID={req.student_id}: Sim={similarity:.4f}, Match={is_match}")
+    return {
+        "match": is_match,
+        "confidence": float(similarity)
+    }
 
 @app.post("/api/v1/register_3step")
 async def register_face_3step(req: Register3StepRequest):
@@ -264,4 +269,6 @@ async def register_face(req: VerifyRequest):
     return {"success": True}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    print(f"[*] Starting AI Service on port {port} (MATCH_THRESHOLD={MATCH_THRESHOLD})...")
+    uvicorn.run(app, host="0.0.0.0", port=port)
