@@ -194,7 +194,7 @@ const Login = () => {
 
                     <div className="mt-10 text-center text-sm font-medium text-slate-500">
                         Chưa có tài khoản quản trị?{' '}
-                        <Link to="/admin/register" className="text-[#175b9f] hover:underline font-semibold">
+                        <Link to="/register" className="text-[#175b9f] hover:underline font-semibold">
                             Liên hệ Phòng Đào tạo (Đăng ký)
                         </Link>
                     </div>

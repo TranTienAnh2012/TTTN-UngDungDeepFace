@@ -53,7 +53,7 @@ api.interceptors.response.use(
                 // Nếu refresh thất bại, xóa token và buộc đăng nhập lại
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/admin/login';
+                window.location.href = '/login';
                 return Promise.reject(refreshError);
             }
         }

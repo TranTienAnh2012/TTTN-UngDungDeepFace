@@ -200,12 +200,13 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
 
         const student = studentRows[0];
 
-        // 3. Class schedule attendance info
+        // 3. Class schedule attendance info - Lấy lịch học đang diễn ra hôm nay
         const [classSchedules] = await pool.query(
             `SELECT cs.id as schedule_id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
              FROM class_schedules cs 
              JOIN courses c ON cs.course_id = c.id 
-             ORDER BY cs.id DESC LIMIT 1`
+             WHERE DATE(cs.start_time) = CURDATE()
+             ORDER BY cs.start_time ASC LIMIT 1`
         );
 
         let classAttendanceInfo = null;
@@ -231,22 +232,17 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
                 status: 'Đã điểm danh bài giảng môn học'
             };
         } else {
-            // Default active course attendance info for UI demo
-            classAttendanceInfo = {
-                course_code: 'COMP101',
-                course_name: 'Lập Trình Trí Tuệ Nhân Tạo & Nhận Diện Khuôn Mặt',
-                room_name: 'Phòng Lab 402',
-                check_in_time: new Date().toLocaleTimeString('vi-VN'),
-                status: 'Đã điểm danh tự động môn học ngày hôm nay'
-            };
+            // Không có lịch học hôm nay -> trả về null
+            classAttendanceInfo = null;
         }
 
-        // 4. Exam schedule attendance info
+        // 4. Exam schedule attendance info - Lấy lịch thi đang diễn ra hôm nay
         const [examSchedules] = await pool.query(
             `SELECT es.id as exam_schedule_id, es.exam_room, es.exam_time, c.course_code, c.course_name 
              FROM exam_schedules es 
              JOIN courses c ON es.course_id = c.id 
-             ORDER BY es.id DESC LIMIT 1`
+             WHERE DATE(es.exam_time) = CURDATE()
+             ORDER BY es.exam_time ASC LIMIT 1`
         );
 
         let examAttendanceInfo = null;
@@ -282,15 +278,7 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
                 status: isEligible ? 'Hợp lệ - Đã check-in dự thi' : '⚠️ KHÔNG đủ điều kiện thi'
             };
         } else {
-            // Default exam attendance demo info
-            examAttendanceInfo = {
-                course_code: 'COMP101',
-                course_name: 'Thi Cuối Kỳ Nhập Môn AI',
-                exam_room: 'Phòng Hội Trường B1',
-                seat: 'Hàng 2 - Ghế 15',
-                is_eligible: true,
-                status: 'Đủ điều kiện thi - Đã xác thực thành công'
-            };
+            examAttendanceInfo = null;
         }
 
         return res.status(200).json({

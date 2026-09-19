@@ -4,6 +4,14 @@ import os
 import json
 import base64
 import numpy as np
+import time
+
+cached_students = None
+last_cache_time = 0
+
+def invalidate_cache():
+    global cached_students
+    cached_students = None
 
 def get_db_connection():
     try:
@@ -40,6 +48,7 @@ def update_student_embedding(student_id, embedding):
                 (embedding_base64.encode('utf-8'), student_id)
             )
             connection.commit()
+            invalidate_cache()
             return True
         except Error as e:
             print(f"Error updating embedding: {e}")
@@ -91,10 +100,14 @@ def get_student_embedding(student_id):
                 connection.close()
     return None
 
-def get_all_student_embeddings():
+def get_all_student_embeddings(force_refresh=False):
     """
-    Fetch all registered student embeddings from MySQL
+    Fetch all registered student embeddings from MySQL, with 10-second caching
     """
+    global cached_students, last_cache_time
+    if not force_refresh and cached_students is not None and time.time() - last_cache_time < 10:
+        return cached_students
+
     connection = get_db_connection()
     students_list = []
     if connection:
@@ -127,6 +140,9 @@ def get_all_student_embeddings():
                             "full_name": row['full_name'],
                             "embedding": emb
                         })
+            
+            cached_students = students_list
+            last_cache_time = time.time()
         except Error as e:
             print(f"Error fetching all embeddings: {e}")
         finally:

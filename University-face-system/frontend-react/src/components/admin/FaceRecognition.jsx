@@ -14,8 +14,18 @@ const FaceRecognition = () => {
     // Auto-scan state
     const [isAutoScanning, setIsAutoScanning] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [lastRecognized, setLastRecognized] = useState(null); // { student, class_attendance, exam_attendance, confidence }
+    const [lastRecognized, setLastRecognized] = useState(null);
     const cooldownRef = useRef(false);
+
+    // ── Multi-frame voting buffer ──────────────────────────────────────────
+    // To prevent false positives, we require VOTE_THRESHOLD consecutive frames
+    // to agree on the SAME student_id before triggering the check-in.
+    const VOTE_WINDOW = 3;       // Look at last N frames
+    const VOTE_THRESHOLD = 2;   // Need at least M of those frames to agree
+    const voteBufferRef = useRef([]); // [{ student_id, confidence }]
+    const [voteProgress, setVoteProgress] = useState(0); // 0-3 for progress bar
+    const [voteLabel, setVoteLabel] = useState(''); // 'Đang xác nhận...' etc.
+    // ──────────────────────────────────────────────────────────────────────
 
     // Camera visual feedback
     const [box, setBox] = useState(null);
@@ -68,39 +78,85 @@ const FaceRecognition = () => {
 
         try {
             if (mode === 'auto' && isAutoScanning) {
-                // Single unified API call for 1:N auto-verification and pose bounding box
                 const autoRes = await api.post('/attendance/auto-verify', { image_base64: imageSrc });
 
                 if (autoRes.data.success) {
+                    // Update bounding box
                     if (autoRes.data.box) {
                         setBox(autoRes.data.box);
                         setFaceDetected(true);
-                        if (autoRes.data.image_size) {
-                            setImageSize(autoRes.data.image_size);
-                        }
+                        if (autoRes.data.image_size) setImageSize(autoRes.data.image_size);
                     } else {
                         setBox(null);
                         setFaceDetected(false);
+                        // Clear vote buffer when face lost
+                        voteBufferRef.current = [];
+                        setVoteProgress(0);
+                        setVoteLabel('');
                     }
 
                     if (autoRes.data.match && !cooldownRef.current) {
-                        setLastRecognized({
-                            student: autoRes.data.student,
-                            class_attendance: autoRes.data.class_attendance,
-                            exam_attendance: autoRes.data.exam_attendance,
-                            confidence: autoRes.data.confidence,
-                            time: new Date().toLocaleTimeString('vi-VN')
+                        // ── Multi-frame voting logic ──
+                        const buffer = voteBufferRef.current;
+                        buffer.push({
+                            student_id: autoRes.data.student?.id,
+                            confidence: autoRes.data.confidence
+                        });
+                        // Keep only last VOTE_WINDOW frames
+                        if (buffer.length > VOTE_WINDOW) buffer.shift();
+
+                        // Count votes for each student_id
+                        const voteCounts = {};
+                        buffer.forEach(v => {
+                            if (v.student_id) {
+                                voteCounts[v.student_id] = (voteCounts[v.student_id] || 0) + 1;
+                            }
                         });
 
-                        // 3.5s cooldown after successful identification
-                        cooldownRef.current = true;
-                        setTimeout(() => {
-                            cooldownRef.current = false;
-                        }, 3500);
+                        // Find best candidate
+                        const bestId = Object.keys(voteCounts)
+                            .sort((a, b) => voteCounts[b] - voteCounts[a])[0];
+                        const bestVotes = bestId ? voteCounts[bestId] : 0;
+
+                        setVoteProgress(bestVotes);
+
+                        if (bestVotes >= VOTE_THRESHOLD) {
+                            // Confirmed! Calculate avg confidence of winning votes
+                            const winConfidences = buffer
+                                .filter(v => String(v.student_id) === String(bestId))
+                                .map(v => v.confidence);
+                            const avgConf = winConfidences.reduce((a, b) => a + b, 0) / winConfidences.length;
+
+                            setVoteLabel('✓ Xác nhận!');
+                            setLastRecognized({
+                                student: autoRes.data.student,
+                                class_attendance: autoRes.data.class_attendance,
+                                exam_attendance: autoRes.data.exam_attendance,
+                                confidence: avgConf,
+                                time: new Date().toLocaleTimeString('vi-VN')
+                            });
+
+                            // Reset buffer & start cooldown
+                            voteBufferRef.current = [];
+                            setVoteProgress(0);
+                            setVoteLabel('');
+                            cooldownRef.current = true;
+                            setTimeout(() => { cooldownRef.current = false; }, 4000);
+                        } else {
+                            setVoteLabel(`Xác nhận ${bestVotes}/${VOTE_THRESHOLD}...`);
+                        }
+                        // ─────────────────────────────
+
+                    } else if (!autoRes.data.match) {
+                        // No match in this frame — don't reset buffer unless face lost
+                        if (!autoRes.data.box) {
+                            voteBufferRef.current = [];
+                            setVoteProgress(0);
+                            setVoteLabel('');
+                        }
                     }
                 }
             } else if (mode === 'manual') {
-                // Manual mode: only detect pose for box
                 const poseRes = await api.post('/face/detect-pose', { image_base64: imageSrc });
                 if (poseRes.data.success && poseRes.data.box) {
                     setBox(poseRes.data.box);
@@ -120,7 +176,7 @@ const FaceRecognition = () => {
     }, [mode, isAutoScanning]);
 
     useEffect(() => {
-        const interval = setInterval(processCameraFrame, mode === 'auto' ? 650 : 300);
+        const interval = setInterval(processCameraFrame, mode === 'auto' ? 1000 : 300);
         return () => clearInterval(interval);
     }, [processCameraFrame, mode]);
 
@@ -276,12 +332,24 @@ const FaceRecognition = () => {
                                     Đang đối soát AI...
                                 </div>
                             )}
+
+                            {/* Vote Progress Indicator */}
+                            {voteLabel && !cooldownRef.current && (
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3" style={{ transform: 'scaleX(-1)' }}>
+                                    <span>{voteLabel}</span>
+                                    <div className="flex gap-1">
+                                        {Array.from({ length: VOTE_THRESHOLD }).map((_, i) => (
+                                            <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i < voteProgress ? 'bg-emerald-400 scale-110' : 'bg-white/30'}`} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {mode === 'auto' && (
                             <div className="mt-3 text-center">
                                 <p className="text-xs text-gray-500 font-medium">
-                                    💡 <strong className="text-gray-700">Chế độ Tự Động:</strong> Chỉ cần đưa mặt vào camera, hệ thống sẽ tự động tìm thông tin sinh viên và ghi nhận điểm danh.
+                                    💡 <strong className="text-gray-700">Chế độ Tự Động:</strong> Chỉ cần đưa mặt vào camera. Hệ thống xác nhận khi nhận diện được {VOTE_THRESHOLD}/{VOTE_WINDOW} frame liên tiếp.
                                 </p>
                             </div>
                         )}
@@ -337,7 +405,7 @@ const FaceRecognition = () => {
                                     {/* Attendance Details Section */}
                                     <div className="p-5 space-y-4">
                                         {/* Course Attendance Card */}
-                                        {lastRecognized.class_attendance && (
+                                        {lastRecognized.class_attendance ? (
                                             <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-2">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -359,10 +427,14 @@ const FaceRecognition = () => {
                                                     <span>Thời gian vào: <strong className="text-gray-800 font-mono">{lastRecognized.class_attendance.check_in_time}</strong></span>
                                                 </div>
                                             </div>
+                                        ) : (
+                                            <div className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-center text-xs text-gray-400 font-medium">
+                                                📅 Không có lịch học nào diễn ra hôm nay
+                                            </div>
                                         )}
 
                                         {/* Exam Attendance Card */}
-                                        {lastRecognized.exam_attendance && (
+                                        {lastRecognized.exam_attendance ? (
                                             <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-xl space-y-2">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -384,6 +456,10 @@ const FaceRecognition = () => {
                                                         Chỗ ngồi: {lastRecognized.exam_attendance.seat}
                                                     </span>
                                                 </div>
+                                            </div>
+                                        ) : (
+                                            <div className="p-3 bg-purple-50/30 border border-dashed border-purple-100 rounded-xl text-center text-xs text-purple-400 font-medium">
+                                                📋 Không có lịch thi nào diễn ra hôm nay
                                             </div>
                                         )}
                                     </div>
