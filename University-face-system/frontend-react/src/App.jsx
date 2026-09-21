@@ -15,6 +15,8 @@ import AdminFaceRegistration from './components/admin/AdminFaceRegistration';
 
 import CourseManagement from './pages/admin/CourseManagement';
 import StudentManagement from './pages/admin/StudentManagement';
+import FacultyClassManagement from './pages/admin/FacultyClassManagement';
+import RoomManagement from './pages/admin/RoomManagement';
 import ClassSchedules from './pages/admin/ClassSchedules';
 import ClassAttendance from './pages/admin/ClassAttendance';
 import ExamSchedules from './pages/admin/ExamSchedules';
@@ -31,6 +33,7 @@ import TeacherReports from './pages/teacher/TeacherReports';
 import TeacherSettings from './pages/teacher/TeacherSettings';
 import TeacherFaceRecognition from './pages/teacher/TeacherFaceRecognition';
 import TeacherFaceRegistration from './pages/teacher/TeacherFaceRegistration';
+import ChatBox from './components/ChatBox';
 
 // Public Face Verification UI
 const FaceVerification = () => (
@@ -78,6 +81,8 @@ function App() {
             
             <Route path="courses" element={<CourseManagement />} />
             <Route path="students" element={<StudentManagement />} />
+            <Route path="faculties-classes" element={<FacultyClassManagement />} />
+            <Route path="rooms" element={<RoomManagement />} />
             <Route path="class-schedules" element={<ClassSchedules />} />
             <Route path="class-attendance" element={<ClassAttendance />} />
             <Route path="exam-schedules" element={<ExamSchedules />} />
@@ -103,6 +108,7 @@ function App() {
             <Route path="face-registration" element={<TeacherFaceRegistration />} />
           </Route>
         </Routes>
+        <ChatBox />
       </AuthProvider>
     </Router>
   );

@@ -297,10 +297,12 @@ async def admin_register_face(req: AdminRegister3StepRequest):
     emb_left = face_processor.extract_embedding(req.image_left)
     emb_right = face_processor.extract_embedding(req.image_right)
 
-    if emb_straight is None or emb_left is None or emb_right is None:
-        raise HTTPException(status_code=400, detail="Could not detect face in one or more images")
+    valid_embs = [e for e in [emb_straight, emb_left, emb_right] if e is not None]
 
-    mean_embedding = np.mean([emb_straight, emb_left, emb_right], axis=0)
+    if not valid_embs or emb_straight is None:
+        raise HTTPException(status_code=400, detail="Could not detect face in primary image")
+
+    mean_embedding = np.mean(valid_embs, axis=0)
     success = db_mysql.update_admin_embedding(req.admin_id, mean_embedding)
 
     if not success:

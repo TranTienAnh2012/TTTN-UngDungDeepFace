@@ -289,9 +289,52 @@ def detect_face_pose(image_base64):
 
 
 def extract_embedding(image_base64):
-    """Extract embedding for face registration."""
+    """Extract embedding for face registration, with fallback for off-center/side poses."""
     result = detect_and_extract(image_base64)
-    return result.get("embedding")
+    emb = result.get("embedding")
+    if emb is not None:
+        return emb
+
+    # Fallback if strict oval or crop filters rejected the face during side/off-center pose
+    try:
+        img = base64_to_image(image_base64)
+        if img is None:
+            return None
+        img_h, img_w = img.shape[:2]
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = detector.detect_faces(img_rgb)
+        if not results:
+            return None
+        
+        # Pick highest confidence face
+        valid_faces = [f for f in results if f.get('confidence', 0) >= 0.70]
+        if not valid_faces:
+            valid_faces = results
+
+        face = max(valid_faces, key=lambda d: d['box'][2] * d['box'][3])
+        x, y, w, h = face['box']
+
+        padding = int(max(w, h) * 0.15)
+        x1 = max(0, x - padding)
+        y1 = max(0, y - padding)
+        x2 = min(img_w, x + w + padding)
+        y2 = min(img_h, y + h + padding)
+        face_crop = img_rgb[y1:y2, x1:x2]
+
+        if face_crop.size > 0:
+            face_crop = ensure_valid_crop(face_crop)
+            df_res = DeepFace.represent(
+                img_path=face_crop,
+                model_name=MODEL_NAME,
+                detector_backend='skip',
+                enforce_detection=False
+            )
+            if len(df_res) > 0:
+                return np.array(df_res[0]["embedding"])
+    except Exception as e:
+        print(f"[FaceProcessor] Fallback extract_embedding error: {e}")
+
+    return None
 
 
 def compute_cosine_similarity(vec1, vec2):

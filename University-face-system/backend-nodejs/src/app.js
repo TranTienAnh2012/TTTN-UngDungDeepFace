@@ -11,6 +11,8 @@ const studentRoutes = require('./routes/student.routes');
 const classRoutes = require('./routes/class.routes');
 const examRoutes = require('./routes/exam.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const chatRoutes = require('./routes/chat.routes');
+const structureRoutes = require('./routes/structure.routes');
 const errorMiddleware = require('./middleware/error.middleware');
 
 dotenv.config();
@@ -36,8 +38,11 @@ app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/classes', classRoutes);
+app.use('/api/class', classRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/structure', structureRoutes);
 app.use('/api', apiRoutes);
 
 app.use(errorMiddleware);

@@ -4,12 +4,19 @@ import api from '../../../services/api';
 
 const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
     const [courses, setCourses] = useState([]);
+    const [rooms, setRooms] = useState([]);
     const [formData, setFormData] = useState({ course_id: '', room_name: '', start_time: '', end_time: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            api.get('/courses').then(res => setCourses(res.data.data)).catch(console.error);
+            Promise.all([
+                api.get('/courses'),
+                api.get('/structure/rooms')
+            ]).then(([resCourse, resRoom]) => {
+                if (resCourse.data.success) setCourses(resCourse.data.data);
+                if (resRoom.data.success) setRooms(resRoom.data.data);
+            }).catch(console.error);
         }
     }, [isOpen]);
 
@@ -39,14 +46,26 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
                 <form onSubmit={handleSubmit} className="p-5 space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">Môn Học *</label>
-                        <select required className="w-full p-2 border rounded-xl" value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})}>
-                            <option value="">-- Chọn môn --</option>
+                        <select required className="w-full p-2 border rounded-xl bg-white text-sm" value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})}>
+                            <option value="">-- Chọn môn học --</option>
                             {courses.map(c => <option key={c.id} value={c.id}>{c.course_code} - {c.course_name}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Phòng *</label>
-                        <input type="text" required className="w-full p-2 border rounded-xl" value={formData.room_name} onChange={e => setFormData({...formData, room_name: e.target.value})} />
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Phòng Học *</label>
+                        <select 
+                            required 
+                            className="w-full p-2 border rounded-xl bg-white text-sm" 
+                            value={formData.room_name} 
+                            onChange={e => setFormData({...formData, room_name: e.target.value})}
+                        >
+                            <option value="">-- Chọn phòng học --</option>
+                            {rooms.map(r => (
+                                <option key={r.id} value={r.room_name}>
+                                    {r.room_code} - {r.room_name} ({r.building || 'Nhà B'})
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -59,8 +78,8 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 hover:bg-gray-100 rounded-xl">Hủy</button>
-                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-xl">{isSubmitting ? 'Đang lưu...' : 'Thêm'}</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 hover:bg-gray-100 rounded-xl text-sm">Hủy</button>
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium">{isSubmitting ? 'Đang lưu...' : 'Thêm'}</button>
                     </div>
                 </form>
             </div>
@@ -69,3 +88,4 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
 };
 
 export default CreateSchedule;
+
