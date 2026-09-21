@@ -8,6 +8,175 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 
+// ── Helper: status badge bêm dưới dropdown chọn buổi học ─────────────────────────
+const ScheduleStatusBadge = ({ scheduleId, schedules }) => {
+    if (!scheduleId) return null;
+    const sel = schedules.find(x => x.id === scheduleId);
+    if (!sel) return null;
+    const nowMs = Date.now();
+    const isActive = new Date(sel.start_time) <= nowMs && new Date(sel.end_time) >= nowMs;
+    return (
+        <div className={`mt-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
+            isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
+        }`}>
+            <span className={`w-2 h-2 rounded-full ${
+                isActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+            }`}></span>
+            {isActive ? '🟢 Buổi học đang diễn ra' : '⏸ Buổi học chưa bắt đầu / đã kết thúc'}
+            {' · '}Đã check-in: <strong>{sel.checked_in_count || 0}</strong>
+            {' · '}Đã check-out: <strong>{sel.checked_out_count || 0}</strong>
+        </div>
+    );
+};
+
+// ── Helper: thẻ kết quả nhận diện ──────────────────────────────────────────────────
+const RecognitionResultCard = ({ recognized }) => {
+    if (!recognized) return null;
+    const isCheckIn = recognized.attendance_type === 'check_in';
+    const ca = recognized.class_attendance;
+    const ea = recognized.exam_attendance;
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className={`p-5 text-white flex items-center gap-4 ${
+                isCheckIn
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+            }`}>
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center font-bold text-2xl shadow-inner shrink-0">
+                    {recognized.student.full_name?.charAt(0) || 'S'}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            {isCheckIn ? 'Check-in Đầu Giờ' : 'Check-out Cuối Giờ'}
+                        </span>
+                        <span className="text-xs text-white/80 ml-auto font-mono">{recognized.time}</span>
+                    </div>
+                    <h2 className="text-xl font-bold truncate mt-0.5">{recognized.student.full_name}</h2>
+                    <p className="text-xs text-white/90 font-medium">
+                        Mã SV: <span className="font-mono font-bold">{recognized.student.student_code}</span> | Lớp: {recognized.student.class_name || 'CNTT'}
+                    </p>
+                </div>
+            </div>
+            {/* Confidence */}
+            <div className="p-3.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-700">Độ tin cậy AI:</span>
+                <div className="flex items-center gap-2">
+                    <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                            className={`h-2 rounded-full ${isCheckIn ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.min(recognized.confidence * 100, 100)}%` }}
+                        ></div>
+                    </div>
+                    <span className="text-sm font-extrabold text-gray-800 font-mono">
+                        {(recognized.confidence * 100).toFixed(1)}%
+                    </span>
+                </div>
+            </div>
+            {/* Details */}
+            <div className="p-5 space-y-4">
+                {/* Class Attendance */}
+                {ca ? (
+                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                                <BookOpen size={14} className="text-blue-600" />
+                                Điểm Danh Lớp Học
+                            </span>
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                                ca.is_complete
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : isCheckIn
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}>
+                                {ca.status}
+                            </span>
+                        </div>
+                        <h4 className="font-bold text-gray-900 text-sm">{ca.course_code} - {ca.course_name}</h4>
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                            <div className={`p-2.5 rounded-lg border text-xs ${
+                                ca.check_in_time
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400'
+                            }`}>
+                                <div className="flex items-center gap-1 font-semibold text-[11px] mb-1">
+                                    <LogIn size={13} className="text-emerald-600" />
+                                    <span>Đầu giờ (Check-in)</span>
+                                </div>
+                                <p className="font-bold font-mono text-sm">{ca.check_in_time || '--:--:--'}</p>
+                            </div>
+                            <div className={`p-2.5 rounded-lg border text-xs ${
+                                ca.check_out_time
+                                    ? 'bg-blue-50 border-blue-200 text-blue-900'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400'
+                            }`}>
+                                <div className="flex items-center gap-1 font-semibold text-[11px] mb-1">
+                                    <LogOut size={13} className="text-blue-600" />
+                                    <span>Cuối giờ (Check-out)</span>
+                                </div>
+                                <p className="font-bold font-mono text-sm">{ca.check_out_time || '--:--:--'}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-gray-600 pt-1 border-t border-gray-200/60">
+                            <span className="flex items-center gap-1">
+                                <MapPin size={12} className="text-gray-400" />
+                                {ca.room_name}
+                            </span>
+                            <span className="text-[11px] font-medium text-gray-500">
+                                {ca.is_complete ? '✓ Đủ điều kiện chuyên cần' : 'Đang trong buổi học'}
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-center text-xs text-gray-400 font-medium">
+                        📅 Không có lịch học nào diễn ra hôm nay
+                    </div>
+                )}
+                {/* Exam Attendance */}
+                {ea ? (
+                    <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <Calendar size={14} className="text-purple-600" />
+                                Điểm Danh Phòng Thi
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                ea.is_eligible ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                                {ea.is_eligible ? '✓ Đủ điều kiện thi' : '✕ Không đủ điều kiện'}
+                            </span>
+                        </div>
+                        <h4 className="font-bold text-gray-900 text-sm">{ea.course_code} - {ea.course_name}</h4>
+                        <div className="flex justify-between items-center text-xs text-purple-900 pt-1">
+                            <span className="font-semibold">{ea.exam_room}</span>
+                            <span className="font-bold bg-white px-2 py-0.5 rounded border border-purple-200">
+                                Chỗ ngồi: {ea.seat}
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-3 bg-purple-50/30 border border-dashed border-purple-100 rounded-xl text-center text-xs text-purple-400 font-medium">
+                        📋 Không có lịch thi nào diễn ra hôm nay
+                    </div>
+                )}
+            </div>
+
+            {/* Re-register face action footer */}
+            <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500 font-medium">Cần cập nhật lại khuôn mặt?</span>
+                <a
+                    href={`/admin/face-registration?student_id=${recognized.student.id}`}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                >
+                    🔄 Đăng ký lại khuôn mặt
+                </a>
+            </div>
+        </div>
+    );
+};
+
 const FaceRecognition = () => {
     const [searchParams] = useSearchParams();
     const webcamRef = useRef(null);
@@ -35,10 +204,12 @@ const FaceRecognition = () => {
     const [voteLabel, setVoteLabel] = useState(''); // 'Đang xác nhận...' etc.
     // ──────────────────────────────────────────────────────────────────────
 
-    // Camera visual feedback
+    // Camera visual feedback & Guidance
     const [box, setBox] = useState(null);
     const [imageSize, setImageSize] = useState([640, 480]);
     const [faceDetected, setFaceDetected] = useState(false);
+    const [qualityReason, setQualityReason] = useState('no_face');
+    const [guidanceMessage, setGuidanceMessage] = useState('🎯 Vui lòng đưa khuôn mặt vào khung hình tròn');
 
     // ── Lịch học hôm nay & buổi được chọn ────────────────────────────────
     const [todaySchedules, setTodaySchedules] = useState([]);
@@ -101,41 +272,49 @@ const FaceRecognition = () => {
         }
     };
 
+    const offscreenCanvasRef = useRef(null);
+
+    const getScaledScreenshot = useCallback(() => {
+        if (!webcamRef.current) return null;
+        const video = webcamRef.current.video;
+        if (!video || video.readyState < 2) {
+            return webcamRef.current.getScreenshot();
+        }
+        try {
+            if (!offscreenCanvasRef.current) {
+                offscreenCanvasRef.current = document.createElement('canvas');
+            }
+            const canvas = offscreenCanvasRef.current;
+            const maxW = 320;
+            const vWidth = video.videoWidth || 640;
+            const vHeight = video.videoHeight || 480;
+            const scale = Math.min(1, maxW / vWidth);
+
+            canvas.width = Math.round(vWidth * scale);
+            canvas.height = Math.round(vHeight * scale);
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.7);
+        } catch (e) {
+            return webcamRef.current.getScreenshot();
+        }
+    }, []);
+
     const isProcessingRef = useRef(false);
 
     // Continuous face detection & auto-identification loop
     const processCameraFrame = useCallback(async () => {
         if (isProcessingRef.current || !webcamRef.current) return;
-        const imageSrc = webcamRef.current.getScreenshot();
-        if (!imageSrc) return;
+        const imageToSend = getScaledScreenshot();
+        if (!imageToSend) return;
 
         isProcessingRef.current = true;
-        setIsProcessing(true);
+        if (mode === 'manual') setIsProcessing(true);
 
-        // Downscale ảnh xuống 320px để tăng tốc độ gửi và xử lý AI
-        let imageToSend = imageSrc;
-        try {
-            imageToSend = await new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const maxW = 320;
-                    const scale = Math.min(1, maxW / img.width);
-                    const canvas = document.createElement('canvas');
-                    canvas.width = Math.round(img.width * scale);
-                    canvas.height = Math.round(img.height * scale);
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.75));
-                };
-                img.onerror = () => resolve(imageSrc);
-                img.src = imageSrc;
-            });
-        } catch (_) {
-            imageToSend = imageSrc;
-        }
-
-        // Abort controller: timeout 4 giây để tránh treo
+        // Abort controller: timeout 3.5 giây để tránh treo
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
 
         try {
             if (mode === 'auto' && isAutoScanning) {
@@ -148,6 +327,14 @@ const FaceRecognition = () => {
                 clearTimeout(timeoutId);
 
                 if (autoRes.data.success) {
+                    // Update quality reason & guidance message
+                    if (autoRes.data.quality_reason) {
+                        setQualityReason(autoRes.data.quality_reason);
+                    }
+                    if (autoRes.data.message) {
+                        setGuidanceMessage(autoRes.data.message);
+                    }
+
                     // Update bounding box
                     if (autoRes.data.box) {
                         setBox(autoRes.data.box);
@@ -158,7 +345,11 @@ const FaceRecognition = () => {
                         setFaceDetected(false);
                     }
 
-                    if (autoRes.data.match && !cooldownRef.current) {
+                    if (cooldownRef.current) {
+                        voteBufferRef.current = [];
+                        setVoteProgress(0);
+                        setVoteLabel('');
+                    } else if (autoRes.data.match) {
                         // ── Multi-frame voting logic ──
                         const buffer = voteBufferRef.current;
                         buffer.push({
@@ -205,16 +396,28 @@ const FaceRecognition = () => {
                             setVoteProgress(0);
                             setVoteLabel('');
                             cooldownRef.current = true;
-                            setTimeout(() => { cooldownRef.current = false; }, 4000);
+                            setTimeout(() => { cooldownRef.current = false; }, 3500);
                         } else {
                             setVoteLabel(`Xác nhận ${bestVotes}/${VOTE_THRESHOLD}...`);
                         }
-                        // ──────────────────────────────
-                    } else if (!autoRes.data.match) {
-                        // No match — reset buffer only if face also lost
-                        if (!autoRes.data.box) {
-                            voteBufferRef.current = [];
-                            setVoteProgress(0);
+                    } else {
+                        // Non-matching frame: push null to let unconfirmed votes expire out of buffer
+                        const buffer = voteBufferRef.current;
+                        buffer.push({ student_id: null, confidence: 0 });
+                        if (buffer.length > VOTE_WINDOW) buffer.shift();
+
+                        const voteCounts = {};
+                        buffer.forEach(v => {
+                            if (v.student_id) {
+                                voteCounts[v.student_id] = (voteCounts[v.student_id] || 0) + 1;
+                            }
+                        });
+                        const bestId = Object.keys(voteCounts).sort((a, b) => voteCounts[b] - voteCounts[a])[0];
+                        const bestVotes = bestId ? voteCounts[bestId] : 0;
+                        setVoteProgress(bestVotes);
+                        if (bestVotes > 0) {
+                            setVoteLabel(`Xác nhận ${bestVotes}/${VOTE_THRESHOLD}...`);
+                        } else {
                             setVoteLabel('');
                         }
                     }
@@ -239,15 +442,14 @@ const FaceRecognition = () => {
                 setBox(null);
                 setFaceDetected(false);
             }
-            // Ignore other transient errors
         } finally {
             isProcessingRef.current = false;
-            setIsProcessing(false);
+            if (mode === 'manual') setIsProcessing(false);
         }
-    }, [mode, isAutoScanning, attendanceType, selectedScheduleId]);
+    }, [mode, isAutoScanning, attendanceType, selectedScheduleId, getScaledScreenshot]);
 
     useEffect(() => {
-        const interval = setInterval(processCameraFrame, mode === 'auto' ? 1200 : 400);
+        const interval = setInterval(processCameraFrame, mode === 'auto' ? 500 : 350);
         return () => clearInterval(interval);
     }, [processCameraFrame, mode]);
 
@@ -398,19 +600,7 @@ const FaceRecognition = () => {
                         <RefreshCw size={16} className={loadingSchedules ? 'animate-spin' : ''} />
                     </button>
                 </div>
-                {selectedScheduleId && todaySchedules.find(s => s.id === selectedScheduleId) && (() => {
-                    const s = todaySchedules.find(x => x.id === selectedScheduleId);
-                    const now = new Date();
-                    const isActive = new Date(s.start_time) <= now && new Date(s.end_time) >= now;
-                    return (
-                        <div className={`mt-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                            <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></span>
-                            {isActive ? '🟢 Buổi học đang diễn ra' : '⏸ Buổi học chưa bắt đầu / đã kết thúc'}
-                            {' · '}Đã check-in: <strong>{s.checked_in_count}</strong>
-                            {' · '}Đã check-out: <strong>{s.checked_out_count}</strong>
-                        </div>
-                    );
-                })()}
+                <ScheduleStatusBadge scheduleId={selectedScheduleId} schedules={todaySchedules} />
             </div>
 
             {/* Main Layout Grid */}
@@ -459,7 +649,68 @@ const FaceRecognition = () => {
                                 className="w-full h-auto block"
                             />
 
-                            {/* Bounding Box Overlay */}
+                            {/* Oval Target Frame Mask Overlay */}
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                <svg className="w-full h-full" viewBox="0 0 640 480" preserveAspectRatio="none">
+                                    <defs>
+                                        <mask id="oval-mask">
+                                            <rect width="640" height="480" fill="white" />
+                                            <ellipse cx="320" cy="235" rx="140" ry="190" fill="black" />
+                                        </mask>
+                                    </defs>
+                                    {/* Darkened vignette outside the oval target area */}
+                                    <rect width="640" height="480" fill="rgba(15, 23, 42, 0.55)" mask="url(#oval-mask)" />
+                                    {/* Oval Border Target Ring */}
+                                    <ellipse
+                                        cx="320"
+                                        cy="235"
+                                        rx="140"
+                                        ry="190"
+                                        fill="none"
+                                        stroke={
+                                            faceDetected
+                                                ? (attendanceType === 'check_in' ? '#10b981' : '#3b82f6')
+                                                : qualityReason === 'outside_oval_frame'
+                                                ? '#f59e0b'
+                                                : qualityReason === 'face_too_small'
+                                                ? '#3b82f6'
+                                                : 'rgba(255, 255, 255, 0.8)'
+                                        }
+                                        strokeWidth={faceDetected ? '4' : qualityReason === 'outside_oval_frame' ? '3' : '2'}
+                                        strokeDasharray={faceDetected ? 'none' : '8 6'}
+                                        className="transition-all duration-300"
+                                    />
+                                </svg>
+
+                                {/* Target Guidance Hint Header */}
+                                <div
+                                    className={`absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full text-white text-[11px] font-bold flex items-center gap-2 border shadow-lg transition-all duration-300 ${
+                                        faceDetected
+                                            ? 'bg-emerald-600/90 border-emerald-400'
+                                            : qualityReason === 'outside_oval_frame'
+                                            ? 'bg-amber-600/95 border-amber-400 animate-bounce'
+                                            : qualityReason === 'face_too_small'
+                                            ? 'bg-blue-600/95 border-blue-400'
+                                            : 'bg-black/70 border-white/20'
+                                    }`}
+                                    style={{ transform: 'scaleX(-1)' }}
+                                >
+                                    <span className={`w-2.5 h-2.5 rounded-full ${
+                                        faceDetected
+                                            ? 'bg-emerald-300 animate-pulse'
+                                            : qualityReason === 'outside_oval_frame'
+                                            ? 'bg-amber-300 animate-ping'
+                                            : qualityReason === 'face_too_small'
+                                            ? 'bg-blue-300'
+                                            : 'bg-amber-400'
+                                    }`}></span>
+                                    <span>
+                                        {faceDetected
+                                            ? '✓ Đã khớp vị trí! Đang nhận diện...'
+                                            : guidanceMessage}
+                                    </span>
+                                </div>
+                            </div>
                             {box && (
                                 <div
                                     className="absolute pointer-events-none transition-all duration-150"
@@ -536,176 +787,28 @@ const FaceRecognition = () => {
                     {/* MODE 1: AUTO RECOGNIZED RESULT DISPLAY */}
                     {mode === 'auto' && (
                         <>
-                            {lastRecognized ? (
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-300">
-                                    {/* Student Card Header */}
-                                    <div className={`p-5 text-white flex items-center gap-4 ${
-                                        lastRecognized.attendance_type === 'check_in'
-                                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600'
-                                            : 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                                    }`}>
-                                        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center font-bold text-2xl shadow-inner shrink-0">
-                                            {lastRecognized.student.full_name?.charAt(0) || 'S'}
+                            {lastRecognized
+                                ? <RecognitionResultCard recognized={lastRecognized} />
+                                : (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
+                                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                                            attendanceType === 'check_in' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                        }`}>
+                                            {attendanceType === 'check_in' ? <LogIn size={32} /> : <LogOut size={32} />}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                                    {lastRecognized.attendance_type === 'check_in' ? 'Check-in Đầu Giờ' : 'Check-out Cuối Giờ'}
-                                                </span>
-                                                <span className="text-xs text-white/80 ml-auto font-mono">
-                                                    {lastRecognized.time}
-                                                </span>
-                                            </div>
-                                            <h2 className="text-xl font-bold truncate mt-0.5">
-                                                {lastRecognized.student.full_name}
-                                            </h2>
-                                            <p className="text-xs text-white/90 font-medium">
-                                                Mã SV: <span className="font-mono font-bold">{lastRecognized.student.student_code}</span> | Lớp: {lastRecognized.student.class_name || 'CNTT'}
-                                            </p>
-                                        </div>
+                                        <h3 className="font-bold text-gray-800 text-lg mb-1">
+                                            Sẵn Sàng {attendanceType === 'check_in' ? 'Điểm Danh Đầu Giờ' : 'Điểm Danh Cuối Giờ'}
+                                        </h3>
+                                        <p className="text-gray-500 text-sm max-w-xs">
+                                            Vui lòng đưa khuôn mặt sinh viên vào khung camera để hệ thống tự động ghi nhận thời gian {attendanceType === 'check_in' ? 'vào lớp' : 'kết thúc buổi học'}.
+                                        </p>
                                     </div>
+                                )
+                            }
 
-                                    {/* Confidence Score Bar */}
-                                    <div className="p-3.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                                        <span className="text-xs font-bold text-gray-700">Độ tin cậy AI:</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
-                                                <div
-                                                    className={`h-2 rounded-full ${
-                                                        lastRecognized.attendance_type === 'check_in' ? 'bg-emerald-500' : 'bg-blue-500'
-                                                    }`}
-                                                    style={{ width: `${Math.min(lastRecognized.confidence * 100, 100)}%` }}
-                                                ></div>
-                                            </div>
-                                            <span className="text-sm font-extrabold text-gray-800 font-mono">
-                                                {(lastRecognized.confidence * 100).toFixed(1)}%
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Attendance Details Section */}
-                                    <div className="p-5 space-y-4">
-                                        {/* Course Attendance Card with Dual Check-in & Check-out */}
-                                        {lastRecognized.class_attendance && (
-                                            <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                                        <BookOpen size={14} className="text-primary-600" />
-                                                        Điểm Danh Lớp Học
-                                                    </span>
-                                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                                                        lastRecognized.class_attendance.is_complete
-                                                            ? 'bg-emerald-100 text-emerald-700'
-                                                            : lastRecognized.class_attendance.attendance_type === 'check_in'
-                                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                            : 'bg-blue-50 text-blue-700 border border-blue-200'
-                                                    }`}>
-                                                        {lastRecognized.class_attendance.status}
-                                                    </span>
-                                                </div>
-
-                                                <h4 className="font-bold text-gray-900 text-sm">
-                                                    {lastRecognized.class_attendance.course_code} - {lastRecognized.class_attendance.course_name}
-                                                </h4>
-
-                                                {/* Check-in & Check-out Dual Timers */}
-                                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                                    {/* Check-in box */}
-                                                    <div className={`p-2.5 rounded-lg border text-xs ${
-                                                        lastRecognized.class_attendance.check_in_time
-                                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                                                            : 'bg-gray-100 border-gray-200 text-gray-400'
-                                                    }`}>
-                                                        <div className="flex items-center gap-1 font-semibold text-[11px] mb-1">
-                                                            <LogIn size={13} className="text-emerald-600" />
-                                                            <span>Đầu giờ (Check-in)</span>
-                                                        </div>
-                                                        <p className="font-bold font-mono text-sm">
-                                                            {lastRecognized.class_attendance.check_in_time || '--:--:--'}
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Check-out box */}
-                                                    <div className={`p-2.5 rounded-lg border text-xs ${
-                                                        lastRecognized.class_attendance.check_out_time
-                                                            ? 'bg-blue-50 border-blue-200 text-blue-900'
-                                                            : 'bg-gray-100 border-gray-200 text-gray-400'
-                                                    }`}>
-                                                        <div className="flex items-center gap-1 font-semibold text-[11px] mb-1">
-                                                            <LogOut size={13} className="text-blue-600" />
-                                                            <span>Cuối giờ (Check-out)</span>
-                                                        </div>
-                                                        <p className="font-bold font-mono text-sm">
-                                                            {lastRecognized.class_attendance.check_out_time || '--:--:--'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex justify-between items-center text-xs text-gray-600 pt-1 border-t border-gray-200/60">
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin size={12} className="text-gray-400" />
-                                                        {lastRecognized.class_attendance.room_name}
-                                                    </span>
-                                                    <span className="text-[11px] font-medium text-gray-500">
-                                                        {lastRecognized.class_attendance.is_complete ? '✓ Đủ điều kiện chuyên cần' : 'Đang trong buổi học'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-center text-xs text-gray-400 font-medium">
-                                                📅 Không có lịch học nào diễn ra hôm nay
-                                            </div>
-                                        )}
-
-                                        {/* Exam Attendance Card */}
-                                        {lastRecognized.exam_attendance ? (
-                                            <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-xl space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                        <Calendar size={14} className="text-purple-600" />
-                                                        Điểm Danh Phòng Thi
-                                                    </span>
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                        lastRecognized.exam_attendance.is_eligible ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'
-                                                    }`}>
-                                                        {lastRecognized.exam_attendance.is_eligible ? '✓ Đủ điều kiện thi' : '✕ Không đủ điều kiện'}
-                                                    </span>
-                                                </div>
-                                                <h4 className="font-bold text-gray-900 text-sm">
-                                                    {lastRecognized.exam_attendance.course_code} - {lastRecognized.exam_attendance.course_name}
-                                                </h4>
-                                                <div className="flex justify-between items-center text-xs text-purple-900 pt-1">
-                                                    <span className="font-semibold">{lastRecognized.exam_attendance.exam_room}</span>
-                                                    <span className="font-bold bg-white px-2 py-0.5 rounded border border-purple-200">
-                                                        Chỗ ngồi: {lastRecognized.exam_attendance.seat}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="p-3 bg-purple-50/30 border border-dashed border-purple-100 rounded-xl text-center text-xs text-purple-400 font-medium">
-                                                📋 Không có lịch thi nào diễn ra hôm nay
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                                        attendanceType === 'check_in' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                                    }`}>
-                                        {attendanceType === 'check_in' ? <LogIn size={32} /> : <LogOut size={32} />}
-                                    </div>
-                                    <h3 className="font-bold text-gray-800 text-lg mb-1">
-                                        Sẵn Sàng {attendanceType === 'check_in' ? 'Điểm Danh Đầu Giờ' : 'Điểm Danh Cuối Giờ'}
-                                    </h3>
-                                    <p className="text-gray-500 text-sm max-w-xs">
-                                        Vui lòng đưa khuôn mặt sinh viên vào khung camera để hệ thống tự động ghi nhận thời gian {attendanceType === 'check_in' ? 'vào lớp' : 'kết thúc buổi học'}.
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Recent Scans In This Session */}
+                            {/* Recent Scans */}
                             {recentScans.length > 0 && (
+
                                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
                                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                                         <History size={14} className="text-indigo-600" />
@@ -761,6 +864,16 @@ const FaceRecognition = () => {
                                         </option>
                                     ))}
                                 </select>
+                                {selectedStudentId && (
+                                    <div className="mt-1.5 flex justify-end">
+                                        <a
+                                            href={`/admin/face-registration?student_id=${selectedStudentId}`}
+                                            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 hover:underline"
+                                        >
+                                            🔄 Đăng ký lại khuôn mặt cho SV này
+                                        </a>
+                                    </div>
+                                )}
                             </div>
 
                             <button

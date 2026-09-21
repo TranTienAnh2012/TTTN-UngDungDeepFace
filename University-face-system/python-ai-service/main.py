@@ -29,7 +29,7 @@ class Register3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.60"))
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.45"))
 
 # ============================================================
 # Server-side result cache (Stage 2: non-AI speedup layer)
@@ -121,13 +121,15 @@ async def identify_face(req: IdentifyRequest):
     # Quality or detection failed — return early (cheap)
     if not detect_result["quality_ok"] or detect_result["box"] is None:
         reason = detect_result.get("quality_reason", "unknown")
+        status_text = detect_result.get("status_text") or f"Frame skipped: {reason}"
         return {
             "match": False,
             "box": None,
             "image_size": detect_result.get("image_size"),
             "student_id": None,
             "confidence": 0,
-            "message": f"Frame skipped: {reason}"
+            "quality_reason": reason,
+            "message": status_text
         }
 
     if detect_result["embedding"] is None:
@@ -164,8 +166,25 @@ async def identify_face(req: IdentifyRequest):
             "message": "No registered face embeddings in database"
         }
 
+    # Filter students with matching embedding dimensions
+    target_shape = current_embedding.shape
+    valid_students = [
+        s for s in all_students 
+        if hasattr(s.get("embedding"), "shape") and s["embedding"].shape == target_shape
+    ]
+
+    if not valid_students:
+        return {
+            "match": False,
+            "box": detect_result["box"],
+            "image_size": detect_result.get("image_size"),
+            "student_id": None,
+            "confidence": 0,
+            "message": f"No embeddings matching dimension {target_shape}"
+        }
+
     # Build normalized matrix for batch cosine similarity
-    embeddings_matrix = np.array([s["embedding"] for s in all_students], dtype=np.float64)
+    embeddings_matrix = np.array([s["embedding"] for s in valid_students], dtype=np.float64)
     norms = np.linalg.norm(embeddings_matrix, axis=1, keepdims=True)
     current_norm = np.linalg.norm(current_embedding)
 
@@ -180,12 +199,12 @@ async def identify_face(req: IdentifyRequest):
 
     best_idx = int(np.argmax(similarities))
     best_similarity = float(similarities[best_idx])
-    best_student = all_students[best_idx]
+    best_student = valid_students[best_idx]
 
     is_match = best_similarity >= MATCH_THRESHOLD
 
     t1 = time.time()
-    print(f"[Identify] {(t1-t0)*1000:.0f}ms | best={best_similarity:.3f} | match={is_match} | n_students={len(all_students)}")
+    print(f"[Identify] {(t1-t0)*1000:.0f}ms | best={best_similarity:.3f} | match={is_match} | n_students={len(valid_students)}")
 
     result = {
         "match": is_match,

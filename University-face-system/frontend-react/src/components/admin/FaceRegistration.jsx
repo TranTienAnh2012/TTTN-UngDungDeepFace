@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
-import { Camera, CheckCircle, AlertCircle, RefreshCw, UserPlus, UserCheck, ArrowRight, ArrowLeft, Search, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Camera, CheckCircle, AlertCircle, RefreshCw, UserPlus, UserCheck, ArrowRight, ArrowLeft, Search, User, Filter, RotateCcw } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 
 const FaceRegistration = ({ onComplete }) => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const webcamRef = useRef(null);
     const containerRef = useRef(null);
 
@@ -23,6 +24,10 @@ const FaceRegistration = ({ onComplete }) => {
     const [isSavingStudent, setIsSavingStudent] = useState(false);
     const [existingStudents, setExistingStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null); // { id, student_code, full_name, class_name }
+
+    // Search and filter for existing students
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterFaceStatus, setFilterFaceStatus] = useState('all'); // 'all', 'registered', 'not_registered'
 
     // Camera 3-step state
     const [step, setStep] = useState('straight'); // straight, left, right, registering, error
@@ -47,6 +52,14 @@ const FaceRegistration = ({ onComplete }) => {
             const res = await api.get('/student-list');
             if (res.data.success) {
                 setExistingStudents(res.data.data);
+
+                const paramStudentId = searchParams.get('student_id');
+                if (paramStudentId) {
+                    const found = res.data.data.find(s => s.id === parseInt(paramStudentId));
+                    if (found) {
+                        handleSelectExistingStudent(found);
+                    }
+                }
             }
         } catch (err) {
             console.error('Lỗi khi tải danh sách sinh viên:', err);
@@ -354,23 +367,77 @@ const FaceRegistration = ({ onComplete }) => {
 
                     {/* Right: Quick Select Existing Students */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
-                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <User size={16} className="text-gray-500" />
-                            Hoặc Chọn Sinh Viên Sẵn Có ({existingStudents.length})
-                        </h3>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                <User size={16} className="text-gray-500" />
+                                Đăng Ký / Đăng Ký Lại ({existingStudents.length})
+                            </h3>
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="relative mb-3">
+                            <input
+                                type="text"
+                                placeholder="Tìm theo tên hoặc mã SV..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-400"
+                            />
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        </div>
+
+                        {/* Filter Tabs */}
+                        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl mb-3 text-[11px] font-bold">
+                            <button
+                                type="button"
+                                onClick={() => setFilterFaceStatus('all')}
+                                className={`flex-1 py-1 rounded-lg text-center transition-all ${filterFaceStatus === 'all' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                            >
+                                Tất cả ({existingStudents.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFilterFaceStatus('registered')}
+                                className={`flex-1 py-1 rounded-lg text-center transition-all ${filterFaceStatus === 'registered' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                            >
+                                Đã có mặt ({existingStudents.filter(s => s.has_face).length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFilterFaceStatus('not_registered')}
+                                className={`flex-1 py-1 rounded-lg text-center transition-all ${filterFaceStatus === 'not_registered' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                            >
+                                Chưa có ({existingStudents.filter(s => !s.has_face).length})
+                            </button>
+                        </div>
 
                         <div className="flex-1 overflow-y-auto max-h-[340px] space-y-2 pr-1">
                             {existingStudents.length === 0 ? (
                                 <p className="text-sm text-gray-400 text-center py-6">Chưa có sinh viên trong danh sách</p>
-                            ) : (
-                                existingStudents.map((s) => (
+                            ) : (() => {
+                                const filtered = existingStudents.filter(s => {
+                                    const matchSearch = (s.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                        (s.student_code || '').toLowerCase().includes(searchTerm.toLowerCase());
+                                    if (!matchSearch) return false;
+                                    if (filterFaceStatus === 'registered') return s.has_face;
+                                    if (filterFaceStatus === 'not_registered') return !s.has_face;
+                                    return true;
+                                });
+                                if (filtered.length === 0) {
+                                    return <p className="text-xs text-gray-400 text-center py-6">Không tìm thấy sinh viên phù hợp</p>;
+                                }
+                                return filtered.map((s) => (
                                     <div
                                         key={s.id}
                                         onClick={() => handleSelectExistingStudent(s)}
-                                        className="p-3 border border-gray-100 rounded-xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all flex items-center justify-between group"
+                                        className={`p-3 border rounded-xl hover:shadow-sm cursor-pointer transition-all flex items-center justify-between group ${
+                                            s.has_face
+                                                ? 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50 hover:border-indigo-200'
+                                                : 'border-amber-100 bg-amber-50/20 hover:bg-amber-50 hover:border-amber-200'
+                                        }`}
                                     >
                                         <div>
-                                            <div className="font-semibold text-gray-800 group-hover:text-primary-700 text-sm">
+                                            <div className="font-semibold text-gray-800 group-hover:text-primary-700 text-sm flex items-center gap-1.5">
                                                 {s.full_name}
                                             </div>
                                             <div className="text-xs text-gray-500">
@@ -380,18 +447,18 @@ const FaceRegistration = ({ onComplete }) => {
                                         </div>
                                         <div>
                                             {s.has_face ? (
-                                                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
-                                                    Đã có khuôn mặt
+                                                <span className="text-[11px] bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                                    <RotateCcw size={12} /> Đăng ký lại
                                                 </span>
                                             ) : (
-                                                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                                                    Chưa có khuôn mặt
+                                                <span className="text-[11px] bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-amber-200 group-hover:bg-amber-600 group-hover:text-white transition-all">
+                                                    <Camera size={12} /> Đăng ký mới
                                                 </span>
                                             )}
                                         </div>
                                     </div>
-                                ))
-                            )}
+                                ));
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -401,13 +468,26 @@ const FaceRegistration = ({ onComplete }) => {
             {pagePhase === 'camera_scan' && selectedStudent && (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full max-w-2xl mx-auto">
                     {/* Selected Student Banner */}
-                    <div className="p-4 bg-primary-50 border-b border-primary-100 flex items-center justify-between">
+                    <div className={`p-4 border-b flex items-center justify-between ${
+                        selectedStudent.has_face
+                            ? 'bg-indigo-50/80 border-indigo-100'
+                            : 'bg-primary-50 border-primary-100'
+                    }`}>
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold text-sm">
+                            <div className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm ${
+                                selectedStudent.has_face ? 'bg-indigo-600' : 'bg-primary-600'
+                            }`}>
                                 {selectedStudent.full_name?.charAt(0) || 'S'}
                             </div>
                             <div>
-                                <h4 className="font-bold text-gray-900 text-sm">{selectedStudent.full_name}</h4>
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-gray-900 text-sm">{selectedStudent.full_name}</h4>
+                                    {selectedStudent.has_face && (
+                                        <span className="text-[10px] font-bold bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                            <RotateCcw size={10} /> ĐĂNG KÝ LẠI
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-xs text-gray-600">
                                     Mã SV: <span className="font-mono font-semibold">{selectedStudent.student_code}</span> | Lớp: {selectedStudent.class_name || 'N/A'} (ID: #{selectedStudent.id})
                                 </p>
@@ -420,6 +500,13 @@ const FaceRegistration = ({ onComplete }) => {
                             <ArrowLeft size={14} /> Thay đổi
                         </button>
                     </div>
+
+                    {selectedStudent.has_face && (
+                        <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-2 text-xs text-indigo-900 font-medium flex items-center gap-2">
+                            <RotateCcw size={14} className="text-indigo-600 shrink-0" />
+                            <span><strong>Chế độ Đăng ký lại:</strong> Sau khi hoàn thành 3 bước quét, dữ liệu vector khuôn mặt cũ của sinh viên sẽ được cập nhật lại bằng dữ liệu mới.</span>
+                        </div>
+                    )}
 
                     <div className="p-6 flex flex-col items-center">
                         {/* 3 Step progress bar */}

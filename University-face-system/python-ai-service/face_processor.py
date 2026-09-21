@@ -114,18 +114,50 @@ def detect_and_extract(image_base64):
                         "detect": t_detect
                     }}
 
-        # Get highest confidence detection
-        face = max(results, key=lambda d: d['confidence'])
+        # Target Oval geometry relative to image (centered at cx=0.50, cy=0.49, rx=0.22, ry=0.39)
+        oval_cx = img_w * 0.50
+        oval_cy = img_h * 0.49
+        oval_rx = img_w * 0.22  # ~140px on 640w
+        oval_ry = img_h * 0.39  # ~190px on 480h
 
-        # Reject very low confidence detections
-        if face['confidence'] < 0.90:
-            return {"box": None, "pose": "none", "image_size": [img_w, img_h],
-                    "embedding": None, "quality_ok": True, "quality_reason": f"low_conf ({face['confidence']:.2f})",
-                    "timings": {
-                        "total": time.perf_counter() - t_start,
-                        "quality": t_quality,
-                        "detect": t_detect
-                    }}
+        inside_oval_faces = []
+        too_small_inside_faces = []
+
+        for f in results:
+            if f['confidence'] < 0.85:
+                continue
+            fx, fy, fw, fh = f['box']
+            fcx = fx + fw / 2.0
+            fcy = fy + fh / 2.0
+
+            # Normalized ellipse distance from center (<= 1.0 means INSIDE the oval target)
+            ellipse_dist = ((fcx - oval_cx) / oval_rx) ** 2 + ((fcy - oval_cy) / oval_ry) ** 2
+
+            if ellipse_dist <= 1.0:
+                # Check face size relative to frame width (at least 14% of image width)
+                if (fw / float(img_w)) >= 0.14:
+                    inside_oval_faces.append(f)
+                else:
+                    too_small_inside_faces.append(f)
+
+        if not inside_oval_faces:
+            if too_small_inside_faces:
+                return {
+                    "box": None, "pose": "none", "image_size": [img_w, img_h],
+                    "embedding": None, "quality_ok": True, "quality_reason": "face_too_small",
+                    "status_text": "📏 Vui lòng xích lại gần hơn (Khuôn mặt quá nhỏ)",
+                    "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
+                }
+            else:
+                return {
+                    "box": None, "pose": "none", "image_size": [img_w, img_h],
+                    "embedding": None, "quality_ok": True, "quality_reason": "outside_oval_frame",
+                    "status_text": "⚠️ Vui lòng di chuyển khuôn mặt vào TRONG khung hình tròn",
+                    "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
+                }
+
+        # Select the largest face inside the oval target frame
+        face = max(inside_oval_faces, key=lambda d: d['box'][2] * d['box'][3])
 
         x, y, w, h = face['box']
         keypoints = face['keypoints']

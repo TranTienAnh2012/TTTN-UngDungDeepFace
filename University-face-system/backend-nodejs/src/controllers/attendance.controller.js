@@ -258,7 +258,8 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
                 box: aiRes.box || null,
                 image_size: aiRes.image_size || null,
                 confidence: aiRes.confidence || 0,
-                message: 'Chưa tìm thấy khuôn mặt phù hợp'
+                quality_reason: aiRes.quality_reason || null,
+                message: aiRes.message || 'Chưa tìm thấy khuôn mặt phù hợp'
             });
         }
 
