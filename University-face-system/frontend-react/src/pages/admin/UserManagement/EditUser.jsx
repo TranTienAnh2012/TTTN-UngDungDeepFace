@@ -94,9 +94,10 @@ const EditUser = ({ isOpen, onClose, onUserUpdated, user }) => {
                             value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
                             className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                         >
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                            <option value="manager">Manager</option>
+                            <option value="teacher">Giảng viên (Teacher)</option>
+                            <option value="admin">Quản trị viên (Admin)</option>
+                            <option value="user">Người dùng (User)</option>
+                            <option value="manager">Quản lý (Manager)</option>
                         </select>
                     </div>
 

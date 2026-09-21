@@ -4,7 +4,7 @@ import { userService } from '../../../services/user.service';
 
 const CreateUser = ({ isOpen, onClose, onUserCreated }) => {
     const [formData, setFormData] = useState({
-        email: '', password: '', full_name: '', username: '', role: 'user'
+        email: '', password: '', full_name: '', username: '', role: 'teacher'
     });
     const [formError, setFormError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,7 +26,7 @@ const CreateUser = ({ isOpen, onClose, onUserCreated }) => {
             onUserCreated(); // Refresh the list
             onClose(); // Close modal
             // Reset form
-            setFormData({ email: '', password: '', full_name: '', username: '', role: 'user' });
+            setFormData({ email: '', password: '', full_name: '', username: '', role: 'teacher' });
         } catch (error) {
             setFormError(error.response?.data?.message || 'Có lỗi xảy ra khi tạo người dùng');
         } finally {
@@ -85,9 +85,10 @@ const CreateUser = ({ isOpen, onClose, onUserCreated }) => {
                             value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
                             className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                         >
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                            <option value="manager">Manager</option>
+                            <option value="teacher">Giảng viên (Teacher)</option>
+                            <option value="admin">Quản trị viên (Admin)</option>
+                            <option value="user">Người dùng (User)</option>
+                            <option value="manager">Quản lý (Manager)</option>
                         </select>
                     </div>
 

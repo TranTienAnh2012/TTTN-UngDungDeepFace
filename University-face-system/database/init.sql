@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS administrators (
     username                 VARCHAR(50)  UNIQUE,
     password                 VARCHAR(255) NOT NULL,
     full_name                VARCHAR(100),
-    role                     ENUM('user','admin','sales','teacher','manager','accountant') DEFAULT 'admin',
+    role                     ENUM('user','admin','sales','teacher','manager','accountant') DEFAULT 'teacher',
     is_email_verified        TINYINT(1) DEFAULT 0,
     email_verify_token       VARCHAR(255),
     email_verify_expires     DATETIME,
