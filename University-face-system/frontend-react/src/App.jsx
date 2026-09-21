@@ -27,6 +27,7 @@ import TeacherStudents from './pages/teacher/TeacherStudents';
 import TeacherExams from './pages/teacher/TeacherExams';
 import TeacherReports from './pages/teacher/TeacherReports';
 import TeacherSettings from './pages/teacher/TeacherSettings';
+import TeacherFaceRecognition from './pages/teacher/TeacherFaceRecognition';
 
 // Public Face Verification UI
 const FaceVerification = () => (
@@ -90,6 +91,7 @@ function App() {
             <Route path="exams" element={<TeacherExams />} />
             <Route path="reports" element={<TeacherReports />} />
             <Route path="settings" element={<TeacherSettings />} />
+            <Route path="face-recognition" element={<TeacherFaceRecognition />} />
           </Route>
         </Routes>
       </AuthProvider>
