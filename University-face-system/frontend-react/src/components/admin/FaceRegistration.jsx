@@ -614,7 +614,10 @@ const FaceRegistration = ({ onComplete }) => {
 
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <button
-                            onClick={() => navigate(`/admin/face-recognition?student_id=${selectedStudent.id}`)}
+                            onClick={() => {
+                                const base = window.location.pathname.startsWith('/teacher') ? '/teacher' : '/admin';
+                                navigate(`${base}/face-recognition?student_id=${selectedStudent.id}`);
+                            }}
                             className="py-3 px-6 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                         >
                             <UserCheck size={20} />
