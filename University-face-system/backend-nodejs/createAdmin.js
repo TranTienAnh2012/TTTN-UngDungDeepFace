@@ -4,16 +4,18 @@ const mysql = require('mysql2/promise');
 
 async function createAdmin() {
     const connection = await mysql.createConnection({
-        host: '127.0.0.1',
-        user: 'appuser',
-        password: 'apppassword',
+        host: 'db',
+        user: 'root',
+        password: 'root',
         database: 'face_attendance_db',
+        port: 3306,
     });
 
     try {
-        const email = 'admin@system.com';
-        const password = 'admin'; // Password is 'admin'
-        const full_name = 'Super Admin';
+        const email = 'shadyfyrix@gmail.com';
+        const password = 'lvson2005'; // Password is 'lvson2005'
+        const full_name = 'Lvson';
+        const username = 'Lvson';
 
         // Check if exists
         const [existing] = await connection.execute('SELECT * FROM administrators WHERE email = ?', [email]);
@@ -29,9 +31,9 @@ async function createAdmin() {
             console.log('Creating new admin account...');
             const passwordHash = await bcrypt.hash(password, 12);
             await connection.execute(
-                `INSERT INTO administrators (full_name, email, password, role, is_email_verified) 
-                 VALUES (?, ?, ?, 'admin', 1)`,
-                [full_name, email, passwordHash]
+                `INSERT INTO administrators (username, full_name, email, password, role, is_email_verified) 
+                 VALUES (?, ?, ?, ?, 'admin', 1)`,
+                [username, full_name, email, passwordHash]
             );
             console.log('Admin account created successfully.');
         }

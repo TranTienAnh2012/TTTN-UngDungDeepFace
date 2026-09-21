@@ -1,8 +1,11 @@
 const bcrypt = require("bcryptjs");
+const axios = require("axios");
 const db = require("../config/db");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require("../utils/jwt");
-const { generateRandomToken, hashToken } = require("../utils/otp");
+const { generateRandomToken, generateOTP, hashToken } = require("../utils/otp");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("./email.service");
+
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://ai_service:8000";
 
 const signup = async ({ full_name, email, password }) => {
     email = email.toLowerCase().trim();
@@ -29,19 +32,55 @@ const signup = async ({ full_name, email, password }) => {
 
     const newUserId = result.insertId;
 
-    // Send email asynchronously without blocking the response (if you prefer, you can await it, but better to catch errors)
+    // Send verification email - track success/failure
+    let emailSent = false;
     try {
         await sendVerificationEmail(email, full_name, verifyToken);
+        emailSent = true;
     } catch (error) {
         console.error("Lỗi khi gửi email xác thực:", error.message);
-        // We shouldn't throw error here because user is already created, maybe log it or update a flag
+        console.error("Chi tiết lỗi:", error);
     }
 
     return {
         id: newUserId,
         full_name,
         email,
+        emailSent,
     };
+};
+
+const resendVerificationEmail = async (email) => {
+    email = email.toLowerCase().trim();
+
+    const [users] = await db.execute(
+        "SELECT id, full_name, is_email_verified FROM administrators WHERE email = ?",
+        [email]
+    );
+
+    if (users.length === 0) {
+        throw new Error("Email không tồn tại trong hệ thống");
+    }
+
+    const user = users[0];
+
+    if (user.is_email_verified) {
+        throw new Error("Email đã được xác thực. Bạn có thể đăng nhập.");
+    }
+
+    // Generate new token
+    const verifyToken = generateRandomToken(32);
+    const expiresInMinutes = Number(process.env.EMAIL_VERIFY_EXPIRES_MINUTES) || 15;
+    const expiresDate = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+    await db.execute(
+        "UPDATE administrators SET email_verify_token = ?, email_verify_expires = ? WHERE id = ?",
+        [hashToken(verifyToken), expiresDate, user.id]
+    );
+
+    await sendVerificationEmail(email, user.full_name, verifyToken);
+
+    return true;
 };
 
 const verifyEmail = async (token) => {
@@ -182,7 +221,7 @@ const forgotPassword = async (email) => {
     }
 
     const user = users[0];
-    const resetToken = generateRandomToken(32);
+    const resetToken = generateOTP();
     
     const expiresInMinutes = Number(process.env.RESET_PASSWORD_EXPIRES_MINUTES) || 15;
     const expiresDate = new Date(Date.now() + expiresInMinutes * 60 * 1000);
@@ -254,10 +293,75 @@ const getMe = async (userId) => {
     return users[0];
 };
 
+const signinByFace = async (adminId) => {
+    const [users] = await db.execute(
+        "SELECT id, full_name, email, role, is_email_verified FROM administrators WHERE id = ?",
+        [adminId]
+    );
+
+    if (users.length === 0) {
+        throw new Error("Tài khoản không tồn tại");
+    }
+
+    const user = users[0];
+
+    if (!user.is_email_verified) {
+        throw new Error("Tài khoản chưa xác thực email");
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
+
+    await db.execute(
+        "UPDATE administrators SET refresh_token_hash = ?, last_login_at = NOW() WHERE id = ?",
+        [refreshTokenHash, user.id]
+    );
+
+    return {
+        accessToken,
+        refreshToken,
+        user: {
+            id: user.id,
+            full_name: user.full_name,
+            email: user.email,
+            role: user.role,
+        },
+    };
+};
+
+const registerAdminFace = async (adminId, imageStraight, imageLeft, imageRight) => {
+    // Verify admin exists
+    const [users] = await db.execute(
+        "SELECT id FROM administrators WHERE id = ?",
+        [adminId]
+    );
+    if (users.length === 0) {
+        throw new Error("Tài khoản không tồn tại");
+    }
+
+    // Call Python AI service to register face
+    const response = await axios.post(`${AI_SERVICE_URL}/api/v1/admin/register_face`, {
+        admin_id: adminId,
+        image_straight: imageStraight,
+        image_left: imageLeft,
+        image_right: imageRight,
+    });
+
+    if (!response.data.success) {
+        throw new Error("Không thể đăng ký khuôn mặt. Vui lòng thử lại.");
+    }
+
+    return true;
+};
+
 module.exports = {
     signup,
     verifyEmail,
+    resendVerificationEmail,
     signin,
+    signinByFace,
+    registerAdminFace,
     refreshToken,
     signout,
     forgotPassword,
