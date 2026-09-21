@@ -5,7 +5,7 @@ import {
     ArrowRight, BookOpen, MapPin, Clock, Download, 
     UserCheck, ChevronRight, Building2, Sparkles, AlertCircle
 } from 'lucide-react';
-import api from '../../services/api';
+import TeacherFaceRecognitionModal from '../../components/teacher/TeacherFaceRecognitionModal';
 
 const TeacherDashboard = () => {
     const navigate = useNavigate();
@@ -13,6 +13,9 @@ const TeacherDashboard = () => {
     // UI States
     const [showAlertBanner, setShowAlertBanner] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+
+    // AI Face recognition modal state
+    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
 
     // Dynamic data states
     const [todaySchedules, setTodaySchedules] = useState([]);
@@ -331,11 +334,11 @@ const TeacherDashboard = () => {
 
                         {/* Primary Button: Open Live Scan */}
                         <button
-                            onClick={() => navigate('/admin/face-recognition')}
+                            onClick={() => navigate('/teacher/face-recognition')}
                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
                         >
                             <UserCheck size={18} />
-                            <span>Mở danh sách điểm danh</span>
+                            <span>Mở danh sách điểm danh (AI Scan)</span>
                         </button>
                     </div>
 
@@ -466,6 +469,14 @@ const TeacherDashboard = () => {
                     </div>
                 </div>
             )}
+
+            {/* AI Face Recognition Modal */}
+            <TeacherFaceRecognitionModal 
+                isOpen={isFaceModalOpen}
+                onClose={() => setIsFaceModalOpen(false)}
+                scheduleId={activeSchedule?.id}
+                sessionTitle={activeSchedule ? `${activeSchedule.course_name}` : ''}
+            />
         </div>
     );
 };

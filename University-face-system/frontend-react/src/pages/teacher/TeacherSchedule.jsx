@@ -50,7 +50,7 @@ const TeacherSchedule = () => {
                 </div>
 
                 <button
-                    onClick={() => navigate('/admin/face-recognition')}
+                    onClick={() => navigate('/teacher/face-recognition')}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2"
                 >
                     <Play size={16} />
@@ -100,7 +100,7 @@ const TeacherSchedule = () => {
 
                             <div className="pt-3 border-t border-slate-100">
                                 <button
-                                    onClick={() => navigate(`/admin/face-recognition?schedule_id=${s.id}`)}
+                                    onClick={() => navigate(`/teacher/face-recognition?schedule_id=${s.id}`)}
                                     className="w-full py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                                 >
                                     <Play size={14} /> Điểm danh ca này

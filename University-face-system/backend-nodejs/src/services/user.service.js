@@ -75,11 +75,11 @@ const createUser = async (userData) => {
     const [result] = await db.execute(
         `INSERT INTO administrators 
          (email, username, password, full_name, role, is_email_verified) 
-         VALUES (?, ?, ?, ?, ?, 1)`, // Assuming admin creates verified users
-        [emailLower, username || null, passwordHash, full_name || null, role || 'user']
+         VALUES (?, ?, ?, ?, ?, 1)`,
+        [emailLower, username || null, passwordHash, full_name || null, role || 'teacher']
     );
 
-    return { id: result.insertId, email: emailLower, role: role || 'user' };
+    return { id: result.insertId, email: emailLower, role: role || 'teacher' };
 };
 
 const updateUser = async (id, userData) => {

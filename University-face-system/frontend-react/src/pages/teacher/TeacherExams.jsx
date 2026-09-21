@@ -45,7 +45,7 @@ const TeacherExams = () => {
                 </div>
 
                 <button
-                    onClick={() => navigate('/admin/exam-attendance')}
+                    onClick={() => navigate('/teacher/face-recognition')}
                     className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2"
                 >
                     <ShieldCheck size={18} />
@@ -78,7 +78,7 @@ const TeacherExams = () => {
 
                         <div className="pt-2 flex gap-3">
                             <button
-                                onClick={() => navigate('/admin/exam-attendance')}
+                                onClick={() => navigate(`/teacher/face-recognition?exam_schedule_id=${exam.id}`)}
                                 className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5"
                             >
                                 <ShieldCheck size={16} /> Điểm danh phòng thi

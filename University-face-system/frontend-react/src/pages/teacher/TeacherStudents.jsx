@@ -53,7 +53,7 @@ const TeacherStudents = () => {
                 </div>
 
                 <button
-                    onClick={() => navigate('/admin/face-registration-demo')}
+                    onClick={() => navigate('/teacher/face-registration')}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2"
                 >
                     <UserPlus size={18} />
@@ -139,7 +139,7 @@ const TeacherStudents = () => {
                                         </td>
                                         <td className="py-3.5 px-4 text-right space-x-2">
                                             <button
-                                                onClick={() => navigate(`/admin/face-registration-demo?student_id=${s.id}`)}
+                                                onClick={() => navigate(`/teacher/face-registration?student_id=${s.id}`)}
                                                 className={`px-3 py-1.5 rounded-xl font-bold text-[11px] inline-flex items-center gap-1 transition-all ${
                                                     s.has_face
                                                         ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200'
