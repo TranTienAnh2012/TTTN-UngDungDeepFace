@@ -376,7 +376,7 @@ const Register = () => {
                     </div>
 
                     <div className="mt-8 flex flex-col gap-4">
-                        <Link to="/admin/login" className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 rounded-xl transition-colors shadow-sm text-sm">
+                        <Link to="/login" className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 rounded-xl transition-colors shadow-sm text-sm">
                             <span className="text-[#175b9f]">Đăng nhập</span> quay lại hệ thống
                         </Link>
                     </div>

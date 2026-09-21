@@ -228,25 +228,55 @@ exports.removeExamEligibility = async (req, res) => {
 
 exports.getExamAttendance = async (req, res) => {
     try {
-        const schedule_id = req.query.schedule_id;
-        
-        if (!schedule_id) {
-            return res.status(400).json({ success: false, message: 'Thiếu schedule_id' });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const schedule_id = req.query.schedule_id; // Optional filter
+        const offset = (page - 1) * limit;
+
+        let whereClause = '';
+        const queryParams = [];
+
+        if (schedule_id) {
+            whereClause = 'WHERE ea.exam_schedule_id = ?';
+            queryParams.push(schedule_id);
         }
 
         const query = `
-            SELECT ea.*, s.student_code, s.full_name, s.class_name 
+            SELECT ea.*, s.student_code, s.full_name, s.class_name,
+                   es.exam_room, es.exam_time, c.course_code, c.course_name,
+                   ea.seat_row as actual_row, ea.seat_col as actual_col,
+                   CASE 
+                       WHEN ee.seat_row = ea.seat_row AND ee.seat_col = ea.seat_col THEN 1
+                       WHEN ee.id IS NULL THEN 1
+                       ELSE 0
+                   END as is_valid_seat
             FROM exam_attendance ea
             JOIN students s ON ea.student_id = s.id
-            WHERE ea.exam_schedule_id = ?
+            JOIN exam_schedules es ON ea.exam_schedule_id = es.id
+            JOIN courses c ON es.course_id = c.id
+            LEFT JOIN exam_eligibility ee ON ee.student_id = ea.student_id AND ee.exam_schedule_id = ea.exam_schedule_id
+            ${whereClause}
             ORDER BY ea.check_in_time DESC
+            LIMIT ? OFFSET ?
         `;
-        
-        const [rows] = await pool.query(query, [schedule_id]);
+        queryParams.push(limit, offset);
+
+        const countQuery = `SELECT COUNT(*) as total FROM exam_attendance ea ${whereClause}`;
+        const countParams = schedule_id ? [schedule_id] : [];
+
+        const [rows] = await pool.query(query, queryParams);
+        const [countResult] = await pool.query(countQuery, countParams);
+        const total = countResult[0].total;
 
         res.json({
             success: true,
-            data: rows
+            data: rows,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit) || 1
+            }
         });
     } catch (error) {
         console.error('Error in getExamAttendance:', error);

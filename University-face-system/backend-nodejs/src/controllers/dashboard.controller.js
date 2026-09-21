@@ -10,14 +10,14 @@ exports.getDashboardStats = async (req, res) => {
 
         // 2. Lấy 5 lượt điểm danh lớp học mới nhất
         const classAttendanceQuery = `
-            SELECT ca.id, ca.check_in_time, ca.status, ca.confidence_score, 
+            SELECT ca.id, ca.check_in_time, ca.check_out_time, ca.check_in_status, ca.check_out_status, ca.status, ca.confidence_score, 
                    s.student_code, s.full_name, 
                    cs.room_name, c.course_name
             FROM class_attendance ca
             JOIN students s ON ca.student_id = s.id
             JOIN class_schedules cs ON ca.schedule_id = cs.id
             JOIN courses c ON cs.course_id = c.id
-            ORDER BY ca.check_in_time DESC
+            ORDER BY COALESCE(ca.check_out_time, ca.check_in_time) DESC
             LIMIT 5
         `;
         const [recentClassAttendance] = await pool.query(classAttendanceQuery);

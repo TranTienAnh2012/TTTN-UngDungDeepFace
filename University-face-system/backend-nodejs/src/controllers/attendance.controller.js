@@ -3,7 +3,7 @@ const pool = require('../config/db');
 
 exports.verifyAttendance = async (req, res) => {
     try {
-        const { student_id, schedule_id, image_base64 } = req.body;
+        const { student_id, schedule_id, image_base64, attendance_type = 'check_in' } = req.body;
 
         if (!student_id || !image_base64) {
             return res.status(400).json({ success: false, message: 'Thiếu student_id hoặc image_base64' });
@@ -13,25 +13,103 @@ exports.verifyAttendance = async (req, res) => {
         const aiResponse = await AiService.verifyFace(student_id, image_base64);
 
         if (aiResponse.match) {
-            // 2. Nếu khớp, lưu lịch sử điểm danh vào database
-            // Kiểm tra xem schedule_id có được truyền lên không (điểm danh lớp học)
+            let attendanceResult = null;
+
+            // 2. Nếu khớp, lưu/cập nhật lịch sử điểm danh vào database
             if (schedule_id) {
-                 const [result] = await pool.query(
-                     'INSERT INTO class_attendance (student_id, schedule_id, check_in_time, status, confidence_score) VALUES (?, ?, NOW(), ?, ?)',
-                     [student_id, schedule_id, 'Present', aiResponse.confidence]
-                 );
+                const [existing] = await pool.query(
+                    'SELECT * FROM class_attendance WHERE student_id = ? AND schedule_id = ? ORDER BY id DESC LIMIT 1',
+                    [student_id, schedule_id]
+                );
+
+                if (attendance_type === 'check_out') {
+                    if (existing.length > 0) {
+                        const rec = existing[0];
+                        await pool.query(
+                            `UPDATE class_attendance 
+                             SET check_out_time = NOW(), check_out_confidence = ?, check_out_status = 'Completed', 
+                                 status = CASE WHEN check_in_time IS NOT NULL THEN 'Completed' ELSE 'Only Checked-out' END,
+                                 confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                             WHERE id = ?`,
+                            [aiResponse.confidence, aiResponse.confidence, rec.id]
+                        );
+                        attendanceResult = {
+                            action: 'check_out',
+                            check_in_time: rec.check_in_time,
+                            check_out_time: new Date(),
+                            status: rec.check_in_time ? 'Completed' : 'Only Checked-out',
+                            message: 'Điểm danh cuối giờ thành công'
+                        };
+                    } else {
+                        await pool.query(
+                            `INSERT INTO class_attendance (student_id, schedule_id, check_out_time, check_out_confidence, check_out_status, status, confidence_score) 
+                             VALUES (?, ?, NOW(), ?, 'Completed', 'Only Checked-out', ?)`,
+                            [student_id, schedule_id, aiResponse.confidence, aiResponse.confidence]
+                        );
+                        attendanceResult = {
+                            action: 'check_out',
+                            check_in_time: null,
+                            check_out_time: new Date(),
+                            status: 'Only Checked-out',
+                            message: 'Điểm danh cuối giờ thành công (Chưa có điểm danh đầu giờ)'
+                        };
+                    }
+                } else {
+                    // attendance_type === 'check_in'
+                    if (existing.length > 0) {
+                        const rec = existing[0];
+                        if (rec.check_in_time) {
+                            attendanceResult = {
+                                action: 'check_in',
+                                check_in_time: rec.check_in_time,
+                                check_out_time: rec.check_out_time,
+                                status: rec.status,
+                                message: 'Sinh viên đã được điểm danh đầu giờ trước đó'
+                            };
+                        } else {
+                            await pool.query(
+                                `UPDATE class_attendance 
+                                 SET check_in_time = NOW(), check_in_confidence = ?, check_in_status = 'Present',
+                                     status = CASE WHEN check_out_time IS NOT NULL THEN 'Completed' ELSE 'Checked-in' END,
+                                     confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                                 WHERE id = ?`,
+                                [aiResponse.confidence, aiResponse.confidence, rec.id]
+                            );
+                            attendanceResult = {
+                                action: 'check_in',
+                                check_in_time: new Date(),
+                                check_out_time: rec.check_out_time,
+                                status: rec.check_out_time ? 'Completed' : 'Checked-in',
+                                message: 'Điểm danh đầu giờ thành công'
+                            };
+                        }
+                    } else {
+                        await pool.query(
+                            `INSERT INTO class_attendance (student_id, schedule_id, check_in_time, check_in_confidence, check_in_status, status, confidence_score) 
+                             VALUES (?, ?, NOW(), ?, 'Present', 'Checked-in', ?)`,
+                            [student_id, schedule_id, aiResponse.confidence, aiResponse.confidence]
+                        );
+                        attendanceResult = {
+                            action: 'check_in',
+                            check_in_time: new Date(),
+                            check_out_time: null,
+                            status: 'Checked-in',
+                            message: 'Điểm danh đầu giờ thành công'
+                        };
+                    }
+                }
             }
-            // (Tuỳ chọn: Nếu là exam_schedule_id thì lưu vào exam_attendance)
 
             return res.status(200).json({
                 success: true,
-                message: 'Xác thực thành công',
-                confidence: aiResponse.confidence
+                message: attendanceResult?.message || 'Xác thực thành công',
+                confidence: aiResponse.confidence,
+                attendance: attendanceResult
             });
         } else {
             return res.status(401).json({
                 success: false,
-                message: 'Xác thực khuôn mặt thất bại. Không khớp với dữ liệu.',
+                message: 'Xác thực khuôn mặt thất bại. Không khớp với dữ liệu sinh viên.',
                 confidence: aiResponse.confidence
             });
         }
@@ -165,7 +243,7 @@ exports.quickCreateStudent = async (req, res) => {
 
 exports.autoIdentifyAndCheckIn = async (req, res) => {
     try {
-        const { image_base64 } = req.body;
+        const { image_base64, attendance_type = 'check_in', schedule_id = null } = req.body;
         if (!image_base64) {
             return res.status(400).json({ success: false, message: 'Thiếu image_base64' });
         }
@@ -180,7 +258,8 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
                 box: aiRes.box || null,
                 image_size: aiRes.image_size || null,
                 confidence: aiRes.confidence || 0,
-                message: 'Chưa tìm thấy khuôn mặt phù hợp'
+                quality_reason: aiRes.quality_reason || null,
+                message: aiRes.message || 'Chưa tìm thấy khuôn mặt phù hợp'
             });
         }
 
@@ -201,52 +280,127 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
         const student = studentRows[0];
 
         // 3. Class schedule attendance info
-        const [classSchedules] = await pool.query(
-            `SELECT cs.id as schedule_id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
-             FROM class_schedules cs 
-             JOIN courses c ON cs.course_id = c.id 
-             ORDER BY cs.id DESC LIMIT 1`
-        );
+        let scheduleQuery = `
+            SELECT cs.id as schedule_id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
+            FROM class_schedules cs 
+            JOIN courses c ON cs.course_id = c.id
+        `;
+        let scheduleParams = [];
+        if (schedule_id) {
+            scheduleQuery += ' WHERE cs.id = ?';
+            scheduleParams.push(schedule_id);
+        } else {
+            scheduleQuery += ' WHERE DATE(cs.start_time) = CURDATE() ORDER BY cs.start_time ASC LIMIT 1';
+        }
+
+        let [classSchedules] = await pool.query(scheduleQuery, scheduleParams);
+        if (classSchedules.length === 0 && !schedule_id) {
+            const [latestSched] = await pool.query(`
+                SELECT cs.id as schedule_id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
+                FROM class_schedules cs 
+                JOIN courses c ON cs.course_id = c.id
+                ORDER BY cs.id DESC LIMIT 1
+            `);
+            classSchedules = latestSched;
+        }
 
         let classAttendanceInfo = null;
         if (classSchedules.length > 0) {
             const sched = classSchedules[0];
             const [existingClassAtt] = await pool.query(
-                'SELECT * FROM class_attendance WHERE student_id = ? AND schedule_id = ?',
+                'SELECT * FROM class_attendance WHERE student_id = ? AND schedule_id = ? ORDER BY id DESC LIMIT 1',
                 [student.id, sched.schedule_id]
             );
 
-            if (existingClassAtt.length === 0) {
-                await pool.query(
-                    'INSERT INTO class_attendance (student_id, schedule_id, check_in_time, status, confidence_score) VALUES (?, ?, NOW(), ?, ?)',
-                    [student.id, sched.schedule_id, 'Present', aiRes.confidence]
-                );
+            let checkInTimeStr = null;
+            let checkOutTimeStr = null;
+            let statusText = '';
+            let isComplete = false;
+
+            if (attendance_type === 'check_out') {
+                if (existingClassAtt.length > 0) {
+                    const rec = existingClassAtt[0];
+                    await pool.query(
+                        `UPDATE class_attendance 
+                         SET check_out_time = NOW(), check_out_confidence = ?, check_out_status = 'Completed', 
+                             status = CASE WHEN check_in_time IS NOT NULL THEN 'Completed' ELSE 'Only Checked-out' END,
+                             confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                         WHERE id = ?`,
+                        [aiRes.confidence, aiRes.confidence, rec.id]
+                    );
+                    checkInTimeStr = rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString('vi-VN') : null;
+                    checkOutTimeStr = new Date().toLocaleTimeString('vi-VN');
+                    isComplete = !!rec.check_in_time;
+                    statusText = isComplete 
+                        ? '✓ Hoàn thành buổi học (Đủ đầu giờ & cuối giờ)' 
+                        : '⚠️ Điểm danh cuối giờ (Chưa check-in đầu giờ)';
+                } else {
+                    await pool.query(
+                        `INSERT INTO class_attendance (student_id, schedule_id, check_out_time, check_out_confidence, check_out_status, status, confidence_score) 
+                         VALUES (?, ?, NOW(), ?, 'Completed', 'Only Checked-out', ?)`,
+                        [student.id, sched.schedule_id, aiRes.confidence, aiRes.confidence]
+                    );
+                    checkOutTimeStr = new Date().toLocaleTimeString('vi-VN');
+                    statusText = '⚠️ Điểm danh cuối giờ (Chưa check-in đầu giờ)';
+                }
+            } else {
+                // attendance_type === 'check_in'
+                if (existingClassAtt.length > 0) {
+                    const rec = existingClassAtt[0];
+                    checkInTimeStr = rec.check_in_time 
+                        ? new Date(rec.check_in_time).toLocaleTimeString('vi-VN') 
+                        : new Date().toLocaleTimeString('vi-VN');
+                    checkOutTimeStr = rec.check_out_time 
+                        ? new Date(rec.check_out_time).toLocaleTimeString('vi-VN') 
+                        : null;
+                    isComplete = !!rec.check_out_time;
+
+                    if (!rec.check_in_time) {
+                        await pool.query(
+                            `UPDATE class_attendance 
+                             SET check_in_time = NOW(), check_in_confidence = ?, check_in_status = 'Present',
+                                 status = CASE WHEN check_out_time IS NOT NULL THEN 'Completed' ELSE 'Checked-in' END,
+                                 confidence_score = GREATEST(COALESCE(confidence_score, 0), ?)
+                             WHERE id = ?`,
+                            [aiRes.confidence, aiRes.confidence, rec.id]
+                        );
+                    }
+                    statusText = isComplete 
+                        ? '✓ Hoàn thành buổi học (Đủ đầu giờ & cuối giờ)' 
+                        : '✓ Đã điểm danh đầu giờ';
+                } else {
+                    await pool.query(
+                        `INSERT INTO class_attendance (student_id, schedule_id, check_in_time, check_in_confidence, check_in_status, status, confidence_score) 
+                         VALUES (?, ?, NOW(), ?, 'Present', 'Checked-in', ?)`,
+                        [student.id, sched.schedule_id, aiRes.confidence, aiRes.confidence]
+                    );
+                    checkInTimeStr = new Date().toLocaleTimeString('vi-VN');
+                    statusText = '✓ Đã điểm danh đầu giờ thành công';
+                }
             }
 
             classAttendanceInfo = {
                 course_code: sched.course_code,
                 course_name: sched.course_name,
                 room_name: sched.room_name,
-                check_in_time: new Date().toLocaleTimeString('vi-VN'),
-                status: 'Đã điểm danh bài giảng môn học'
+                attendance_type: attendance_type,
+                check_in_time: checkInTimeStr,
+                check_out_time: checkOutTimeStr,
+                is_complete: isComplete,
+                status: statusText
             };
         } else {
-            // Default active course attendance info for UI demo
-            classAttendanceInfo = {
-                course_code: 'COMP101',
-                course_name: 'Lập Trình Trí Tuệ Nhân Tạo & Nhận Diện Khuôn Mặt',
-                room_name: 'Phòng Lab 402',
-                check_in_time: new Date().toLocaleTimeString('vi-VN'),
-                status: 'Đã điểm danh tự động môn học ngày hôm nay'
-            };
+            // Không có lịch học hôm nay -> trả về null
+            classAttendanceInfo = null;
         }
 
-        // 4. Exam schedule attendance info
+        // 4. Exam schedule attendance info - Lấy lịch thi đang diễn ra hôm nay
         const [examSchedules] = await pool.query(
             `SELECT es.id as exam_schedule_id, es.exam_room, es.exam_time, c.course_code, c.course_name 
              FROM exam_schedules es 
              JOIN courses c ON es.course_id = c.id 
-             ORDER BY es.id DESC LIMIT 1`
+             WHERE DATE(es.exam_time) = CURDATE()
+             ORDER BY es.exam_time ASC LIMIT 1`
         );
 
         let examAttendanceInfo = null;
@@ -282,15 +436,7 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
                 status: isEligible ? 'Hợp lệ - Đã check-in dự thi' : '⚠️ KHÔNG đủ điều kiện thi'
             };
         } else {
-            // Default exam attendance demo info
-            examAttendanceInfo = {
-                course_code: 'COMP101',
-                course_name: 'Thi Cuối Kỳ Nhập Môn AI',
-                exam_room: 'Phòng Hội Trường B1',
-                seat: 'Hàng 2 - Ghế 15',
-                is_eligible: true,
-                status: 'Đủ điều kiện thi - Đã xác thực thành công'
-            };
+            examAttendanceInfo = null;
         }
 
         return res.status(200).json({
@@ -312,3 +458,201 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
 };
 
 
+// ═══════════════════════════════════════════════
+//  GET /schedules/today  — lịch học hôm nay
+// ═══════════════════════════════════════════════
+exports.getTodaySchedules = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT cs.id, cs.room_name, cs.teacher_name,
+                   cs.start_time, cs.end_time,
+                   cs.is_recurring, cs.day_of_week,
+                   cs.period_start, cs.period_end,
+                   c.course_code, c.course_name,
+                   (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL)  AS checked_in_count,
+                   (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) AS checked_out_count
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE DATE(cs.start_time) = CURDATE()
+            ORDER BY cs.start_time ASC
+        `);
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getTodaySchedules:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /schedules/active — lịch đang trong giờ học
+// ═══════════════════════════════════════════════
+exports.getActiveSchedules = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT cs.id, cs.room_name, cs.teacher_name,
+                   cs.start_time, cs.end_time,
+                   c.course_code, c.course_name
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE NOW() BETWEEN cs.start_time AND cs.end_time
+            ORDER BY cs.start_time ASC
+        `);
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getActiveSchedules:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /attendance/session/:schedule_id  — trạng thái buổi học
+// ═══════════════════════════════════════════════
+exports.getSessionStatus = async (req, res) => {
+    try {
+        const { schedule_id } = req.params;
+
+        const [sched] = await pool.query(`
+            SELECT cs.*, c.course_code, c.course_name
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE cs.id = ?`, [schedule_id]);
+
+        if (sched.length === 0)
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lịch học' });
+
+        const s = sched[0];
+        const now = new Date();
+        const start = new Date(s.start_time);
+        const end   = new Date(s.end_time);
+        let phase = now < start ? 'not_started' : now > end ? 'ended' : 'ongoing';
+
+        const [[stats]] = await pool.query(`
+            SELECT
+                COUNT(*) AS total,
+                SUM(check_in_time IS NOT NULL)  AS checked_in,
+                SUM(check_out_time IS NOT NULL) AS checked_out,
+                SUM(status = 'Completed')       AS completed,
+                SUM(status = 'Absent' OR (check_in_time IS NULL AND check_out_time IS NULL)) AS absent
+            FROM class_attendance
+            WHERE schedule_id = ?`, [schedule_id]);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                schedule: {
+                    id: s.id,
+                    course_code: s.course_code,
+                    course_name: s.course_name,
+                    room_name: s.room_name,
+                    teacher_name: s.teacher_name,
+                    start_time: s.start_time,
+                    end_time: s.end_time,
+                    phase // 'not_started' | 'ongoing' | 'ended'
+                },
+                stats: {
+                    total:        stats.total        || 0,
+                    checked_in:   stats.checked_in   || 0,
+                    checked_out:  stats.checked_out  || 0,
+                    completed:    stats.completed     || 0,
+                    absent:       stats.absent        || 0
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi getSessionStatus:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /attendance/list/:schedule_id — danh sách điểm danh theo buổi
+// ═══════════════════════════════════════════════
+exports.getAttendanceBySchedule = async (req, res) => {
+    try {
+        const { schedule_id } = req.params;
+
+        const [rows] = await pool.query(`
+            SELECT
+                ca.id,
+                s.student_code, s.full_name, s.class_name, s.faculty,
+                ca.check_in_time,   ca.check_in_confidence,  ca.check_in_status,
+                ca.check_out_time,  ca.check_out_confidence, ca.check_out_status,
+                ca.status,
+                ca.confidence_score,
+                ca.notes,
+                ca.updated_at
+            FROM class_attendance ca
+            JOIN students s ON s.id = ca.student_id
+            WHERE ca.schedule_id = ?
+            ORDER BY ca.check_in_time ASC, ca.check_out_time ASC
+        `, [schedule_id]);
+
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getAttendanceBySchedule:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /attendance/report  — báo cáo điểm danh
+//  Query: ?date_from=&date_to=&course_id=&schedule_id=
+// ═══════════════════════════════════════════════
+exports.getAttendanceReport = async (req, res) => {
+    try {
+        const {
+            date_from,
+            date_to,
+            course_id,
+            schedule_id
+        } = req.query;
+
+        let where = ['1=1'];
+        let params = [];
+
+        if (schedule_id) {
+            where.push('ca.schedule_id = ?');
+            params.push(schedule_id);
+        } else {
+            if (date_from) { where.push('DATE(cs.start_time) >= ?'); params.push(date_from); }
+            if (date_to)   { where.push('DATE(cs.start_time) <= ?'); params.push(date_to); }
+            if (course_id) { where.push('cs.course_id = ?');         params.push(course_id); }
+        }
+
+        const [rows] = await pool.query(`
+            SELECT
+                ca.id,
+                s.student_code, s.full_name, s.class_name, s.faculty,
+                c.course_code,  c.course_name,
+                cs.room_name,   cs.teacher_name,
+                cs.start_time,  cs.end_time,
+                ca.check_in_time,  ca.check_in_confidence,  ca.check_in_status,
+                ca.check_out_time, ca.check_out_confidence, ca.check_out_status,
+                ca.status,
+                ca.confidence_score,
+                ca.notes
+            FROM class_attendance ca
+            JOIN students        s  ON s.id         = ca.student_id
+            JOIN class_schedules cs ON cs.id        = ca.schedule_id
+            JOIN courses         c  ON c.id         = cs.course_id
+            WHERE ${where.join(' AND ')}
+            ORDER BY cs.start_time DESC, s.student_code ASC
+        `, params);
+
+        // Summary stats
+        const total       = rows.length;
+        const checkedIn   = rows.filter(r => r.check_in_time).length;
+        const checkedOut  = rows.filter(r => r.check_out_time).length;
+        const completed   = rows.filter(r => r.status === 'Completed').length;
+        const absent      = rows.filter(r => !r.check_in_time && !r.check_out_time).length;
+
+        return res.status(200).json({
+            success: true,
+            summary: { total, checkedIn, checkedOut, completed, absent },
+            data: rows
+        });
+    } catch (error) {
+        console.error('Lỗi getAttendanceReport:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};

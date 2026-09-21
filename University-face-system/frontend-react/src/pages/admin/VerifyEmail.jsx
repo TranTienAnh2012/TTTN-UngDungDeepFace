@@ -67,7 +67,7 @@ const VerifyEmail = () => {
                             <h2 className="text-xl font-bold text-gray-900">Lỗi xác thực</h2>
                             <p className="text-gray-500 mt-2">{message}</p>
                             <Link 
-                                to="/admin/login" 
+                                to="/login" 
                                 className="mt-8 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-xl transition-all"
                             >
                                 Quay lại Đăng nhập

@@ -155,7 +155,7 @@ exports.getAllClassAttendance = async (req, res) => {
 
         let query = `
             SELECT ca.*, s.student_code, s.full_name, s.class_name, 
-                   cs.room_name, cs.start_time, c.course_code 
+                   cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name 
             FROM class_attendance ca
             JOIN students s ON ca.student_id = s.id
             JOIN class_schedules cs ON ca.schedule_id = cs.id
@@ -172,7 +172,7 @@ exports.getAllClassAttendance = async (req, res) => {
             countParams.push(schedule_id);
         }
 
-        query += ' ORDER BY ca.check_in_time DESC LIMIT ? OFFSET ?';
+        query += ' ORDER BY COALESCE(ca.check_out_time, ca.check_in_time) DESC LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
         const [rows] = await pool.query(query, queryParams);

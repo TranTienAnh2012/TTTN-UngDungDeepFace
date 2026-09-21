@@ -4,27 +4,27 @@ const mysql = require('mysql2/promise');
 
 async function createAdmin() {
     const connection = await mysql.createConnection({
-        host: 'db',
-        user: 'root',
-        password: 'root',
-        database: 'face_attendance_db',
-        port: 3306,
+        host: process.env.DB_HOST || 'db',
+        port: Number(process.env.DB_PORT) || 3306,
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'root',
+        database: process.env.DB_NAME || 'face_attendance_db',
     });
 
     try {
         const email = 'shadyfyrix@gmail.com';
-        const password = 'lvson2005'; // Password is 'lvson2005'
+        const password = 'lvson2005';
         const full_name = 'Lvson';
         const username = 'Lvson';
 
         // Check if exists
-        const [existing] = await connection.execute('SELECT * FROM administrators WHERE email = ?', [email]);
+        const [existing] = await connection.execute('SELECT * FROM administrators WHERE email = ? OR username = ?', [email, username]);
         if (existing.length > 0) {
             console.log('Account already exists! Updating it to be verified admin...');
             const passwordHash = await bcrypt.hash(password, 12);
             await connection.execute(
-                `UPDATE administrators SET password = ?, role = 'admin', is_email_verified = 1 WHERE email = ?`,
-                [passwordHash, email]
+                `UPDATE administrators SET username = ?, email = ?, password = ?, role = 'admin', is_email_verified = 1 WHERE id = ?`,
+                [username, email, passwordHash, existing[0].id]
             );
             console.log('Account updated successfully.');
         } else {

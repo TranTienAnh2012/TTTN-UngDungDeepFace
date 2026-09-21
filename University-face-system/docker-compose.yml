@@ -22,11 +22,15 @@ services:
     container_name: face_attendance_backend
     ports:
       - "5000:5000"
+    volumes:
+      - ./backend-nodejs:/app
+      - /app/node_modules
     env_file:
       - .env
     environment:
       - PORT=5000
       - DB_HOST=db
+      - DB_PORT=3306
       - DB_USER=${MYSQL_USER}
       - DB_PASSWORD=${MYSQL_PASSWORD}
       - DB_NAME=${MYSQL_DATABASE}
@@ -42,8 +46,12 @@ services:
     container_name: face_attendance_ai
     ports:
       - "8000:8000"
+    volumes:
+      - ./python-ai-service:/app
     environment:
+      - PYTHONUNBUFFERED=1
       - DB_HOST=db
+      - DB_PORT=3306
       - DB_USER=${MYSQL_USER}
       - DB_PASSWORD=${MYSQL_PASSWORD}
       - DB_NAME=${MYSQL_DATABASE}

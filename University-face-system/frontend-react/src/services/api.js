@@ -66,7 +66,7 @@ api.interceptors.response.use(
                 localStorage.removeItem('refresh_token');
                 sessionStorage.removeItem('access_token');
                 sessionStorage.removeItem('refresh_token');
-                window.location.href = '/admin/login';
+                window.location.href = '/login';
                 return Promise.reject(refreshError);
             }
         }

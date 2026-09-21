@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+*/node_modules/
+backend-nodejs/node_modules/
+frontend-react/node_modules/
+University-face-system/backend-nodejs/node_modules/
+University-face-system/frontend-react/node_modules/
+
+# Python Virtual Environments
+venv/
+.venv/
+*/venv/
+*/.venv/
+University-face-system/python-ai-service/venv/
+University-face-system/python-ai-service/.venv/
+__pycache__/
+*/__pycache__/
+*.py[cod]
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+University-face-system/.env
+University-face-system/backend-nodejs/.env
+University-face-system/python-ai-service/.env
+University-face-system/frontend-react/.env
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
