@@ -53,8 +53,8 @@ const VerifyEmail = () => {
                             <h2 className="text-xl font-bold text-gray-900">Thành công!</h2>
                             <p className="text-gray-500 mt-2">{message}</p>
                             <Link 
-                                to="/admin/login" 
-                                className="mt-8 w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-all"
+                                to="/login" 
+                                className="mt-8 w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-all block text-center"
                             >
                                 Đi đến trang Đăng nhập
                             </Link>

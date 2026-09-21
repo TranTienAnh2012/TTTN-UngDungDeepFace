@@ -7,7 +7,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require("./email.servi
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://ai_service:8000";
 
-const signup = async ({ full_name, email, password }) => {
+const signup = async ({ full_name, email, password, role = 'teacher' }) => {
     email = email.toLowerCase().trim();
 
     // Check if email already exists
@@ -22,12 +22,12 @@ const signup = async ({ full_name, email, password }) => {
     const expiresInMinutes = Number(process.env.EMAIL_VERIFY_EXPIRES_MINUTES) || 15;
     const expiresDate = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
-    // Insert new user (administrator)
+    // Insert new user (default role: 'teacher')
     const [result] = await db.execute(
         `INSERT INTO administrators 
          (full_name, email, password, role, is_email_verified, email_verify_token, email_verify_expires) 
-         VALUES (?, ?, ?, 'admin', 0, ?, ?)`,
-        [full_name, email, passwordHash, hashToken(verifyToken), expiresDate]
+         VALUES (?, ?, ?, ?, 0, ?, ?)`,
+        [full_name, email, passwordHash, role, hashToken(verifyToken), expiresDate]
     );
 
     const newUserId = result.insertId;
@@ -87,15 +87,20 @@ const verifyEmail = async (token) => {
     const tokenHash = hashToken(token);
 
     const [users] = await db.execute(
-        "SELECT id FROM administrators WHERE email_verify_token = ? AND email_verify_expires > NOW()",
+        "SELECT id, email_verify_expires FROM administrators WHERE email_verify_token = ?",
         [tokenHash]
     );
 
     if (users.length === 0) {
-        throw new Error("Token xác thực không hợp lệ hoặc đã hết hạn");
+        throw new Error("Token xác thực không hợp lệ");
     }
 
-    const userId = users[0].id;
+    const user = users[0];
+    if (user.email_verify_expires && new Date(user.email_verify_expires).getTime() < Date.now()) {
+        throw new Error("Token xác thực đã hết hạn");
+    }
+
+    const userId = user.id;
 
     // Update verified status
     await db.execute(

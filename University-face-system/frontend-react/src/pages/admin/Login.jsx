@@ -23,10 +23,14 @@ const Login = () => {
     const { login, faceLogin, user } = useAuth();
     const navigate = useNavigate();
 
-    // Redirect if already logged in (safe - inside useEffect)
+    // Redirect if already logged in (role-based)
     useEffect(() => {
-        if (user && user.role === 'admin') {
-            navigate('/admin', { replace: true });
+        if (user) {
+            if (user.role === 'teacher') {
+                navigate('/teacher/dashboard', { replace: true });
+            } else {
+                navigate('/admin', { replace: true });
+            }
         }
     }, [user, navigate]);
 
@@ -46,7 +50,11 @@ const Login = () => {
         setIsLoading(true);
         const result = await login(email, password, rememberMe);
         if (result.success) {
-            navigate('/admin');
+            if (result.user?.role === 'teacher') {
+                navigate('/teacher/dashboard');
+            } else {
+                navigate('/admin');
+            }
         } else {
             setError(result.message);
         }
