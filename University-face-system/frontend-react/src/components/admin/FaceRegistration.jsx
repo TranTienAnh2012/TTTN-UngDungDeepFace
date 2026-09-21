@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
-import { Camera, CheckCircle, AlertCircle, RefreshCw, UserPlus, UserCheck, ArrowRight, ArrowLeft, Search, User, Filter, RotateCcw } from 'lucide-react';
+import { Camera, CheckCircle, AlertCircle, RefreshCw, UserPlus, UserCheck, ArrowRight, ArrowLeft, Search, User, Filter, RotateCcw, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 
@@ -630,6 +630,17 @@ const FaceRegistration = ({ onComplete }) => {
                         >
                             <UserPlus size={18} />
                             Đăng Ký Sinh Viên Khác
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                const base = window.location.pathname.startsWith('/teacher') ? '/teacher/students' : '/admin/students';
+                                navigate(base);
+                            }}
+                            className="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                            <Users size={18} />
+                            Danh Sách Sinh Viên
                         </button>
                     </div>
                 </div>

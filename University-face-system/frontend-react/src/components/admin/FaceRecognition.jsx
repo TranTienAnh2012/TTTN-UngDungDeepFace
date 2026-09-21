@@ -167,7 +167,7 @@ const RecognitionResultCard = ({ recognized }) => {
             <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-medium">Cần cập nhật lại khuôn mặt?</span>
                 <a
-                    href={`/admin/face-registration?student_id=${recognized.student.id}`}
+                    href={`${window.location.pathname.startsWith('/teacher') ? '/teacher' : '/admin'}/face-registration?student_id=${recognized.student.id}`}
                     className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
                 >
                     🔄 Đăng ký lại khuôn mặt
@@ -867,7 +867,7 @@ const FaceRecognition = () => {
                                 {selectedStudentId && (
                                     <div className="mt-1.5 flex justify-end">
                                         <a
-                                            href={`/admin/face-registration?student_id=${selectedStudentId}`}
+                                            href={`${window.location.pathname.startsWith('/teacher') ? '/teacher' : '/admin'}/face-registration?student_id=${selectedStudentId}`}
                                             className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 hover:underline"
                                         >
                                             🔄 Đăng ký lại khuôn mặt cho SV này

@@ -20,9 +20,9 @@ def get_db_connection():
     try:
         connection = mysql.connector.connect(
             host=os.getenv("DB_HOST", "127.0.0.1"),
-            port=int(os.getenv("DB_PORT", "3309")),
+            port=int(os.getenv("DB_PORT", "3306")),
             user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
+            password=os.getenv("DB_PASSWORD", "rootpassword"),
             database=os.getenv("DB_NAME", "face_attendance_db")
         )
         return connection
@@ -146,19 +146,15 @@ def get_student_embedding(student_id):
 
 def get_all_student_embeddings(force_refresh=False):
     """
-    Fetch all registered student embeddings from MySQL, with 10-second caching
+    Fetch all registered student embeddings directly from MySQL
     """
-    global cached_students, last_cache_time
-    if not force_refresh and cached_students is not None and time.time() - last_cache_time < 10:
-        return cached_students
-
     connection = get_db_connection()
     students_list = []
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute(
-                "SELECT id, student_code, full_name, face_embedding FROM students WHERE face_embedding IS NOT NULL"
+                "SELECT id, student_code, full_name, face_embedding FROM students WHERE face_embedding IS NOT NULL AND CHAR_LENGTH(face_embedding) > 10"
             )
             rows = cursor.fetchall()
             for row in rows:
@@ -171,9 +167,6 @@ def get_all_student_embeddings(force_refresh=False):
                             "full_name": row['full_name'],
                             "embedding": emb
                         })
-            
-            cached_students = students_list
-            last_cache_time = time.time()
         except Error as e:
             print(f"[!] Error fetching all embeddings: {e}")
         finally:

@@ -48,6 +48,7 @@ services:
       - "8000:8000"
     volumes:
       - ./python-ai-service:/app
+      - deepface_weights:/root/.deepface
     environment:
       - PYTHONUNBUFFERED=1
       - DB_HOST=db
@@ -55,6 +56,7 @@ services:
       - DB_USER=${MYSQL_USER}
       - DB_PASSWORD=${MYSQL_PASSWORD}
       - DB_NAME=${MYSQL_DATABASE}
+      - MATCH_THRESHOLD=0.48
     depends_on:
       - db
     restart: always
@@ -74,3 +76,4 @@ services:
 
 volumes:
   db_data:
+  deepface_weights:

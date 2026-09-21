@@ -67,7 +67,7 @@ def check_frame_quality(img):
 
     return True, "ok"
 
-def detect_and_extract(image_base64):
+def detect_and_extract(image_base64, require_oval=True):
     """
     OPTIMIZED: Run quality check first (cheap), then MTCNN once,
     then ArcFace on crop with detector_backend='skip'.
@@ -94,7 +94,7 @@ def detect_and_extract(image_base64):
         quality_ok, quality_reason = check_frame_quality(img)
         t_quality = time.perf_counter() - t_q_start
 
-        if not quality_ok:
+        if not quality_ok and require_oval:
             return {"box": None, "pose": "none", "image_size": [img_w, img_h],
                     "embedding": None, "quality_ok": False, "quality_reason": quality_reason,
                     "timings": {"total": time.perf_counter() - t_start, "quality": t_quality}}
@@ -123,12 +123,18 @@ def detect_and_extract(image_base64):
         inside_oval_faces = []
         too_small_inside_faces = []
 
+        min_conf = 0.85 if require_oval else 0.55
+
         for f in results:
-            if f['confidence'] < 0.85:
+            if f['confidence'] < min_conf:
                 continue
             fx, fy, fw, fh = f['box']
             fcx = fx + fw / 2.0
             fcy = fy + fh / 2.0
+
+            if not require_oval:
+                inside_oval_faces.append(f)
+                continue
 
             # Normalized ellipse distance from center (<= 1.0 means INSIDE the oval target)
             ellipse_dist = ((fcx - oval_cx) / oval_rx) ** 2 + ((fcy - oval_cy) / oval_ry) ** 2
@@ -141,22 +147,25 @@ def detect_and_extract(image_base64):
                     too_small_inside_faces.append(f)
 
         if not inside_oval_faces:
-            if too_small_inside_faces:
+            if require_oval and too_small_inside_faces:
                 return {
                     "box": None, "pose": "none", "image_size": [img_w, img_h],
                     "embedding": None, "quality_ok": True, "quality_reason": "face_too_small",
                     "status_text": "📏 Vui lòng xích lại gần hơn (Khuôn mặt quá nhỏ)",
                     "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
                 }
-            else:
+            elif require_oval:
                 return {
                     "box": None, "pose": "none", "image_size": [img_w, img_h],
                     "embedding": None, "quality_ok": True, "quality_reason": "outside_oval_frame",
                     "status_text": "⚠️ Vui lòng di chuyển khuôn mặt vào TRONG khung hình tròn",
                     "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
                 }
+            elif results:
+                # If require_oval=False but inside_oval_faces was empty, use largest detected face
+                inside_oval_faces = results
 
-        # Select the largest face inside the oval target frame
+        # Select the largest face
         face = max(inside_oval_faces, key=lambda d: d['box'][2] * d['box'][3])
 
         x, y, w, h = face['box']
@@ -196,8 +205,11 @@ def detect_and_extract(image_base64):
         crop_brightness = float(np.mean(crop_gray)) if crop_gray.size > 0 else 0.0
         crop_sharpness = float(cv2.Laplacian(crop_gray, cv2.CV_64F).var()) if crop_gray.size > 0 else 0.0
 
+        min_brightness = 25 if require_oval else 15
+        min_sharpness = 20 if require_oval else 10
+
         embedding = None
-        if face_crop.size > 0 and crop_brightness > 25 and crop_sharpness > 20:
+        if face_crop.size > 0 and crop_brightness > min_brightness and crop_sharpness > min_sharpness:
             try:
                 # Ensure crop meets model input requirements
                 face_crop = ensure_valid_crop(face_crop)
@@ -288,9 +300,9 @@ def detect_face_pose(image_base64):
         return {"box": None, "pose": "none", "image_size": [640, 480]}
 
 
-def extract_embedding(image_base64):
+def extract_embedding(image_base64, require_oval=False):
     """Extract embedding for face registration."""
-    result = detect_and_extract(image_base64)
+    result = detect_and_extract(image_base64, require_oval=require_oval)
     return result.get("embedding")
 
 

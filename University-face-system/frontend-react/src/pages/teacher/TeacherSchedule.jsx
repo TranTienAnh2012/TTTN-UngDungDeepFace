@@ -16,12 +16,15 @@ const TeacherSchedule = () => {
     const fetchSchedules = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/schedules/today');
-            if (res.data.success) {
+            const res = await api.get('/schedules/all');
+            if (res.data.success && res.data.data.length > 0) {
                 setSchedules(res.data.data);
+            } else {
+                setSchedules(mockWeeklySchedules);
             }
         } catch (err) {
             console.error('Lỗi khi tải lịch giảng dạy:', err);
+            setSchedules(mockWeeklySchedules);
         } finally {
             setLoading(false);
         }
@@ -34,6 +37,11 @@ const TeacherSchedule = () => {
         { id: 4, day: 'Thứ Tư', time: '08:00 – 10:00', course: 'CS101 - Nhập môn Khoa học máy tính', room: 'Phòng A-302', group: 'Nhóm 01', count: 44, status: 'Upcoming' },
         { id: 5, day: 'Thứ Sáu', time: '09:00 – 11:30', course: 'SE220 - Phát triển ứng dụng Web', room: 'Lab B-101', group: 'Nhóm 02', count: 41, status: 'Upcoming' }
     ];
+
+    const displaySchedules = schedules.filter(s => {
+        if (filterCourse === 'all') return true;
+        return (s.course || '').toLowerCase().includes(filterCourse.toLowerCase());
+    });
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
@@ -75,40 +83,45 @@ const TeacherSchedule = () => {
                             <option value="CS101">CS101 - Nhập môn Khoa học máy tính</option>
                             <option value="CS204">CS204 - Cấu trúc dữ liệu & Giải thuật</option>
                             <option value="SE220">SE220 - Phát triển ứng dụng Web</option>
+                            <option value="CNTT">CNTT - Công nghệ thông tin</option>
                         </select>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-                    {mockWeeklySchedules.map((s) => (
-                        <div key={s.id} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all space-y-3 flex flex-col justify-between">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-mono">
-                                        {s.day} · {s.time}
-                                    </span>
-                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                                        {s.status === 'Active' ? '● Đang diễn ra' : 'Sắp tới'}
-                                    </span>
+                {loading ? (
+                    <div className="text-center py-12 text-slate-400 font-medium">Đang tải lịch giảng dạy...</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                        {displaySchedules.map((s) => (
+                            <div key={s.id} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all space-y-3 flex flex-col justify-between">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-mono">
+                                            {s.day} · {s.time}
+                                        </span>
+                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                                            {s.status === 'Active' ? '● Đang diễn ra' : s.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-slate-900 text-sm">{s.course}</h4>
+                                    <div className="text-xs text-slate-500 space-y-1">
+                                        <p className="flex items-center gap-1.5"><MapPin size={13} className="text-slate-400" /> {s.room}</p>
+                                        <p className="flex items-center gap-1.5"><Users size={13} className="text-slate-400" /> {s.group} ({s.count} Sinh viên)</p>
+                                    </div>
                                 </div>
-                                <h4 className="font-bold text-slate-900 text-sm">{s.course}</h4>
-                                <div className="text-xs text-slate-500 space-y-1">
-                                    <p className="flex items-center gap-1.5"><MapPin size={13} className="text-slate-400" /> {s.room}</p>
-                                    <p className="flex items-center gap-1.5"><Users size={13} className="text-slate-400" /> {s.group} ({s.count} Sinh viên)</p>
-                                </div>
-                            </div>
 
-                            <div className="pt-3 border-t border-slate-100">
-                                <button
-                                    onClick={() => navigate(`/teacher/face-recognition?schedule_id=${s.id}`)}
-                                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
-                                >
-                                    <Play size={14} /> Điểm danh ca này
-                                </button>
+                                <div className="pt-3 border-t border-slate-100">
+                                    <button
+                                        onClick={() => navigate(`/teacher/face-recognition?schedule_id=${s.id}`)}
+                                        className="w-full py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        <Play size={14} /> Điểm danh ca này
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

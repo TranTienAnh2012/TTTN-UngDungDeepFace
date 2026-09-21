@@ -15,6 +15,16 @@ const TeacherSettings = () => {
         notify_absence_warning: true
     });
 
+    useEffect(() => {
+        if (user) {
+            setForm(prev => ({
+                ...prev,
+                full_name: user.full_name || prev.full_name,
+                email: user.email || prev.email
+            }));
+        }
+    }, [user]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
         setSavedNotice(true);
