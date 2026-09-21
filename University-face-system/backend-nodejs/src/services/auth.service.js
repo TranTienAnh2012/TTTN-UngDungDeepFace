@@ -4,7 +4,7 @@ const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = requir
 const { generateRandomToken, hashToken } = require("../utils/otp");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("./email.service");
 
-const signup = async ({ full_name, email, password }) => {
+const signup = async ({ full_name, email, password, role = 'teacher' }) => {
     email = email.toLowerCase().trim();
 
     // Check if email already exists
@@ -19,12 +19,12 @@ const signup = async ({ full_name, email, password }) => {
     const expiresInMinutes = Number(process.env.EMAIL_VERIFY_EXPIRES_MINUTES) || 15;
     const expiresDate = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
-    // Insert new user (administrator)
+    // Insert new user (default role: 'teacher')
     const [result] = await db.execute(
         `INSERT INTO administrators 
          (full_name, email, password, role, is_email_verified, email_verify_token, email_verify_expires) 
-         VALUES (?, ?, ?, 'admin', 0, ?, ?)`,
-        [full_name, email, passwordHash, hashToken(verifyToken), expiresDate]
+         VALUES (?, ?, ?, ?, 0, ?, ?)`,
+        [full_name, email, passwordHash, role, hashToken(verifyToken), expiresDate]
     );
 
     const newUserId = result.insertId;

@@ -15,8 +15,12 @@ const AdminLayout = () => {
         );
     }
 
-    if (!user || user.role !== 'admin') {
+    if (!user) {
         return <Navigate to="/login" replace />;
+    }
+
+    if (user.role === 'teacher') {
+        return <Navigate to="/teacher/dashboard" replace />;
     }
 
     return (

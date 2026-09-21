@@ -12,7 +12,10 @@ const Login = () => {
     const { login, user } = useAuth();
     const navigate = useNavigate();
 
-    if (user && user.role === 'admin') {
+    if (user) {
+        if (user.role === 'teacher') {
+            return <Navigate to="/teacher/dashboard" replace />;
+        }
         return <Navigate to="/admin" replace />;
     }
 
@@ -24,7 +27,11 @@ const Login = () => {
         const result = await login(email, password);
         
         if (result.success) {
-            navigate('/admin');
+            if (result.user?.role === 'teacher') {
+                navigate('/teacher/dashboard');
+            } else {
+                navigate('/admin');
+            }
         } else {
             setError(result.message);
         }
