@@ -48,15 +48,20 @@ const verifyEmail = async (token) => {
     const tokenHash = hashToken(token);
 
     const [users] = await db.execute(
-        "SELECT id FROM administrators WHERE email_verify_token = ? AND email_verify_expires > NOW()",
+        "SELECT id, email_verify_expires FROM administrators WHERE email_verify_token = ?",
         [tokenHash]
     );
 
     if (users.length === 0) {
-        throw new Error("Token xác thực không hợp lệ hoặc đã hết hạn");
+        throw new Error("Token xác thực không hợp lệ");
     }
 
-    const userId = users[0].id;
+    const user = users[0];
+    if (user.email_verify_expires && new Date(user.email_verify_expires).getTime() < Date.now()) {
+        throw new Error("Token xác thực đã hết hạn");
+    }
+
+    const userId = user.id;
 
     // Update verified status
     await db.execute(
