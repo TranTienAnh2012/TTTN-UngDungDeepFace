@@ -334,7 +334,7 @@ const TeacherDashboard = () => {
 
                         {/* Primary Button: Open Live Scan */}
                         <button
-                            onClick={() => setIsFaceModalOpen(true)}
+                            onClick={() => navigate('/teacher/face-recognition')}
                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
                         >
                             <UserCheck size={18} />

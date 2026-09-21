@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, BookOpen, Users, Plus, CheckCircle, Play, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import TeacherFaceRecognitionModal from '../../components/teacher/TeacherFaceRecognitionModal';
 
 const TeacherSchedule = () => {
+    const navigate = useNavigate();
     const [schedules, setSchedules] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterCourse, setFilterCourse] = useState('all');
-
-    // Face recognition modal state
-    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
-    const [activeSchedule, setActiveSchedule] = useState(null);
 
     useEffect(() => {
         fetchSchedules();
@@ -38,11 +35,6 @@ const TeacherSchedule = () => {
         { id: 5, day: 'Thứ Sáu', time: '09:00 – 11:30', course: 'SE220 - Phát triển ứng dụng Web', room: 'Lab B-101', group: 'Nhóm 02', count: 41, status: 'Upcoming' }
     ];
 
-    const handleOpenFaceScan = (scheduleItem = null) => {
-        setActiveSchedule(scheduleItem);
-        setIsFaceModalOpen(true);
-    };
-
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
             {/* Header */}
@@ -58,7 +50,7 @@ const TeacherSchedule = () => {
                 </div>
 
                 <button
-                    onClick={() => handleOpenFaceScan(mockWeeklySchedules[0])}
+                    onClick={() => navigate('/teacher/face-recognition')}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2"
                 >
                     <Play size={16} />
@@ -108,7 +100,7 @@ const TeacherSchedule = () => {
 
                             <div className="pt-3 border-t border-slate-100">
                                 <button
-                                    onClick={() => handleOpenFaceScan(s)}
+                                    onClick={() => navigate(`/teacher/face-recognition?schedule_id=${s.id}`)}
                                     className="w-full py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                                 >
                                     <Play size={14} /> Điểm danh ca này
@@ -118,14 +110,6 @@ const TeacherSchedule = () => {
                     ))}
                 </div>
             </div>
-
-            {/* AI Face Recognition Modal */}
-            <TeacherFaceRecognitionModal 
-                isOpen={isFaceModalOpen}
-                onClose={() => setIsFaceModalOpen(false)}
-                scheduleId={activeSchedule?.id}
-                sessionTitle={activeSchedule ? `${activeSchedule.course} (${activeSchedule.room})` : ''}
-            />
         </div>
     );
 };

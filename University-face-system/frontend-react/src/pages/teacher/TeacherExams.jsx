@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Building2, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, Play, Plus, Search } from 'lucide-react';
-import TeacherFaceRecognitionModal from '../../components/teacher/TeacherFaceRecognitionModal';
+import { useNavigate } from 'react-router-dom';
 
 const TeacherExams = () => {
-    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
-    const [activeExam, setActiveExam] = useState(null);
+    const navigate = useNavigate();
 
     const mockExamSupervisions = [
         {
@@ -31,11 +30,6 @@ const TeacherExams = () => {
         }
     ];
 
-    const handleOpenExamScan = (examItem = null) => {
-        setActiveExam(examItem);
-        setIsFaceModalOpen(true);
-    };
-
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
             {/* Header */}
@@ -51,7 +45,7 @@ const TeacherExams = () => {
                 </div>
 
                 <button
-                    onClick={() => handleOpenExamScan(mockExamSupervisions[0])}
+                    onClick={() => navigate('/teacher/face-recognition')}
                     className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2"
                 >
                     <ShieldCheck size={18} />
@@ -84,7 +78,7 @@ const TeacherExams = () => {
 
                         <div className="pt-2 flex gap-3">
                             <button
-                                onClick={() => handleOpenExamScan(exam)}
+                                onClick={() => navigate(`/teacher/face-recognition?exam_schedule_id=${exam.id}`)}
                                 className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5"
                             >
                                 <ShieldCheck size={16} /> Điểm danh phòng thi
@@ -93,14 +87,6 @@ const TeacherExams = () => {
                     </div>
                 ))}
             </div>
-
-            {/* AI Exam Face Recognition Modal */}
-            <TeacherFaceRecognitionModal 
-                isOpen={isFaceModalOpen}
-                onClose={() => setIsFaceModalOpen(false)}
-                examScheduleId={activeExam?.id}
-                sessionTitle={activeExam ? `${activeExam.title} (${activeExam.room})` : ''}
-            />
         </div>
     );
 };
