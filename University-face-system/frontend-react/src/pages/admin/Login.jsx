@@ -182,20 +182,24 @@ const Login = () => {
                         </form>
                     </div>
 
-                    <div className="mt-8 flex items-center gap-4 before:flex-1 before:h-px before:bg-slate-200 after:flex-1 after:h-px after:bg-slate-200">
+                    <div className="mt-6 flex items-center gap-4 before:flex-1 before:h-px before:bg-slate-200 after:flex-1 after:h-px after:bg-slate-200">
                         <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">hoặc</span>
                     </div>
 
-                    <div className="mt-8 flex flex-col gap-4">
+                    <div className="mt-6 flex flex-col gap-3">
                         <button className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 rounded-xl transition-colors shadow-sm text-sm">
                             <span className="text-[#175b9f]">📚</span> Đăng nhập qua Cổng thông tin HCMUT
                         </button>
+                        
+                        <Link to="/register" className="w-full flex items-center justify-center gap-2 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 font-semibold py-3 rounded-xl transition-colors shadow-sm text-sm">
+                            ✨ Tạo tài khoản mới (Đăng ký)
+                        </Link>
                     </div>
 
-                    <div className="mt-10 text-center text-sm font-medium text-slate-500">
-                        Chưa có tài khoản quản trị?{' '}
-                        <Link to="/register" className="text-[#175b9f] hover:underline font-semibold">
-                            Liên hệ Phòng Đào tạo (Đăng ký)
+                    <div className="mt-8 text-center text-sm font-medium text-slate-500">
+                        Chưa có tài khoản?{' '}
+                        <Link to="/register" className="text-[#175b9f] hover:underline font-bold">
+                            Đăng ký ngay
                         </Link>
                     </div>
                 </div>
