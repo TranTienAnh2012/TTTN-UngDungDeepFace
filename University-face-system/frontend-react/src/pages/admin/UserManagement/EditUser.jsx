@@ -65,7 +65,7 @@ const EditUser = ({ isOpen, onClose, onUserUpdated, user }) => {
                         <input 
                             type="email" required
                             value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         />
                     </div>
 
@@ -75,7 +75,7 @@ const EditUser = ({ isOpen, onClose, onUserUpdated, user }) => {
                             <input 
                                 type="text"
                                 value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                             />
                         </div>
                         <div>
@@ -83,7 +83,7 @@ const EditUser = ({ isOpen, onClose, onUserUpdated, user }) => {
                             <input 
                                 type="text"
                                 value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                             />
                         </div>
                     </div>
@@ -92,7 +92,7 @@ const EditUser = ({ isOpen, onClose, onUserUpdated, user }) => {
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vai trò</label>
                         <select 
                             value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         >
                             <option value="teacher">Giảng viên (Teacher)</option>
                             <option value="admin">Quản trị viên (Admin)</option>
@@ -108,7 +108,7 @@ const EditUser = ({ isOpen, onClose, onUserUpdated, user }) => {
                         <input 
                             type="password"
                             value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         />
                     </div>
 

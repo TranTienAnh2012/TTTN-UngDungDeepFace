@@ -98,14 +98,19 @@ const ExamSchedules = () => {
                                 </tr>
                             ) : (
                                 schedules.map(item => (
-                                    <tr key={item.id} className="hover:bg-gray-50/80 transition-colors group">
+                                    <tr key={item.id} className="hover:bg-gray-50/85 transition-colors group">
                                         <td className="p-4">
                                             <div className="font-semibold text-gray-900">{item.course_name}</div>
                                             <div className="text-sm font-mono text-gray-500">{item.course_code}</div>
                                         </td>
                                         <td className="p-4 text-gray-600 font-medium">{item.exam_room}</td>
                                         <td className="p-4 text-gray-600 text-sm">
-                                            {new Date(item.exam_time).toLocaleString('vi-VN')}
+                                            <div>{new Date(item.exam_time).toLocaleDateString('vi-VN')}</div>
+                                            <div className="text-xs font-mono text-gray-400">
+                                                {new Date(item.exam_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                {' – '}
+                                                {item.end_time ? new Date(item.end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-gray-600 text-sm">
                                             {item.seating_rows} hàng x {item.seating_cols} cột

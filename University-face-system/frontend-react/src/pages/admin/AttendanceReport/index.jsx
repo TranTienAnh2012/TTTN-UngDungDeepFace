@@ -147,27 +147,27 @@ const AttendanceReport = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
                     {/* Date from */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Từ ngày</label>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Từ ngày</label>
                         <input type="date" value={filters.date_from}
                             onChange={e => setFilters(f => ({ ...f, date_from: e.target.value, schedule_id: '' }))}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
                         />
                     </div>
                     {/* Date to */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Đến ngày</label>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Đến ngày</label>
                         <input type="date" value={filters.date_to}
                             onChange={e => setFilters(f => ({ ...f, date_to: e.target.value, schedule_id: '' }))}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
                         />
                     </div>
                     {/* Course */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Môn học</label>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Môn học</label>
                         <div className="relative">
                             <select value={filters.course_id}
                                 onChange={e => setFilters(f => ({ ...f, course_id: e.target.value, schedule_id: '' }))}
-                                className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
                             >
                                 <option value="">Tất cả môn</option>
                                 {courses.map(c => (
@@ -179,11 +179,11 @@ const AttendanceReport = () => {
                     </div>
                     {/* Schedule */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Buổi học hôm nay</label>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Buổi học hôm nay</label>
                         <div className="relative">
                             <select value={filters.schedule_id}
                                 onChange={e => setFilters(f => ({ ...f, schedule_id: e.target.value }))}
-                                className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
                             >
                                 <option value="">-- Lọc theo ngày --</option>
                                 {schedules.map(s => (
@@ -243,7 +243,7 @@ const AttendanceReport = () => {
                             placeholder="Tìm MSSV, tên, lớp..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-300 bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
                         />
                     </div>
                 </div>

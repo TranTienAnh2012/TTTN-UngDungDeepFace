@@ -50,7 +50,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                             <input 
                                 type="text" required placeholder="VD: SV001"
                                 value={formData.student_code} onChange={e => setFormData({...formData, student_code: e.target.value.toUpperCase()})}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                             />
                         </div>
                         <div>
@@ -58,7 +58,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                             <input 
                                 type="text" placeholder="VD: CNTT01"
                                 value={formData.class_name} onChange={e => setFormData({...formData, class_name: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                             />
                         </div>
                     </div>
@@ -68,7 +68,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                         <input 
                             type="text" required placeholder="Nhập họ tên sinh viên..."
                             value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         />
                     </div>
 
@@ -77,7 +77,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                         <input 
                             type="date"
                             value={formData.date_of_birth} onChange={e => setFormData({...formData, date_of_birth: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         />
                     </div>
 

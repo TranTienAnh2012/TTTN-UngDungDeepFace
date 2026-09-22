@@ -39,12 +39,10 @@ def _parse_embedding(raw_data):
         return None
 
     try:
-        # Convert bytes to string if needed
         if isinstance(raw_data, (bytes, bytearray)):
             try:
                 raw_str = raw_data.decode('utf-8')
             except Exception:
-                # If direct raw binary buffer of float64
                 return np.frombuffer(raw_data, dtype=np.float64)
         elif isinstance(raw_data, str):
             raw_str = raw_data
@@ -57,7 +55,6 @@ def _parse_embedding(raw_data):
         if not raw_str:
             return None
 
-        # 1. Try JSON array format (e.g. "[0.123, -0.456, ...]")
         if raw_str.startswith('[') and raw_str.endswith(']'):
             try:
                 emb_list = json.loads(raw_str)
@@ -65,7 +62,6 @@ def _parse_embedding(raw_data):
             except Exception:
                 pass
 
-        # 2. Try Base64 format
         try:
             decoded_bytes = base64.b64decode(raw_str)
             emb = np.frombuffer(decoded_bytes, dtype=np.float64)
@@ -74,7 +70,6 @@ def _parse_embedding(raw_data):
         except Exception:
             pass
 
-        # 3. Fallback: try JSON loads on any string
         try:
             emb_list = json.loads(raw_str)
             if isinstance(emb_list, list):
@@ -174,3 +169,89 @@ def get_all_student_embeddings(force_refresh=False):
                 cursor.close()
                 connection.close()
     return students_list
+
+def update_admin_embedding(admin_id, embedding):
+    """
+    Save the face embedding (numpy array) to the administrators table as Base64 BLOB
+    """
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            if not isinstance(embedding, np.ndarray):
+                embedding = np.array(embedding, dtype=np.float64)
+            else:
+                embedding = embedding.astype(np.float64)
+
+            embedding_bytes = embedding.tobytes()
+            embedding_base64 = base64.b64encode(embedding_bytes).decode('utf-8')
+            cursor.execute(
+                "UPDATE administrators SET face_embedding = %s WHERE id = %s",
+                (embedding_base64, admin_id)
+            )
+            connection.commit()
+            print(f"[+] Da luu admin embedding thanh cong cho admin_id={admin_id}")
+            return True
+        except Error as e:
+            print(f"[!] Error updating admin embedding: {e}")
+            return False
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+    return False
+
+def get_admin_embedding(admin_id):
+    """
+    Fetch the face embedding for a single administrator
+    """
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT face_embedding FROM administrators WHERE id = %s",
+                (admin_id,)
+            )
+            row = cursor.fetchone()
+            if row and row['face_embedding']:
+                return _parse_embedding(row['face_embedding'])
+        except Error as e:
+            print(f"[!] Error fetching admin embedding: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+    return None
+
+def get_all_admin_embeddings():
+    """
+    Fetch all registered administrator face embeddings from MySQL
+    """
+    connection = get_db_connection()
+    admins_list = []
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT id, email, full_name, role, face_embedding FROM administrators WHERE face_embedding IS NOT NULL AND CHAR_LENGTH(face_embedding) > 10"
+            )
+            rows = cursor.fetchall()
+            for row in rows:
+                if row['face_embedding']:
+                    emb = _parse_embedding(row['face_embedding'])
+                    if emb is not None and len(emb) > 0:
+                        admins_list.append({
+                            "id": row['id'],
+                            "email": row['email'],
+                            "full_name": row['full_name'],
+                            "role": row['role'],
+                            "embedding": emb
+                        })
+        except Error as e:
+            print(f"[!] Error fetching all admin embeddings: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+    return admins_list

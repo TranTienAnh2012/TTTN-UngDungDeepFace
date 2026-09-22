@@ -17,30 +17,30 @@ const TeacherSchedule = () => {
         setLoading(true);
         try {
             const res = await api.get('/schedules/all');
-            if (res.data.success && res.data.data.length > 0) {
-                setSchedules(res.data.data);
+            if (res.data.success) {
+                setSchedules(res.data.data || []);
             } else {
-                setSchedules(mockWeeklySchedules);
+                setSchedules([]);
             }
         } catch (err) {
             console.error('Lỗi khi tải lịch giảng dạy:', err);
-            setSchedules(mockWeeklySchedules);
+            setSchedules([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const mockWeeklySchedules = [
-        { id: 1, day: 'Thứ Hai', time: '08:00 – 10:00', course: 'CS101 - Nhập môn Khoa học máy tính', room: 'Phòng A-302', group: 'Nhóm 02', count: 45, status: 'Active' },
-        { id: 2, day: 'Thứ Hai', time: '10:30 – 12:00', course: 'CS204 - Cấu trúc dữ liệu & Giải thuật', room: 'Lab B-101', group: 'Nhóm 01', count: 40, status: 'Upcoming' },
-        { id: 3, day: 'Thứ Ba', time: '13:30 – 15:00', course: 'SE220 - Phát triển ứng dụng Web', room: 'Phòng C-204', group: 'Nhóm 03', count: 42, status: 'Upcoming' },
-        { id: 4, day: 'Thứ Tư', time: '08:00 – 10:00', course: 'CS101 - Nhập môn Khoa học máy tính', room: 'Phòng A-302', group: 'Nhóm 01', count: 44, status: 'Upcoming' },
-        { id: 5, day: 'Thứ Sáu', time: '09:00 – 11:30', course: 'SE220 - Phát triển ứng dụng Web', room: 'Lab B-101', group: 'Nhóm 02', count: 41, status: 'Upcoming' }
-    ];
+    const uniqueCourses = Array.from(new Set(
+        schedules.map(s => {
+            if (s.course_code && s.course_name) return `${s.course_code} - ${s.course_name}`;
+            return s.course;
+        }).filter(Boolean)
+    ));
 
     const displaySchedules = schedules.filter(s => {
         if (filterCourse === 'all') return true;
-        return (s.course || '').toLowerCase().includes(filterCourse.toLowerCase());
+        const fullCourse = s.course || `${s.course_code || ''} ${s.course_name || ''}`;
+        return fullCourse.toLowerCase().includes(filterCourse.toLowerCase());
     });
 
     return (
@@ -77,19 +77,20 @@ const TeacherSchedule = () => {
                         <select
                             value={filterCourse}
                             onChange={(e) => setFilterCourse(e.target.value)}
-                            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none"
+                            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none cursor-pointer"
                         >
                             <option value="all">Tất cả môn học</option>
-                            <option value="CS101">CS101 - Nhập môn Khoa học máy tính</option>
-                            <option value="CS204">CS204 - Cấu trúc dữ liệu & Giải thuật</option>
-                            <option value="SE220">SE220 - Phát triển ứng dụng Web</option>
-                            <option value="CNTT">CNTT - Công nghệ thông tin</option>
+                            {uniqueCourses.map((cStr, idx) => (
+                                <option key={idx} value={cStr}>{cStr}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
 
                 {loading ? (
                     <div className="text-center py-12 text-slate-400 font-medium">Đang tải lịch giảng dạy...</div>
+                ) : displaySchedules.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-medium">Không tìm thấy ca giảng dạy nào phù hợp.</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                         {displaySchedules.map((s) => (
@@ -99,7 +100,7 @@ const TeacherSchedule = () => {
                                         <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-mono">
                                             {s.day} · {s.time}
                                         </span>
-                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : s.status === 'Ended' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>
                                             {s.status === 'Active' ? '● Đang diễn ra' : s.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
                                         </span>
                                     </div>

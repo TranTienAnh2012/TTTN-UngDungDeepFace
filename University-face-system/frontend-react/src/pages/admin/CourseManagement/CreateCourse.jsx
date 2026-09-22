@@ -47,7 +47,7 @@ const CreateCourse = ({ isOpen, onClose, onCourseCreated }) => {
                         <input 
                             type="text" required placeholder="VD: COMP101"
                             value={formData.course_code} onChange={e => setFormData({...formData, course_code: e.target.value.toUpperCase()})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         />
                     </div>
 
@@ -56,7 +56,7 @@ const CreateCourse = ({ isOpen, onClose, onCourseCreated }) => {
                         <input 
                             type="text" required placeholder="Nhập tên môn..."
                             value={formData.course_name} onChange={e => setFormData({...formData, course_name: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 shadow-sm"
                         />
                     </div>
 

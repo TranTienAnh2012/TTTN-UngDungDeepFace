@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Users, Settings, Home, LogOut, Camera, ScanFace, BookOpen, GraduationCap, Calendar, UserCheck, ClipboardList, Sparkles, BarChart2 } from 'lucide-react';
+import { Users, Settings, Home, LogOut, Camera, ScanFace, BookOpen, GraduationCap, Calendar, UserCheck, ClipboardList, Sparkles, BarChart2, Shield, Building2, Building } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = () => {
@@ -19,6 +19,8 @@ const Sidebar = () => {
             items: [
                 { path: '/admin/courses', icon: BookOpen, label: 'Môn Học' },
                 { path: '/admin/students', icon: GraduationCap, label: 'Sinh Viên' },
+                { path: '/admin/faculties-classes', icon: Building2, label: 'Khoa & Lớp' },
+                { path: '/admin/rooms', icon: Building, label: 'Phòng Học' },
             ]
         },
         {
@@ -40,6 +42,7 @@ const Sidebar = () => {
             title: 'Tiện Ích AI',
             items: [
                 { path: '/admin/face-registration-demo', icon: Camera, label: 'Đăng Ký Khuôn Mặt' },
+                { path: '/admin/admin-face-registration', icon: Shield, label: 'KM Admin/Giảng Viên' },
                 { path: '/admin/face-recognition', icon: Sparkles, label: 'Nhận Diện AI' },
                 { path: '/admin/settings', icon: Settings, label: 'Cài Đặt' },
             ]

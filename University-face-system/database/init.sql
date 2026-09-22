@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS exam_schedules (
     course_id     BIGINT(20),
     exam_room     VARCHAR(50),
     exam_time     DATETIME,
+    end_time      DATETIME,
     seating_rows  INT(11),
     seating_cols  INT(11),
     disabled_seats TEXT,
@@ -154,6 +155,7 @@ CREATE TABLE IF NOT EXISTS administrators (
     refresh_token_hash       VARCHAR(255),
     password_reset_token_hash VARCHAR(255),
     password_reset_expires   DATETIME,
+    face_embedding           BLOB,
     last_login_at            DATETIME,
     created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

@@ -1,16 +1,20 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const apiRoutes = require('./routes/api');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+
+// Routes
+const apiRoutes = require('./routes/api');
 const authRoutes = require('./routes/auth.routes');
-const userRoutes = require('./routes/user.routes');
-const courseRoutes = require('./routes/course.routes');
-const studentRoutes = require('./routes/student.routes');
-const classRoutes = require('./routes/class.routes');
-const examRoutes = require('./routes/exam.routes');
-const dashboardRoutes = require('./routes/dashboard.routes');
+const chatRoutes = require('./routes/chat.routes');
+const structureRoutes = require('./routes/structure.routes');
+const userRoutes = require('./routes/admin/user.routes');
+const courseRoutes = require('./routes/admin/course.routes');
+const studentRoutes = require('./routes/admin/student.routes');
+const classRoutes = require('./routes/admin/class.routes');
+const examRoutes = require('./routes/admin/exam.routes');
+const dashboardRoutes = require('./routes/admin/dashboard.routes');
 const errorMiddleware = require('./middleware/error.middleware');
 
 dotenv.config();
@@ -31,14 +35,31 @@ const authLimiter = rateLimit({
     },
 });
 
+// Auth Routes
 app.use('/api/auth', authLimiter, authRoutes);
+
+// Chat & Structure Routes
+app.use('/api/chat', chatRoutes);
+app.use('/api/structure', structureRoutes);
+
+// Teacher & General API Routes
+app.use('/api', apiRoutes);
+app.use('/api/teacher', apiRoutes);
+
+// Admin Routes (Direct & Legacy Aliases)
+app.use('/api/admin/users', userRoutes);
+app.use('/api/admin/courses', courseRoutes);
+app.use('/api/admin/students', studentRoutes);
+app.use('/api/admin/classes', classRoutes);
+app.use('/api/admin/exams', examRoutes);
+app.use('/api/admin/dashboard', dashboardRoutes);
+
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api', apiRoutes);
 
 app.use(errorMiddleware);
 

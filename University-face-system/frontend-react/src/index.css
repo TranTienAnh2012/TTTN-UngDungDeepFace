@@ -33,6 +33,34 @@ body {
   background-attachment: fixed;
 }
 
+/* ════════════════════════════════════════════════════════════════ */
+/* High-contrast fixes for inputs, selects, options & light modals */
+/* ════════════════════════════════════════════════════════════════ */
+input, select, textarea {
+  color: #0f172a;
+}
+
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Light background containers must override dark body text color */
+.bg-white, .bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-slate-100 {
+  color: #0f172a;
+}
+
 .app-container {
   max-width: 1200px;
   margin: 0 auto;

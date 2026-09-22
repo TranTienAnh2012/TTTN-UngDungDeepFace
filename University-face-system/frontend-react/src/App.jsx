@@ -6,13 +6,17 @@ import AdminLayout from './components/admin/AdminLayout';
 import Login from './pages/admin/Login';
 import Register from './pages/admin/Register';
 import VerifyEmail from './pages/admin/VerifyEmail';
+import ForgotPassword from './pages/admin/ForgotPassword';
 import UserManagement from './pages/admin/UserManagement';
 import Dashboard from './pages/admin/Dashboard';
 import FaceRegistration from './components/admin/FaceRegistration';
 import FaceRecognition from './components/admin/FaceRecognition';
+import AdminFaceRegistration from './components/admin/AdminFaceRegistration';
 
 import CourseManagement from './pages/admin/CourseManagement';
 import StudentManagement from './pages/admin/StudentManagement';
+import FacultyClassManagement from './pages/admin/FacultyClassManagement';
+import RoomManagement from './pages/admin/RoomManagement';
 import ClassSchedules from './pages/admin/ClassSchedules';
 import ClassAttendance from './pages/admin/ClassAttendance';
 import ExamSchedules from './pages/admin/ExamSchedules';
@@ -29,6 +33,7 @@ import TeacherReports from './pages/teacher/TeacherReports';
 import TeacherSettings from './pages/teacher/TeacherSettings';
 import TeacherFaceRecognition from './pages/teacher/TeacherFaceRecognition';
 import TeacherFaceRegistration from './pages/teacher/TeacherFaceRegistration';
+import ChatBox from './components/ChatBox';
 
 // Public Face Verification UI
 const FaceVerification = () => (
@@ -61,7 +66,11 @@ function App() {
 
           {/* Admin Auth Route */}
           <Route path="/login" element={<Login />} />
+          <Route path="/admin/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/admin/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/admin/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Admin Protected Routes */}
@@ -72,6 +81,8 @@ function App() {
             
             <Route path="courses" element={<CourseManagement />} />
             <Route path="students" element={<StudentManagement />} />
+            <Route path="faculties-classes" element={<FacultyClassManagement />} />
+            <Route path="rooms" element={<RoomManagement />} />
             <Route path="class-schedules" element={<ClassSchedules />} />
             <Route path="class-attendance" element={<ClassAttendance />} />
             <Route path="exam-schedules" element={<ExamSchedules />} />
@@ -79,6 +90,7 @@ function App() {
 
             <Route path="face-registration-demo" element={<FaceRegistration />} />
             <Route path="face-recognition" element={<FaceRecognition />} />
+            <Route path="admin-face-registration" element={<AdminFaceRegistration />} />
             <Route path="attendance-report" element={<AttendanceReport />} />
             <Route path="settings" element={<div className="p-8 text-center text-gray-500">Trang Cài đặt (Đang phát triển)</div>} />
           </Route>
@@ -96,6 +108,7 @@ function App() {
             <Route path="face-registration" element={<TeacherFaceRegistration />} />
           </Route>
         </Routes>
+        <ChatBox />
       </AuthProvider>
     </Router>
   );
