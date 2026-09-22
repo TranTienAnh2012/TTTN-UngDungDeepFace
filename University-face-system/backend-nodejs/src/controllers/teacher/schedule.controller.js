@@ -3,13 +3,27 @@ const pool = require('../../config/db');
 // GET /schedules/today
 exports.getTodaySchedules = async (req, res) => {
     try {
-        const [rows] = await pool.query(`
-            SELECT cs.*, c.course_code, c.course_name 
+        let [rows] = await pool.query(`
+            SELECT cs.*, c.course_code, c.course_name,
+                (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL) as checked_in_count,
+                (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) as checked_out_count
             FROM class_schedules cs 
             JOIN courses c ON cs.course_id = c.id
             WHERE DATE(cs.start_time) = CURDATE()
             ORDER BY cs.start_time ASC
         `);
+
+        if (rows.length === 0) {
+            [rows] = await pool.query(`
+                SELECT cs.*, c.course_code, c.course_name,
+                    (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL) as checked_in_count,
+                    (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) as checked_out_count
+                FROM class_schedules cs 
+                JOIN courses c ON cs.course_id = c.id
+                ORDER BY cs.start_time DESC
+            `);
+        }
+
         return res.status(200).json({ success: true, data: rows });
     } catch (error) {
         console.error('Lỗi getTodaySchedules:', error);
