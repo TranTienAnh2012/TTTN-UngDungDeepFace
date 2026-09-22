@@ -19,7 +19,6 @@ import FacultyManagement from './pages/admin/FacultyManagement';
 import ClassManagement from './pages/admin/ClassManagement';
 import StudentManagement from './pages/admin/StudentManagement';
 import FacultyClassManagement from './pages/admin/FacultyClassManagement';
-import RoomManagement from './pages/admin/RoomManagement';
 import ClassSchedules from './pages/admin/ClassSchedules';
 import ClassAttendance from './pages/admin/ClassAttendance';
 import ExamSchedules from './pages/admin/ExamSchedules';
@@ -88,7 +87,6 @@ function App() {
             <Route path="rooms" element={<RoomManagement />} />
             <Route path="students" element={<StudentManagement />} />
             <Route path="faculties-classes" element={<FacultyClassManagement />} />
-            <Route path="rooms" element={<RoomManagement />} />
             <Route path="class-schedules" element={<ClassSchedules />} />
             <Route path="class-attendance" element={<ClassAttendance />} />
             <Route path="exam-schedules" element={<ExamSchedules />} />
