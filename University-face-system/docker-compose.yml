@@ -34,6 +34,7 @@ services:
       - DB_USER=${MYSQL_USER}
       - DB_PASSWORD=${MYSQL_PASSWORD}
       - DB_NAME=${MYSQL_DATABASE}
+      - AI_SERVICE_URL=http://ai_service:8000
     depends_on:
       - db
       - ai_service
