@@ -19,9 +19,10 @@ const roomRoutes = require('./routes/room.routes');
 const shiftRoutes = require('./routes/shift.routes');
 const facultyRoutes = require('./routes/faculty.routes');
 const academicClassRoutes = require('./routes/academic_class.routes');
+const teacherScheduleRoutes = require('./routes/teacher/schedule.routes');
 const errorMiddleware = require('./middleware/error.middleware');
 
-dotenv.config();
+dotenv.config({ override: false });
 
 const app = express();
 
@@ -65,6 +66,8 @@ app.use('/api/classes', classRoutes);
 app.use('/api/academic-classes', academicClassRoutes);
 app.use('/api/faculties', facultyRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/schedules', teacherScheduleRoutes);
+app.use('/api/teacher/schedules', teacherScheduleRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/dashboard', dashboardRoutes);
