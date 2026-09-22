@@ -43,8 +43,8 @@ class AdminRegister3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.58"))
-MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.03"))
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.50"))
+MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.02"))
 
 def _try_use_cache(current_embedding):
     return None
