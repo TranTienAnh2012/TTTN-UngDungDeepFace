@@ -713,12 +713,25 @@ exports.getAllSchedules = async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
-                cs.id, cs.room_name, cs.teacher_name,
-                cs.start_time, cs.end_time,
-                c.course_code, c.course_name,
-                (SELECT COUNT(*) FROM students) as student_count
+                cs.id, cs.course_id, cs.class_id, cs.room_id, cs.shift_id, cs.room_name, cs.teacher_name,
+                cs.start_time, cs.end_time, cs.is_recurring, cs.day_of_week, cs.period_start, cs.period_end, cs.week_from, cs.week_to,
+                c.course_code, c.course_name, c.credits,
+                cl.class_code as official_class_code, cl.class_name as official_class_name,
+                f.faculty_name,
+                COALESCE(
+                    NULLIF((SELECT COUNT(DISTINCT e.student_id) FROM enrollments e WHERE e.schedule_id = cs.id), 0),
+                    (SELECT COUNT(*) FROM students s WHERE s.class_id = cs.class_id OR s.class_name = cl.class_code),
+                    0
+                ) as student_count,
+                (
+                    SELECT COUNT(DISTINCT ca.student_id) 
+                    FROM class_attendance ca 
+                    WHERE ca.schedule_id = cs.id AND (ca.check_in_time IS NOT NULL OR ca.check_out_time IS NOT NULL)
+                ) as attended_count
             FROM class_schedules cs
             JOIN courses c ON cs.course_id = c.id
+            LEFT JOIN classes cl ON cs.class_id = cl.id
+            LEFT JOIN faculties f ON cl.faculty_id = f.id
             ORDER BY cs.start_time DESC
         `);
 
@@ -740,9 +753,10 @@ exports.getAllSchedules = async (req, res) => {
                 day: dayStr,
                 time: `${startTimeStr} – ${endTimeStr}`,
                 course: `${s.course_code} - ${s.course_name}`,
-                room: s.room_name,
-                group: 'Nhóm 01',
-                count: s.student_count || 40,
+                room: s.room_name || 'Chưa xếp phòng',
+                group: s.official_class_code ? `Lớp ${s.official_class_code}` : 'Nhóm 01',
+                count: Number(s.student_count) || 0,
+                attended_count: Number(s.attended_count) || 0,
                 status
             };
         });

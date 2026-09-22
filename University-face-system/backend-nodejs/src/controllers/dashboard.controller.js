@@ -7,6 +7,8 @@ exports.getDashboardStats = async (req, res) => {
         const [courseCount] = await pool.query('SELECT COUNT(*) as total FROM courses');
         const [classCount] = await pool.query('SELECT COUNT(*) as total FROM class_schedules');
         const [examCount] = await pool.query('SELECT COUNT(*) as total FROM exam_schedules');
+        const [facultyCount] = await pool.query('SELECT COUNT(*) as total FROM faculties');
+        const [academicClassCount] = await pool.query('SELECT COUNT(*) as total FROM classes');
 
         // 2. Lấy 5 lượt điểm danh lớp học mới nhất
         const classAttendanceQuery = `
@@ -41,6 +43,8 @@ exports.getDashboardStats = async (req, res) => {
             data: {
                 counts: {
                     students: studentCount[0].total,
+                    faculties: facultyCount[0].total,
+                    academic_classes: academicClassCount[0].total,
                     courses: courseCount[0].total,
                     classes: classCount[0].total,
                     exams: examCount[0].total,
