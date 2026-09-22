@@ -37,7 +37,8 @@ class Register3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.72"))
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.58"))
+MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.03"))
 
 # Server-side cache disabled to prevent stale false-positive matches
 def _try_use_cache(current_embedding):
@@ -51,29 +52,15 @@ def _update_cache(embedding, result):
 @app.post("/api/v1/identify")
 async def identify_face(req: IdentifyRequest):
     """
-    3-stage face identification pipeline:
-    
-    Stage 0 (< 2ms):   Frame quality pre-filter (brightness + sharpness).
-                        Reject dark/blurry frames immediately.
-    
-    Stage 1 (100-400ms): MTCNN detection + ArcFace embedding extraction.
-                          MTCNN runs ONCE, crop passed directly to ArcFace.
-    
-    Stage 2 (< 1ms):   Server-side embedding cache.
-                          If current embedding is nearly identical to last
-                          known good embedding (2s TTL), return cached
-                          student info without running similarity search.
-    
-    Stage 3 (< 5ms):   Vectorized NumPy cosine similarity vs all embeddings.
+    Face identification pipeline (1:N search vs MySQL registered embeddings)
     """
     t0 = time.time()
 
-    # STAGE 1: Detect face + extract embedding (combined single MTCNN pass)
+    # STAGE 1: Detect face + extract embedding
     try:
-        # Run detection in a thread with a 3‑second timeout to avoid hanging
         detect_result = await asyncio.wait_for(
-            asyncio.to_thread(face_processor.detect_and_extract, req.image_base64),
-            timeout=3
+            asyncio.to_thread(face_processor.detect_and_extract, req.image_base64, False),
+            timeout=5
         )
     except asyncio.TimeoutError:
         return {
@@ -170,7 +157,6 @@ async def identify_face(req: IdentifyRequest):
     best_student = valid_students[best_idx]
 
     # Margin check: best must be clearly better than 2nd best (prevent ambiguous matches)
-    MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.10"))
     if len(similarities) > 1:
         sorted_sims = np.sort(similarities)[::-1]
         second_best = float(sorted_sims[1])
