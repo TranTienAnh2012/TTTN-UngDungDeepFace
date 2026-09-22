@@ -19,12 +19,13 @@ const signup = async ({ full_name, email, password, role = 'teacher' }) => {
     const expiresInMinutes = Number(process.env.EMAIL_VERIFY_EXPIRES_MINUTES) || 15;
     const expiresDate = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
+    const username = email.split('@')[0] + '_' + Math.floor(Math.random() * 1000);
     // Insert new user (default role: 'teacher')
     const [result] = await db.execute(
         `INSERT INTO administrators 
-         (full_name, email, password, role, is_email_verified, email_verify_token, email_verify_expires) 
-         VALUES (?, ?, ?, ?, 0, ?, ?)`,
-        [full_name, email, passwordHash, role, hashToken(verifyToken), expiresDate]
+         (username, full_name, email, password, role, is_email_verified, email_verify_token, email_verify_expires) 
+         VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+        [username, full_name, email, passwordHash, role, hashToken(verifyToken), expiresDate]
     );
 
     const newUserId = result.insertId;

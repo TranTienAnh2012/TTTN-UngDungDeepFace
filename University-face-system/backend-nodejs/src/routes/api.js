@@ -28,9 +28,12 @@ router.post('/face/register-3step',    attendanceController.registerFace3Step);
 router.get('/student-list',             attendanceController.getStudents);
 router.post('/student/quick-create',    attendanceController.quickCreateStudent);
 
+const classController = require('../controllers/class.controller');
+
 // ── Teacher Schedules & Exams
 router.post('/schedules/create',        attendanceController.createSchedule);
 router.get('/schedules/all',            attendanceController.getAllSchedules);
+router.get('/schedules/:id/students',   classController.getScheduleStudents);
 router.get('/teacher/exams',            attendanceController.getExamSchedules);
 router.get('/reports/teacher-summary',  attendanceController.getTeacherReportSummary);
 router.get('/reports/export',           attendanceController.exportReportExcel);
