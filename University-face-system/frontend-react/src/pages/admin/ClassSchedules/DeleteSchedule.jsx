@@ -1,32 +1,67 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import api from '../../../services/api';
 
 const DeleteSchedule = ({ isOpen, onClose, onDeleted, schedule }) => {
     const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState('');
 
     if (!isOpen || !schedule) return null;
 
     const handleDelete = async () => {
         setIsDeleting(true);
+        setError('');
         try {
             await api.delete(`/classes/schedules/${schedule.id}`);
             onDeleted();
             onClose();
         } catch (error) {
-            alert(error.response?.data?.message || 'Lỗi xóa');
+            setError(error.response?.data?.message || 'Lỗi xóa');
             setIsDeleting(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5">
-                <h3 className="text-lg font-bold text-red-600 mb-3">Xóa Lịch Học</h3>
-                <p>Bạn có chắc chắn muốn xóa lịch học môn {schedule.course_code} - phòng {schedule.room_name}?</p>
-                <div className="mt-5 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200">Hủy</button>
-                    <button onClick={handleDelete} disabled={isDeleting} className="px-4 py-2 bg-red-600 text-white rounded-xl">{isDeleting ? 'Đang xóa...' : 'Xóa'}</button>
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <AlertTriangle className="text-red-500" size={20} />
+                        Xóa Lịch Học
+                    </h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="p-5">
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl font-medium">
+                            {error}
+                        </div>
+                    )}
+                    <p className="text-gray-600">
+                        Bạn có chắc chắn muốn xóa lịch học môn <span className="font-bold text-gray-900">{schedule.course_name || schedule.course_code}</span> - phòng <span className="font-bold text-gray-900">{schedule.room_name}</span>?
+                    </p>
+                    <p className="text-sm text-red-500 mt-2 font-medium">
+                        Hành động này sẽ xóa toàn bộ dữ liệu điểm danh liên quan đến buổi học này.
+                    </p>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button 
+                            onClick={onClose}
+                            className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors"
+                        >
+                            Hủy
+                        </button>
+                        <button 
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="px-4 py-2 bg-red-600 text-white font-medium hover:bg-red-700 rounded-xl transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {isDeleting ? 'Đang xóa...' : 'Xóa Lịch Học'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

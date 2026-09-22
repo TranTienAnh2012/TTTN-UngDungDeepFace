@@ -45,10 +45,11 @@ const FaceRegistration = ({ onComplete }) => {
     const [imageSize, setImageSize] = useState([640, 480]);
     const [statusMessage, setStatusMessage] = useState('Vui lòng nhìn thẳng vào camera');
     const [isDetecting, setIsDetecting] = useState(false);
+    const isProcessingRef = useRef(false);
 
     // Stability counter for pose auto-capture
     const stabilityCounter = useRef(0);
-    const STABILITY_THRESHOLD = 12; // ~1.2s of stable pose
+    const STABILITY_THRESHOLD = 3; // ~0.6s of stable pose
 
     // Load recent students list on mount
     useEffect(() => {
@@ -125,16 +126,47 @@ const FaceRegistration = ({ onComplete }) => {
         setStatusMessage('Vui lòng nhìn thẳng vào camera');
     };
 
+    // Manual snap helper
+    const handleManualSnapCurrentStep = () => {
+        if (!webcamRef.current) return;
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (!imageSrc) return;
+
+        if (step === 'straight') {
+            setImages(prev => ({ ...prev, straight: imageSrc }));
+            setStep('left');
+            stabilityCounter.current = 0;
+            setStatusMessage('Tốt! Bây giờ vui lòng quay mặt từ từ sang TRÁI');
+        } else if (step === 'left') {
+            setImages(prev => ({ ...prev, left: imageSrc }));
+            setStep('right');
+            stabilityCounter.current = 0;
+            setStatusMessage('Tốt! Cuối cùng, vui lòng quay mặt từ từ sang PHẢI');
+        } else if (step === 'right') {
+            setImages(prev => ({ ...prev, right: imageSrc }));
+            setStep('registering');
+            setIsDetecting(false);
+            stabilityCounter.current = 0;
+            setStatusMessage('Đang xử lý và lưu dữ liệu vector khuôn mặt...');
+        }
+    };
+
     // Camera pose detection callback
     const captureFrame = useCallback(async () => {
         if (!isDetecting || regMode !== 'camera' || pagePhase !== 'camera_scan' || step === 'registering' || step === 'error') return;
+        if (isProcessingRef.current) return;
 
         if (webcamRef.current) {
             const imageSrc = webcamRef.current.getScreenshot();
             if (!imageSrc) return;
 
+            isProcessingRef.current = true;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
             try {
-                const response = await api.post('/face/detect-pose', { image_base64: imageSrc });
+                const response = await api.post('/face/detect-pose', { image_base64: imageSrc }, { signal: controller.signal });
+                clearTimeout(timeoutId);
 
                 if (response.data.success && response.data.box) {
                     setBox(response.data.box);
@@ -172,7 +204,7 @@ const FaceRegistration = ({ onComplete }) => {
                             setStatusMessage('Đang xử lý và lưu dữ liệu vector khuôn mặt...');
                         }
                     } else {
-                        stabilityCounter.current = Math.max(0, stabilityCounter.current - 2);
+                        stabilityCounter.current = Math.max(0, stabilityCounter.current - 1);
                         if (stabilityCounter.current === 0) {
                             if (step === 'straight') setStatusMessage('Vui lòng nhìn thẳng vào camera');
                             else if (step === 'left') setStatusMessage('Vui lòng quay mặt sang TRÁI');
@@ -186,7 +218,12 @@ const FaceRegistration = ({ onComplete }) => {
                     setStatusMessage('Không tìm thấy khuôn mặt trong khung hình');
                 }
             } catch (err) {
-                console.error('Lỗi khi phân tích pose:', err);
+                clearTimeout(timeoutId);
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Lỗi khi phân tích pose:', err);
+                }
+            } finally {
+                isProcessingRef.current = false;
             }
         }
     }, [isDetecting, regMode, pagePhase, step]);
@@ -194,7 +231,7 @@ const FaceRegistration = ({ onComplete }) => {
     useEffect(() => {
         let interval;
         if (isDetecting && regMode === 'camera' && pagePhase === 'camera_scan') {
-            interval = setInterval(captureFrame, 150);
+            interval = setInterval(captureFrame, 200);
         }
         return () => {
             if (interval) clearInterval(interval);
@@ -743,6 +780,19 @@ const FaceRegistration = ({ onComplete }) => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Action buttons: Manual snap & Reset */}
+                            {(step === 'straight' || step === 'left' || step === 'right') && (
+                                <div className="mt-4 flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleManualSnapCurrentStep}
+                                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md flex items-center gap-2 text-sm transition-all"
+                                    >
+                                        <Camera size={16} /> Chụp góc này ngay
+                                    </button>
+                                </div>
+                            )}
 
                             {step === 'error' && (
                                 <button

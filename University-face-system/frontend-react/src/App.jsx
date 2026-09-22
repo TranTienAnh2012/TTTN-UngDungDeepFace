@@ -14,6 +14,9 @@ import FaceRecognition from './components/admin/FaceRecognition';
 import AdminFaceRegistration from './components/admin/AdminFaceRegistration';
 
 import CourseManagement from './pages/admin/CourseManagement';
+import RoomManagement from './pages/admin/RoomManagement';
+import FacultyManagement from './pages/admin/FacultyManagement';
+import ClassManagement from './pages/admin/ClassManagement';
 import StudentManagement from './pages/admin/StudentManagement';
 import FacultyClassManagement from './pages/admin/FacultyClassManagement';
 import RoomManagement from './pages/admin/RoomManagement';
@@ -79,7 +82,10 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<UserManagement />} />
             
+            <Route path="faculties" element={<FacultyManagement />} />
+            <Route path="classes" element={<ClassManagement />} />
             <Route path="courses" element={<CourseManagement />} />
+            <Route path="rooms" element={<RoomManagement />} />
             <Route path="students" element={<StudentManagement />} />
             <Route path="faculties-classes" element={<FacultyClassManagement />} />
             <Route path="rooms" element={<RoomManagement />} />

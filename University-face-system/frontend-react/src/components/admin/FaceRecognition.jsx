@@ -285,7 +285,7 @@ const FaceRecognition = () => {
                 offscreenCanvasRef.current = document.createElement('canvas');
             }
             const canvas = offscreenCanvasRef.current;
-            const maxW = 320;
+            const maxW = 480;
             const vWidth = video.videoWidth || 640;
             const vHeight = video.videoHeight || 480;
             const scale = Math.min(1, maxW / vWidth);
@@ -295,7 +295,7 @@ const FaceRecognition = () => {
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/jpeg', 0.7);
+            return canvas.toDataURL('image/jpeg', 0.85);
         } catch (e) {
             return webcamRef.current.getScreenshot();
         }
@@ -312,9 +312,9 @@ const FaceRecognition = () => {
         isProcessingRef.current = true;
         if (mode === 'manual') setIsProcessing(true);
 
-        // Abort controller: timeout 3.5 giây để tránh treo
+        // Abort controller: timeout 5 giây để tránh treo
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         try {
             if (mode === 'auto' && isAutoScanning) {

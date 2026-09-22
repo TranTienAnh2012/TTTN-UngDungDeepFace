@@ -5,31 +5,64 @@ exports.getAllStudents = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
+        const class_id = req.query.class_id || '';
+        const faculty_id = req.query.faculty_id || '';
         const offset = (page - 1) * limit;
 
-        let query = 'SELECT id, student_code, full_name, date_of_birth, class_name, status, face_embedding FROM students';
-        let countQuery = 'SELECT COUNT(*) as total FROM students';
+        let query = `
+            SELECT s.id, s.student_code, s.full_name, s.date_of_birth, 
+                   s.faculty_id, s.class_id, s.class_name, s.email, s.status, s.face_embedding,
+                   c.class_code, c.class_name as class_full_name,
+                   f.faculty_code, f.faculty_name
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN faculties f ON (s.faculty_id = f.id OR c.faculty_id = f.id)
+        `;
+        let countQuery = `
+            SELECT COUNT(*) as total 
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN faculties f ON (s.faculty_id = f.id OR c.faculty_id = f.id)
+        `;
         const queryParams = [];
+        const countParams = [];
+        const whereClauses = [];
 
         if (search) {
-            const searchCondition = ' WHERE student_code LIKE ? OR full_name LIKE ? OR class_name LIKE ?';
-            query += searchCondition;
-            countQuery += searchCondition;
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            whereClauses.push('(s.student_code LIKE ? OR s.full_name LIKE ? OR s.class_name LIKE ? OR c.class_code LIKE ? OR c.class_name LIKE ?)');
+            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
-        query += ' ORDER BY id DESC LIMIT ? OFFSET ?';
+        if (class_id) {
+            whereClauses.push('s.class_id = ?');
+            queryParams.push(class_id);
+            countParams.push(class_id);
+        }
+
+        if (faculty_id) {
+            whereClauses.push('(s.faculty_id = ? OR c.faculty_id = ?)');
+            queryParams.push(faculty_id, faculty_id);
+            countParams.push(faculty_id, faculty_id);
+        }
+
+        if (whereClauses.length > 0) {
+            const whereStr = ' WHERE ' + whereClauses.join(' AND ');
+            query += whereStr;
+            countQuery += whereStr;
+        }
+
+        query += ' ORDER BY s.id DESC LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
         const [rows] = await pool.query(query, queryParams);
-        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [countResult] = await pool.query(countQuery, countParams);
         const total = countResult[0].total;
 
-        // Xử lý face_embedding sang base64 nếu có
+        // Convert face_embedding buffer to base64 if present
         const formattedRows = rows.map(student => {
             let embeddingBase64 = null;
             if (student.face_embedding) {
-                // Nếu buffer hợp lệ thì chuyển đổi sang chuỗi base64
                 embeddingBase64 = Buffer.from(student.face_embedding).toString('base64');
             }
             return {
@@ -57,7 +90,17 @@ exports.getAllStudents = async (req, res) => {
 exports.getStudentById = async (req, res) => {
     try {
         const { id } = req.params;
-        const [rows] = await pool.query('SELECT * FROM students WHERE id = ?', [id]);
+        const query = `
+            SELECT s.id, s.student_code, s.full_name, s.date_of_birth, 
+                   s.faculty_id, s.class_id, s.class_name, s.email, s.status, s.face_embedding, s.created_at,
+                   c.class_code, c.class_name as class_full_name, 
+                   f.faculty_code, f.faculty_name
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN faculties f ON (s.faculty_id = f.id OR c.faculty_id = f.id)
+            WHERE s.id = ?
+        `;
+        const [rows] = await pool.query(query, [id]);
         
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
@@ -77,20 +120,39 @@ exports.getStudentById = async (req, res) => {
 
 exports.createStudent = async (req, res) => {
     try {
-        const { student_code, full_name, date_of_birth, class_name, status } = req.body;
+        let { student_code, full_name, date_of_birth, faculty_id, class_id, class_name, email, status } = req.body;
         
         if (!student_code || !full_name) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền mã sinh viên và họ tên' });
         }
 
-        const [existing] = await pool.query('SELECT id FROM students WHERE student_code = ?', [student_code]);
+        const [existing] = await pool.query('SELECT id FROM students WHERE student_code = ?', [student_code.trim()]);
         if (existing.length > 0) {
             return res.status(400).json({ success: false, message: 'Mã sinh viên đã tồn tại' });
         }
 
+        // Auto-fill class_name and faculty_id from classes if provided
+        if (class_id) {
+            const [cRows] = await pool.query('SELECT class_code, faculty_id FROM classes WHERE id = ?', [class_id]);
+            if (cRows.length > 0) {
+                if (!class_name) class_name = cRows[0].class_code;
+                if (!faculty_id) faculty_id = cRows[0].faculty_id;
+            }
+        }
+
         const [result] = await pool.query(
-            'INSERT INTO students (student_code, full_name, date_of_birth, class_name, status) VALUES (?, ?, ?, ?, ?)',
-            [student_code, full_name, date_of_birth || null, class_name || null, status || 'Active']
+            `INSERT INTO students (student_code, full_name, date_of_birth, faculty_id, class_id, class_name, email, status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                student_code.trim(),
+                full_name.trim(),
+                date_of_birth || '2002-01-01',
+                faculty_id || null,
+                class_id || null,
+                class_name || null,
+                email || null,
+                status || 'Active'
+            ]
         );
         
         res.status(201).json({ 
@@ -107,21 +169,40 @@ exports.createStudent = async (req, res) => {
 exports.updateStudent = async (req, res) => {
     try {
         const { id } = req.params;
-        const { student_code, full_name, date_of_birth, class_name, status } = req.body;
+        let { student_code, full_name, date_of_birth, faculty_id, class_id, class_name, email, status } = req.body;
 
         if (!student_code || !full_name) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền mã sinh viên và họ tên' });
         }
 
-        // Check if new student code belongs to another student
-        const [existing] = await pool.query('SELECT id FROM students WHERE student_code = ? AND id != ?', [student_code, id]);
+        const [existing] = await pool.query('SELECT id FROM students WHERE student_code = ? AND id != ?', [student_code.trim(), id]);
         if (existing.length > 0) {
             return res.status(400).json({ success: false, message: 'Mã sinh viên đã được sử dụng bởi người khác' });
         }
 
+        if (class_id) {
+            const [cRows] = await pool.query('SELECT class_code, faculty_id FROM classes WHERE id = ?', [class_id]);
+            if (cRows.length > 0) {
+                if (!class_name) class_name = cRows[0].class_code;
+                if (!faculty_id) faculty_id = cRows[0].faculty_id;
+            }
+        }
+
         const [result] = await pool.query(
-            'UPDATE students SET student_code = ?, full_name = ?, date_of_birth = ?, class_name = ?, status = ? WHERE id = ?',
-            [student_code, full_name, date_of_birth || null, class_name || null, status || 'Active', id]
+            `UPDATE students 
+             SET student_code = ?, full_name = ?, date_of_birth = ?, faculty_id = ?, class_id = ?, class_name = ?, email = ?, status = ? 
+             WHERE id = ?`,
+            [
+                student_code.trim(),
+                full_name.trim(),
+                date_of_birth || null,
+                faculty_id || null,
+                class_id || null,
+                class_name || null,
+                email || null,
+                status || 'Active',
+                id
+            ]
         );
 
         if (result.affectedRows === 0) {
@@ -139,7 +220,6 @@ exports.deleteStudent = async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Prevent deletion if there is attendance data
         const [classAtt] = await pool.query('SELECT id FROM class_attendance WHERE student_id = ? LIMIT 1', [id]);
         if (classAtt.length > 0) {
             return res.status(400).json({ success: false, message: 'Không thể xóa sinh viên này vì đã có dữ liệu điểm danh lớp' });

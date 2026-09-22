@@ -43,7 +43,8 @@ class AdminRegister3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.72"))
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.58"))
+MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.03"))
 
 def _try_use_cache(current_embedding):
     return None
@@ -53,12 +54,14 @@ def _update_cache(embedding, result):
 
 @app.post("/api/v1/identify")
 async def identify_face(req: IdentifyRequest):
+    """
+    Face identification pipeline (1:N search vs MySQL registered embeddings)
+    """
     t0 = time.time()
-
     try:
         detect_result = await asyncio.wait_for(
-            asyncio.to_thread(face_processor.detect_and_extract, req.image_base64),
-            timeout=3
+            asyncio.to_thread(face_processor.detect_and_extract, req.image_base64, False),
+            timeout=5
         )
     except asyncio.TimeoutError:
         return {
@@ -139,7 +142,7 @@ async def identify_face(req: IdentifyRequest):
     best_similarity = float(similarities[best_idx])
     best_student = valid_students[best_idx]
 
-    MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.10"))
+    # Margin check: best must be clearly better than 2nd best (prevent ambiguous matches)
     if len(similarities) > 1:
         sorted_sims = np.sort(similarities)[::-1]
         second_best = float(sorted_sims[1])

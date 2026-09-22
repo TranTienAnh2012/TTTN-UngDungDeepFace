@@ -5,8 +5,16 @@ import json
 import base64
 import numpy as np
 import time
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Load .env from current directory or parent directory
+_current_dir = Path(__file__).resolve().parent
+_env_path = _current_dir / '.env'
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv(dotenv_path=_current_dir.parent / '.env')
 load_dotenv()
 
 cached_students = None
@@ -22,7 +30,7 @@ def get_db_connection():
             host=os.getenv("DB_HOST", "127.0.0.1"),
             port=int(os.getenv("DB_PORT", "3306")),
             user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", "rootpassword"),
+            password=os.getenv("DB_PASSWORD", "123456"),
             database=os.getenv("DB_NAME", "face_attendance_db")
         )
         return connection

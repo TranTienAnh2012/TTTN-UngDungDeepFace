@@ -1,76 +1,338 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, CalendarPlus, Clock, Building2, Armchair, ChevronDown, Eye } from 'lucide-react';
 import api from '../../../services/api';
+import SeatMatrixEditor from '../RoomManagement/SeatMatrixEditor';
 
 const CreateExamSchedule = ({ isOpen, onClose, onCreated }) => {
     const [courses, setCourses] = useState([]);
-    const [formData, setFormData] = useState({ course_id: '', exam_room: '', exam_time: '', end_time: '', seating_rows: 5, seating_cols: 6 });
+    const [rooms, setRooms] = useState([]);
+    const [academicClasses, setAcademicClasses] = useState([]);
+    const [selectedRoomObj, setSelectedRoomObj] = useState(null);
+    const [showPreview, setShowPreview] = useState(false);
+
+    const [formData, setFormData] = useState({
+        course_id: '',
+        room_id: '',
+        class_id: '',
+        exam_room: '',
+        exam_time: '',
+        duration_minutes: 90,
+        seating_rows: 6,
+        seating_cols: 8,
+        disabled_seats: [],
+        auto_enroll_class: true
+    });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            api.get('/courses').then(res => setCourses(res.data.data)).catch(console.error);
+            api.get('/courses?limit=1000').then(res => setCourses(res.data.data || [])).catch(console.error);
+            api.get('/rooms?limit=1000').then(res => setRooms(res.data.data || [])).catch(console.error);
+            api.get('/academic-classes?limit=1000').then(res => setAcademicClasses(res.data.data || [])).catch(console.error);
         }
     }, [isOpen]);
 
     if (!isOpen) return null;
 
+    // Handle room selection
+    const handleRoomChange = (e) => {
+        const roomId = e.target.value;
+        if (!roomId) {
+            setSelectedRoomObj(null);
+            setFormData(prev => ({ ...prev, room_id: '', exam_room: '' }));
+            return;
+        }
+
+        const room = rooms.find(r => r.id === parseInt(roomId));
+        if (room) {
+            setSelectedRoomObj(room);
+            setFormData(prev => ({
+                ...prev,
+                room_id: room.id,
+                exam_room: `${room.room_code} - ${room.room_name}`,
+                seating_rows: room.seating_rows,
+                seating_cols: room.seating_cols,
+                disabled_seats: room.disabled_seats || []
+            }));
+        }
+    };
+
+    // Calculate end time
+    const getEstimatedEndTime = () => {
+        if (!formData.exam_time) return null;
+        try {
+            const start = new Date(formData.exam_time);
+            const end = new Date(start.getTime() + (formData.duration_minutes || 90) * 60000);
+            return end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' (' + end.toLocaleDateString('vi-VN') + ')';
+        } catch {
+            return null;
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.course_id || !formData.exam_time) {
+            return alert('Vui lòng chọn Môn thi và Giờ thi');
+        }
+        if (!formData.exam_room && !formData.room_id) {
+            return alert('Vui lòng chọn Phòng thi từ danh sách hoặc nhập tên phòng');
+        }
+
         setIsSubmitting(true);
         try {
             await api.post('/exams/schedules', formData);
             onCreated();
             onClose();
+            // Reset
+            setFormData({
+                course_id: '',
+                room_id: '',
+                exam_room: '',
+                exam_time: '',
+                duration_minutes: 90,
+                seating_rows: 6,
+                seating_cols: 8,
+                disabled_seats: []
+            });
+            setSelectedRoomObj(null);
         } catch (error) {
-            alert(error.response?.data?.message || 'Lỗi');
+            alert(error.response?.data?.message || 'Lỗi thêm lịch thi');
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const endTimeDisplay = getEstimatedEndTime();
+
     return (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100">
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                    <h3 className="text-lg font-bold text-gray-900">Thêm Lịch Thi</h3>
-                    <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={20} /></button>
-                </div>
-                <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-gray-100 flex flex-col max-h-[92vh]">
+                {/* Header */}
+                <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-white">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Môn Học *</label>
-                        <select required className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm shadow-sm" value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})}>
-                            <option value="">-- Chọn môn --</option>
-                            {courses.map(c => <option key={c.id} value={c.id}>{c.course_code} - {c.course_name}</option>)}
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <CalendarPlus size={20} className="text-primary-600" />
+                            Thêm Lịch Thi Mới
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Chọn phòng thi từ danh mục phòng & tự động tính thời gian</p>
+                    </div>
+                    <button 
+                        onClick={onClose}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Form Body */}
+                <form onSubmit={handleSubmit} className="p-5 space-y-4 bg-white overflow-y-auto flex-1">
+                    {/* Course Selection */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Môn Học *</label>
+                        <select 
+                            required 
+                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm" 
+                            value={formData.course_id} 
+                            onChange={e => setFormData({...formData, course_id: e.target.value})}
+                        >
+                            <option value="" className="text-gray-500">-- Chọn môn thi --</option>
+                            {courses.map(c => <option key={c.id} value={c.id} className="text-gray-900">{c.course_code} - {c.course_name}</option>)}
                         </select>
                     </div>
+
+                    {/* Academic Class Selection */}
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Phòng Thi *</label>
-                        <input type="text" required className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm shadow-sm" value={formData.exam_room} onChange={e => setFormData({...formData, exam_room: e.target.value})} />
+                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                            Lớp Dự Thi Chính Quy (Tùy chọn)
+                        </label>
+                        <select
+                            value={formData.class_id}
+                            onChange={e => setFormData({...formData, class_id: e.target.value})}
+                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
+                        >
+                            <option value="" className="text-gray-500">-- Chưa gắn lớp (Tự nạp danh sách dự thi sau) --</option>
+                            {academicClasses.map(c => (
+                                <option key={c.id} value={c.id} className="text-gray-900">
+                                    {c.class_code} - {c.class_name} ({c.faculty_name} • {c.student_count || 0} SV)
+                                </option>
+                            ))}
+                        </select>
+                        {formData.class_id && (
+                            <label className="flex items-center gap-2 mt-2 text-xs font-bold text-indigo-700 cursor-pointer bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-100">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.auto_enroll_class}
+                                    onChange={e => setFormData({...formData, auto_enroll_class: e.target.checked})}
+                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span>⚡ Tự động nạp toàn bộ sinh viên trong lớp & xếp ghế theo sơ đồ</span>
+                            </label>
+                        )}
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Giờ Bắt Đầu *</label>
-                            <input type="datetime-local" required className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm shadow-sm" value={formData.exam_time} onChange={e => setFormData({...formData, exam_time: e.target.value})} />
+
+                    {/* Room Selection */}
+                    <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Chọn Phòng Thi (Từ danh mục) *
+                            </label>
+                            {selectedRoomObj && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPreview(!showPreview)}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                >
+                                    <Eye size={13} /> {showPreview ? 'Ẩn sơ đồ' : 'Xem sơ đồ ghế'}
+                                </button>
+                            )}
                         </div>
+                        <select
+                            value={formData.room_id}
+                            onChange={handleRoomChange}
+                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm"
+                        >
+                            <option value="" className="text-gray-500">-- Chọn phòng thi có sẵn --</option>
+                            {rooms.map(r => (
+                                <option key={r.id} value={r.id} className="text-gray-900">
+                                    [{r.room_code}] {r.room_name} ({r.building || 'Khu học'} - {r.seating_rows}x{r.seating_cols} = {r.capacity} chỗ)
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Room Preview (Collapsible) */}
+                    {selectedRoomObj && showPreview && (
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 animate-in fade-in">
+                            <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                                <span>Sơ đồ phòng: {selectedRoomObj.room_code}</span>
+                                <span className="text-indigo-600">{selectedRoomObj.capacity} chỗ khả dụng</span>
+                            </div>
+                            <SeatMatrixEditor
+                                rows={selectedRoomObj.seating_rows}
+                                cols={selectedRoomObj.seating_cols}
+                                disabledSeats={selectedRoomObj.disabled_seats}
+                                readOnly={true}
+                            />
+                        </div>
+                    )}
+
+                    {/* Fallback Custom Room Name if not picking from list */}
+                    {!formData.room_id && (
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Giờ Kết Thúc</label>
-                            <input type="datetime-local" className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm shadow-sm" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} />
+                            <label className="block text-xs font-bold text-gray-600 mb-1">Hoặc nhập tên phòng tự do</label>
+                            <input 
+                                type="text" 
+                                placeholder="Ví dụ: Hội trường C2 - Phòng 501" 
+                                className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm" 
+                                value={formData.exam_room} 
+                                onChange={e => setFormData({...formData, exam_room: e.target.value})} 
+                            />
+                        </div>
+                    )}
+
+                    {/* Time & Duration */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                                Giờ Bắt Đầu Thi *
+                            </label>
+                            <input 
+                                type="datetime-local" 
+                                required 
+                                className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-semibold focus:ring-2 focus:ring-primary-500 shadow-sm" 
+                                value={formData.exam_time} 
+                                onChange={e => setFormData({...formData, exam_time: e.target.value})} 
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                                Thời Lượng Thi (Phút)
+                            </label>
+                            <div className="space-y-1.5">
+                                <input 
+                                    type="number"
+                                    min="15"
+                                    max="300"
+                                    className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-bold focus:ring-2 focus:ring-primary-500 shadow-sm" 
+                                    value={formData.duration_minutes} 
+                                    onChange={e => setFormData({...formData, duration_minutes: parseInt(e.target.value) || 60})} 
+                                />
+                                <div className="flex gap-1.5">
+                                    {[45, 60, 90, 120].map(mins => (
+                                        <button
+                                            key={mins}
+                                            type="button"
+                                            onClick={() => setFormData({...formData, duration_minutes: mins})}
+                                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-colors ${
+                                                formData.duration_minutes === mins 
+                                                    ? 'bg-primary-600 text-white border-primary-600' 
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200'
+                                            }`}
+                                        >
+                                            {mins}p
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Số Hàng *</label>
-                            <input type="number" min="1" max="20" required className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm shadow-sm" value={formData.seating_rows} onChange={e => setFormData({...formData, seating_rows: e.target.value})} />
+
+                    {/* Calculated End Time Badge */}
+                    {endTimeDisplay && (
+                        <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between text-xs">
+                            <span className="text-gray-600 font-medium flex items-center gap-1.5">
+                                <Clock size={15} className="text-indigo-600" /> Dự kiến kết thúc:
+                            </span>
+                            <span className="text-indigo-700 font-bold">{endTimeDisplay}</span>
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Số Cột *</label>
-                            <input type="number" min="1" max="20" required className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm shadow-sm" value={formData.seating_cols} onChange={e => setFormData({...formData, seating_cols: e.target.value})} />
+                    )}
+
+                    {/* Manual Row/Col adjustment (if not using preset room) */}
+                    {!formData.room_id && (
+                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Số Hàng Ghế</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="20" 
+                                    className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-bold focus:ring-2 focus:ring-primary-500" 
+                                    value={formData.seating_rows} 
+                                    onChange={e => setFormData({...formData, seating_rows: parseInt(e.target.value) || 1})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Số Cột Ghế</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="20" 
+                                    className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-bold focus:ring-2 focus:ring-primary-500" 
+                                    value={formData.seating_cols} 
+                                    onChange={e => setFormData({...formData, seating_cols: parseInt(e.target.value) || 1})} 
+                                />
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Footer buttons */}
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button type="button" onClick={onClose} className="px-4 py-2 hover:bg-gray-100 rounded-xl text-gray-700 font-semibold text-sm transition-colors">Hủy</button>
-                        <button type="submit" disabled={isSubmitting} className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-sm shadow-sm transition-colors">{isSubmitting ? 'Đang lưu...' : 'Thêm'}</button>
+                        <button 
+                            type="button" 
+                            onClick={onClose} 
+                            className="px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                        >
+                            Hủy
+                        </button>
+                        <button 
+                            type="submit" 
+                            disabled={isSubmitting} 
+                            className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl shadow-md shadow-primary-200 transition-all flex items-center gap-1.5 disabled:opacity-70"
+                        >
+                            <CalendarPlus size={18} />
+                            {isSubmitting ? 'Đang lưu...' : 'Thêm Lịch Thi'}
+                        </button>
                     </div>
                 </form>
             </div>

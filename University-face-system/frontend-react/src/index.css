@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --bg-color: #0f172a;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --accent-color: #3b82f6;
-  --accent-hover: #2563eb;
+  --bg-color: #f8fafc;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-color: #0284c7;
+  --accent-hover: #0369a1;
   --success-color: #10b981;
   --error-color: #ef4444;
-  --card-bg: rgba(30, 41, 59, 0.7);
-  --card-border: rgba(255, 255, 255, 0.1);
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
 }
 
 * {
@@ -27,10 +27,19 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-image: 
-    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 25%);
-  background-attachment: fixed;
+}
+
+input, select, textarea {
+  color: #0f172a;
+}
+
+option {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
+table {
+  color: #1e293b;
 }
 
 /* ════════════════════════════════════════════════════════════════ */
@@ -189,7 +198,7 @@ select option {
   padding: 0.75rem 1rem;
   border-radius: 10px;
   border: 1px solid var(--card-border);
-  background-color: rgba(15, 23, 42, 0.6);
+  background-color: #ffffff;
   color: var(--text-primary);
   font-size: 1rem;
   outline: none;
