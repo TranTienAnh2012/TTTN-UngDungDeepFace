@@ -256,12 +256,12 @@ async def register_face_3step(req: Register3StepRequest):
 
 @app.post("/api/v1/register")
 async def register_face(req: VerifyRequest):
-    embedding = face_processor.extract_embedding(req.image_base64)
+    embedding = face_processor.extract_embedding(req.image_base64, require_oval=False)
     if embedding is None:
-        raise HTTPException(status_code=400, detail="Could not detect face")
+        raise HTTPException(status_code=400, detail="Không tìm thấy khuôn mặt trong hình ảnh. Vui lòng chọn ảnh chụp rõ nét hơn.")
     success = db_mysql.update_student_embedding(req.student_id, embedding)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to save")
+        raise HTTPException(status_code=500, detail="Lỗi lưu dữ liệu vector vào CSDL")
 
     return {"success": True}
 

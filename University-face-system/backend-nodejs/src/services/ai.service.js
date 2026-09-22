@@ -30,8 +30,9 @@ class AiService {
             });
             return response.data; // Expected { success: true }
         } catch (error) {
-            console.error('AI Service Error (registerFace):', error.message);
-            throw new Error('Could not register face embedding with AI service');
+            const detail = error.response?.data?.detail || error.message;
+            console.error('AI Service Error (registerFace):', detail);
+            throw new Error(detail || 'Không thể đăng ký vector khuôn mặt với AI service');
         }
     }
 
@@ -63,8 +64,9 @@ class AiService {
             });
             return response.data; // Expected { success: true }
         } catch (error) {
-            console.error('AI Service Error (registerFace3Step):', error.message);
-            throw new Error('Could not register 3-step face embedding with AI service');
+            const detail = error.response?.data?.detail || error.message;
+            console.error('AI Service Error (registerFace3Step):', detail);
+            throw new Error(detail || 'Không thể đăng ký 3 bước vector khuôn mặt với AI service');
         }
     }
     /**
