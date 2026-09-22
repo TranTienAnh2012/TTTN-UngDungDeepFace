@@ -6,6 +6,7 @@ import {
     UserCheck, ChevronRight, Building2, Sparkles, AlertCircle, Camera
 } from 'lucide-react';
 import TeacherFaceRecognitionModal from '../../components/teacher/TeacherFaceRecognitionModal';
+import ScheduleDetailModal from '../../components/teacher/ScheduleDetailModal';
 import api from '../../services/api';
 
 const TeacherDashboard = () => {
@@ -14,6 +15,7 @@ const TeacherDashboard = () => {
     // UI States
     const [showAlertBanner, setShowAlertBanner] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [selectedScheduleForDetail, setSelectedScheduleForDetail] = useState(null);
 
     // AI Face recognition modal state
     const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
@@ -245,10 +247,11 @@ const TeacherDashboard = () => {
                                 todaySchedules.map((item) => (
                                     <div 
                                         key={item.id}
-                                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                        onClick={() => setSelectedScheduleForDetail(item)}
+                                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:shadow-md hover:border-indigo-300 ${
                                             item.status === 'Active' 
                                                 ? 'bg-indigo-50/40 border-indigo-200/80 shadow-xs' 
-                                                : 'bg-slate-50/60 border-slate-100 hover:bg-slate-50'
+                                                : 'bg-slate-50/60 border-slate-100 hover:bg-white'
                                         }`}
                                     >
                                         <div className="flex items-center gap-4">
@@ -256,7 +259,7 @@ const TeacherDashboard = () => {
                                                 {item.time || `${new Date(item.start_time).toTimeString().slice(0,5)} – ${new Date(item.end_time).toTimeString().slice(0,5)}`}
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-slate-900 text-sm">{item.course_name || item.course}</h4>
+                                                <h4 className="font-bold text-slate-900 text-sm hover:text-indigo-600 transition-colors">{item.course_name || item.course}</h4>
                                                 <p className="text-xs text-slate-500 mt-0.5">{item.course_code || 'HP'} · Phòng {item.room_name || item.room}</p>
                                             </div>
                                         </div>
@@ -524,6 +527,13 @@ const TeacherDashboard = () => {
                 onClose={() => setIsFaceModalOpen(false)}
                 scheduleId={activeSchedule?.id}
                 sessionTitle={activeSchedule ? `${activeSchedule.course_name}` : ''}
+            />
+
+            {/* Schedule Detail Modal */}
+            <ScheduleDetailModal
+                isOpen={!!selectedScheduleForDetail}
+                onClose={() => setSelectedScheduleForDetail(null)}
+                schedule={selectedScheduleForDetail}
             />
         </div>
     );

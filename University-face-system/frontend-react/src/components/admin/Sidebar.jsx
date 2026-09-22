@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Users, Settings, Home, LogOut, Camera, ScanFace, BookOpen, GraduationCap, Calendar, UserCheck, ClipboardList, Sparkles, BarChart2 } from 'lucide-react';
+import { Users, Settings, Home, LogOut, Camera, ScanFace, BookOpen, GraduationCap, Calendar, UserCheck, ClipboardList, Sparkles, BarChart2, Building2, Building, Layers } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = () => {
@@ -17,7 +17,10 @@ const Sidebar = () => {
         {
             title: 'Quản Lý Đào Tạo',
             items: [
+                { path: '/admin/faculties', icon: Building, label: 'Khoa & Viện' },
+                { path: '/admin/classes', icon: Layers, label: 'Lớp Sinh Viên' },
                 { path: '/admin/courses', icon: BookOpen, label: 'Môn Học' },
+                { path: '/admin/rooms', icon: Building2, label: 'Phòng & Sơ Đồ' },
                 { path: '/admin/students', icon: GraduationCap, label: 'Sinh Viên' },
             ]
         },
