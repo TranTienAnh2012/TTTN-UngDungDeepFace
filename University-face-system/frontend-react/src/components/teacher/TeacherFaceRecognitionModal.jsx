@@ -68,7 +68,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
                 offscreenCanvasRef.current = document.createElement('canvas');
             }
             const canvas = offscreenCanvasRef.current;
-            const maxW = 320;
+            const maxW = 480;
             const vWidth = video.videoWidth || 640;
             const vHeight = video.videoHeight || 480;
             const scale = Math.min(1, maxW / vWidth);
@@ -78,7 +78,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/jpeg', 0.7);
+            return canvas.toDataURL('image/jpeg', 0.85);
         } catch (e) {
             return webcamRef.current.getScreenshot();
         }
@@ -91,7 +91,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
 
         isProcessingRef.current = true;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         try {
             const res = await api.post('/attendance/auto-verify', {
