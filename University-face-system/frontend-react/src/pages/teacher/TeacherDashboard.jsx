@@ -269,7 +269,9 @@ const TeacherDashboard = () => {
                                             <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${
                                                 item.status === 'Active'
                                                     ? 'bg-emerald-100 text-emerald-700 animate-pulse'
-                                                    : 'bg-slate-200/70 text-slate-600'
+                                                    : item.status === 'Ended'
+                                                    ? 'bg-slate-200/70 text-slate-600'
+                                                    : 'bg-blue-100 text-blue-700'
                                             }`}>
                                                 {item.status === 'Active' ? '● Đang diễn ra' : item.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
                                             </span>
