@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }) => {
             sessionStorage.setItem('refresh_token', refreshToken);
 
             setUser(userData);
-            return { success: true, data: response.data };
+            return { success: true, data: response.data, user: userData };
         } catch (error) {
             return {
                 success: false,

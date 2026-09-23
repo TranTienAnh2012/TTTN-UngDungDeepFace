@@ -14,42 +14,68 @@ function getNextKey() {
 
 const CANDIDATE_MODELS = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
 
-const SYSTEM_PROMPT = `Ban la Tro ly AI Huong dan vien cua he thong diem danh khuon mat dai hoc.
-QUY TAC BAO MAT & QUYEN HAN (RAT QUAN TRONG):
-1. Ban CHI la Tro ly tu van/huong dan (Read-only Info Assistant). Ban KHONG CO QUYEN thuc hien thao tac CSDL nhu: tao sinh vien, sua thong tin, xoa du lieu, hoac nang quyen/cap quyen Admin.
-2. Neu nguoi dung bao ban "tao sinh vien", "nang quyen admin", "doi mat khau", hay tu chối va giai thich ro: Chatbox la tro ly huong dan, khong co quyen thay doi CSDL hay quyen han.
-3. PHAN QUYEN HE THONG:
-   - Admin: Co quyen Quan ly Nguoi dung, Them/Sua/Xoa Sinh vien, Mon hoc, Lich hoc, Lich thi, Bao cao.
-   - Giang vien: Chi co quyen Xem lich day, Diem danh sinh vien lop minh, Xem bao cao. Giang vien KHONG THETU TAO sinh vien moi.`;
+const SYSTEM_PROMPT = `Bạn là Trợ lý AI Hệ thống Điểm danh Khuôn mặt Trường Đại học (Face Attendance AI Assistant).
+
+BẢN CHẤT QUY TRÌNH HỆ THỐNG & CƠ CHẾ HOẠT ĐỘNG:
+1. QUY TRÌNH ĐĂNG KÝ KHUÔN MẶT (GỒM 3 BƯỚC CHUẨN AI):
+   - Bước 1: Nhập/Xác thực thông tin (MSSV, Họ tên, Lớp sinh hoạt, Ngày sinh, Khoa) và tạo/cập nhật hồ sơ sinh viên trong CSDL.
+   - Bước 2: Quét 3 góc khuôn mặt qua Camera AI (Góc thẳng, Góc trái, Góc phải). AI (MTCNN/ArcFace) trích xuất vector embedding 3 góc và tính vector trung bình (mean embedding).
+   - Bước 3: Hoàn thành & Lưu vector Base64 BLOB vào CSDL. Hệ thống thông báo thành công và hỗ trợ chuyển nhanh sang giao diện Điểm danh AI.
+
+2. QUY TRÌNH ĐIỂM DANH LỚP HỌC TỰ ĐỘNG 1:N (CHECK-IN & CHECK-OUT):
+   - Camera nhận diện 1:N tự động: Bật webcam, liên tục khoanh vùng mặt (Bounding Box) và gửi frame sang Python AI Service đối soát với toàn bộ vector sinh viên trong CSDL.
+   - Điểm danh 2 ca: Check-in đầu giờ (đánh dấu Đúng giờ/Đi muộn) và Check-out cuối giờ (ghi nhận giờ ra, tính tổng thời gian tham gia, chốt trạng thái Hoàn thành).
+   - Chỉnh sửa thủ công: Nếu trễ giờ, chưa đăng ký mẫu hoặc lỗi camera, Giảng viên có thể chọn tên sinh viên trong danh sách lớp để điểm danh thủ công.
+
+3. TỔ CHỨC THI & ĐIỀU KIỆN DỰ THI:
+   - Ca thi bao gồm Môn thi, Phòng thi, Giờ bắt đầu/kết thúc và Sơ đồ chỗ ngồi (Hàng x Cột).
+   - Hệ thống tự động kiểm tra tỷ lệ tham gia: Sinh viên vắng quá 20% số tiết học phần sẽ bị tự động xếp vào danh sách Cấm thi (Không đủ điều kiện).
+   - Khi điểm danh thi AI, hệ thống gán vị trí chỗ ngồi cụ thể cho thí sinh hợp lệ trong phòng thi.
+
+4. BẢO MẬT & PHÂN QUYỀN HỆ THỐNG:
+   - Admin: Quản lý Người dùng, Môn học, Sinh viên, Khoa/Lớp, Phòng học, Lịch học, Lịch thi, Báo cáo toàn trường.
+   - Giảng viên: Xem lịch dạy cá nhân, Mở camera điểm danh AI cho ca dạy, Chỉnh sửa điểm danh thủ công, Xem lịch thi & sinh viên môn mình phụ trách, Đăng ký khuôn mặt Giảng viên.
+   - Chatbox AI: Trợ lý tư vấn Read-only. Không tự động thay đổi CSDL hay phân quyền người dùng.`;
+
+// Helper to strip diacritics/accents and normalize text for reliable matching
+function normalizeText(str) {
+    if (!str) return '';
+    return str.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'd')
+        .trim();
+}
 
 // Helper to extract relative date offset from Vietnamese natural text
-function extractDateOffset(q) {
-    // Check "X ngày/hôm nữa" (e.g., "2 hôm nữa", "5 ngày nữa")
-    const matchNum = q.match(/(\d+)\s*(hôm|ngày)\s*nữa/);
+function extractDateOffset(query) {
+    const q = normalizeText(query);
+    const matchNum = q.match(/(\d+)\s*(hom|ngay)\s*nua/);
     if (matchNum) {
         const days = parseInt(matchNum[1], 10);
         return { offset: days, label: `${days} ngày nữa` };
     }
 
-    if (q.includes('hai hôm nữa') || q.includes('hai ngày nữa') || q.includes('mốt') || q.includes('ngày kia') || q.includes('ngay kia')) {
+    if (q.includes('hai hom nua') || q.includes('hai ngay nua') || q.includes('mot') || q.includes('ngay kia')) {
         return { offset: 2, label: '2 ngày nữa' };
     }
-    if (q.includes('ba hôm nữa') || q.includes('ba ngày nữa')) {
+    if (q.includes('ba hom nua') || q.includes('ba ngay nua')) {
         return { offset: 3, label: '3 ngày nữa' };
     }
-    if (q.includes('bốn hôm nữa') || q.includes('bốn ngày nữa')) {
+    if (q.includes('bon hom nua') || q.includes('bon ngay nua')) {
         return { offset: 4, label: '4 ngày nữa' };
     }
-    if (q.includes('ngày mai') || q.includes('ngay mai') || q.includes('sáng mai') || q.includes('chiều mai')) {
+    if (q.includes('ngay mai') || q.includes('sang mai') || q.includes('chieu mai')) {
         return { offset: 1, label: 'ngày mai' };
     }
-    if (q.includes('hôm qua') || q.includes('hom qua')) {
+    if (q.includes('hom qua')) {
         return { offset: -1, label: 'hôm qua' };
     }
-    if (q.includes('tuần này') || q.includes('tuan nay')) {
+    if (q.includes('tuan nay')) {
         return { offset: null, isWeek: true, label: 'tuần này' };
     }
-    if (q.includes('hôm nay') || q.includes('hom nay') || q.includes('bây giờ') || q.includes('bay gio')) {
+    if (q.includes('hom nay') || q.includes('bay gio')) {
         return { offset: 0, label: 'hôm nay' };
     }
 
@@ -59,10 +85,25 @@ function extractDateOffset(q) {
 // ── On-Demand Targeted Database Context Provider (Token-Optimized RAG) ──
 async function getOnDemandDbContext(query) {
     if (!query) return { contextString: '', dynamicAnswer: null };
-    const q = query.toLowerCase().trim();
+    const q = normalizeText(query);
+
+    // Check if query is about procedural / instructional / system mechanism guidance
+    const isInstructional = q.includes('buoc') ||
+                            q.includes('qua trinh') ||
+                            q.includes('huong dan') ||
+                            q.includes('quy trinh') ||
+                            q.includes('the nao') ||
+                            q.includes('lam sao') ||
+                            q.includes('dang ky khuon mat') ||
+                            q.includes('diem danh the nao');
+
+    // If query is purely instructional about face registration, rules, or troubleshooting, skip DB schedule lookup!
+    if (isInstructional && !q.includes('lich') && !q.includes('mon') && !q.includes('danh sach')) {
+        return { contextString: '', dynamicAnswer: null };
+    }
 
     // 1. Live Exam Schedules Query ("lịch thi", "phòng thi", "khi nào thi", "thi môn")
-    if (q.includes('lịch thi') || q.includes('lich thi') || q.includes('phòng thi') || q.includes('phong thi') || q.includes('thi môn')) {
+    if ((q.includes('lich thi') || q.includes('phong thi') || q.includes('thi mon') || q.includes('khi nao thi')) && !isInstructional) {
         try {
             const [rows] = await pool.query(`
                 SELECT es.exam_room, DATE_FORMAT(es.exam_time, '%d/%m/%Y %H:%i') as exam_dt,
@@ -88,7 +129,7 @@ async function getOnDemandDbContext(query) {
     }
 
     // 2. Student Count Query ("bao nhiêu sinh viên", "tổng sinh viên", "số sinh viên")
-    if (q.includes('bao nhiêu sinh viên') || q.includes('tong sinh vien') || q.includes('tổng sinh viên') || q.includes('số sinh viên')) {
+    if ((q.includes('bao nhieu sinh vien') || q.includes('tong sinh vien') || q.includes('so sinh vien')) && !isInstructional) {
         try {
             const [rows] = await pool.query('SELECT COUNT(*) as total FROM students');
             const total = rows[0]?.total || 0;
@@ -100,15 +141,12 @@ async function getOnDemandDbContext(query) {
     }
 
     // 2b. Attendance Log Query ("ai điểm danh", "ai đi muộn", "báo cáo điểm danh", "danh sách điểm danh")
-    // NOTE: Only trigger database report if user is asking for a list/report, NOT asking for help/troubleshooting!
-    const isHelpOrTroubleshooting = q.includes('làm sao') || q.includes('lam sao') || q.includes('cứu tôi') || q.includes('cuu toi') || q.includes('giúp tôi') || q.includes('giup toi') || q.includes('thế nào') || q.includes('the nao') || q.includes('phải làm gì') || q.includes('không điểm danh được') || q.includes('khong diem danh duoc') || q.includes('đi muộn rồi') || q.includes('di muon roi');
-
-    const isAttendanceReportQuery = !isHelpOrTroubleshooting && (
-        q.includes('ai điểm danh') || q.includes('ai diem danh') ||
-        q.includes('ai đi muộn') || q.includes('ai di muon') ||
-        q.includes('danh sách điểm danh') || q.includes('báo cáo điểm danh') ||
-        q.includes('có ai đi muộn') || q.includes('co ai di muon') ||
-        (q.includes('điểm danh') && q.includes('hôm nay') && !q.includes('tôi'))
+    const isAttendanceReportQuery = !isInstructional && (
+        q.includes('ai diem danh') ||
+        q.includes('ai di muon') ||
+        q.includes('danh sach diem danh') ||
+        q.includes('bao cao diem danh') ||
+        q.includes('co ai di muon')
     );
 
     if (isAttendanceReportQuery) {
@@ -145,9 +183,15 @@ async function getOnDemandDbContext(query) {
         }
     }
 
-    // 3. Live Class Schedules Query ("lớp", "lịch", "tiết", "hoạt động", "hôm nay", "ngày mai", "hôm qua", "tuần", "nữa", "phòng")
-    const dateMeta = extractDateOffset(q);
-    const isScheduleQuery = dateMeta || q.includes('lớp') || q.includes('lop') || q.includes('lịch') || q.includes('lich') || q.includes('tiết') || q.includes('tiet') || q.includes('ca học') || q.includes('ca hoc') || q.includes('phòng') || q.includes('phong');
+    // 3. Live Class Schedules Query (strictly for actual schedule questions, avoiding false match on "chi tiết")
+    const dateMeta = extractDateOffset(query);
+    const hasDetailWordOnly = q.includes('chi tiet') && !dateMeta && !q.includes('lich hoc');
+    const isScheduleQuery = !hasDetailWordOnly && (
+        dateMeta || 
+        q.includes('lich hoc') || 
+        q.includes('ca hoc') ||
+        (q.includes('tiet') && !q.includes('chi tiet'))
+    );
 
     if (isScheduleQuery) {
         try {
@@ -177,7 +221,6 @@ async function getOnDemandDbContext(query) {
                 LIMIT 5
             `);
 
-            // Also query calculated target date string for direct natural response
             const [dateRows] = await pool.query(
                 dateMeta && dateMeta.offset !== null
                     ? `SELECT DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL ? DAY), '%d/%m/%Y') as target_date`
@@ -187,10 +230,8 @@ async function getOnDemandDbContext(query) {
             const targetDateStr = dateRows[0]?.target_date || '';
 
             if (rows.length === 0) {
-                // Natural answer directly responding to user's question
                 let answer = `Dạ vào ${label} (${targetDateStr}), hệ thống hiện **chưa có tiết học nào** được xếp lịch.`;
 
-                // Add nearest upcoming class as helpful context
                 const [allRows] = await pool.query(`
                     SELECT cs.id, cs.room_name, cs.teacher_name,
                            DATE_FORMAT(cs.start_time, '%H:%i') as start_hm,
@@ -211,7 +252,6 @@ async function getOnDemandDbContext(query) {
                 return { contextString: `DULIEU_CSDL: Không có tiết học ngày ${label} (${targetDateStr}).`, dynamicAnswer: answer };
             }
 
-            // Natural answer directly answering "Có tiết nào không? Ở lớp nào?"
             const items = rows.map((r, idx) => `${idx + 1}. Môn **${r.course_name} (${r.course_code})**\n   • Thời gian: ${r.start_hm} - ${r.end_hm}\n   • Phòng / Lớp: **${r.room_name || 'Phòng Lab'}**\n   • Giảng viên: ${r.teacher_name || 'Chưa phân công'}`);
             
             const answer = `Dạ vào **${label} (${rows[0].date_str})**, hệ thống có **${rows.length} tiết học**:\n\n` + items.join('\n\n') + '\n\n👉 Bạn có thể bấm nút "Mở Camera Điểm Danh Ngay" trên màn hình để điểm danh AI.';
@@ -227,26 +267,60 @@ async function getOnDemandDbContext(query) {
 // General static system guidance for security, role rules, & FAQs (Situation & Workflow Engine)
 function getLocalStaticAnswer(query) {
     if (!query) return null;
-    const q = query.toLowerCase().trim();
+    const q = normalizeText(query);
 
-    // Greetings
-    if (q === 'xin chào' || q === 'chào' || q === 'hi' || q === 'hello' || q === 'chao bạn' || q === 'chào bạn') {
-        return '👋 **Xin chào! Tôi là Trợ lý AI Hệ thống Điểm danh Khuôn mặt.**\n\nBạn có thể hỏi tôi về:\n1. 📅 Lịch học hôm nay, ngày mai, hoặc tuần này.\n2. 📝 Lịch thi & phòng thi.\n3. 🎓 Thống kê tổng số sinh viên trong hệ thống.\n4. ⏰ Quy trình xử lý tình huống (quá giờ điểm danh, sinh viên trễ, mất mạng, lỗi scan).\n5. 📷 Hướng dẫn mở camera điểm danh & phân quyền Giảng viên / Admin.\n\nTôi có thể giúp gì cho bạn hôm nay?';
+    // 1. Attendance Workflow for Students entering class ("quy trình điểm danh cho sinh viên khi vào ca học")
+    const isAttendanceWorkflow = (
+        (q.includes('diem danh') || q.includes('check in') || q.includes('checkin')) &&
+        (q.includes('quy trinh') || q.includes('khi vao') || q.includes('va ca') || q.includes('ca hoc') || q.includes('cho sinh vien') || q.includes('sinh vien') || q.includes('huong dan') || q.includes('nhu the nao') || q.includes('cach'))
+    );
+
+    if (isAttendanceWorkflow && !q.includes('dang ky') && !q.includes('di muon') && !q.includes('bao cao')) {
+        return '📷 **Quy trình Điểm danh Khuôn mặt Sinh viên khi vào Ca học:**\n\n' +
+               '1. **Giảng viên kích hoạt ca học:**\n' +
+               '   • Giảng viên đăng nhập hệ thống ➔ Vào mục **"Lịch giảng dạy"** ➔ Chọn ca học hiện tại.\n' +
+               '   • Bấm nút màu xanh **"Mở Camera Điểm Danh Ngay"** trên cùng màn hình.\n\n' +
+               '2. **Sinh viên thực hiện điểm danh AI 1:N (Check-in đầu giờ):**\n' +
+               '   • Sinh viên đứng trước Camera phòng học (khoảng cách 40cm - 60cm, đủ ánh sáng).\n' +
+               '   • Camera AI tự động phát hiện khuôn mặt (Bounding Box), trích xuất vector và đối soát 1:N với CSDL sinh viên.\n' +
+               '   • Màn hình hiển thị thông báo **"✅ Điểm danh thành công: [MSSV - Họ tên]"** và chốt trạng thái **Đúng giờ** (hoặc **Đi muộn** nếu trễ giờ).\n\n' +
+               '3. **Check-out cuối giờ học:**\n' +
+               '   • Cuối tiết học, sinh viên xác nhận Check-out qua camera để hệ thống ghi nhận tổng thời gian có mặt thực tế.\n\n' +
+               '4. **Xử lý sự cố / Điểm danh thủ công:**\n' +
+               '   • Nếu sinh viên chưa đăng ký mẫu hoặc camera hỏng, Giảng viên chọn tên sinh viên trong danh sách ca học để cập nhật thủ công thành **"Có mặt"** / **"Đi muộn"**.';
     }
 
-    // Action requests to execute/create/elevate (Action Denial & Security Clarification)
-    if (q.includes('tạo') || q.includes('tao') || q.includes('thêm giúp') || q.includes('them giup') || q.includes('nâng') || q.includes('nang admin') || q.includes('cấp quyền')) {
-        if (q.includes('admin') || q.includes('quyền') || q.includes('quyen')) {
-            return '⛔ **Từ chối thao tác:** Chatbox là trợ lý hướng dẫn thông tin (Read-only) và **KHÔNG CÓ QUYỀN** truy cập hay thay đổi quyền hạn người dùng. Việc phân quyền chỉ do Quản trị viên (Admin) thực hiện trong hệ thống.';
-        }
-        return '⛔ **Từ chối thao tác:** Chatbox là trợ lý tư vấn hướng dẫn và **KHÔNG CÓ QUYỀN** tự động tạo hoặc sửa dữ liệu trong CSDL.\n\n• Chức năng thêm sinh viên mới thuộc quyền hạn của tài khoản **Admin** tại mục "Quản lý Sinh viên".\n• Tài khoản **Giảng viên** không thể tự tạo sinh viên mới mà chỉ xem và điểm danh danh sách sinh viên lớp mình.';
+    // 2. Face Registration Steps (Exact 3 Steps Guidance)
+    if (q.includes('dang ky') || q.includes('may buoc') || (q.includes('khuon mat') && (q.includes('buoc') || q.includes('mau') || q.includes('tao ho so')))) {
+        return '📸 **Quy trình Đăng ký Khuôn mặt bao gồm 3 BƯỚC CHUẨN AI như sau:**\n\n' +
+               '1. **Bước 1: Nhập & Xác thực thông tin sinh viên**\n' +
+               '   • Điền/Chọn đầy đủ thông tin: MSSV, Họ tên, Lớp sinh hoạt, Ngày sinh, Khoa.\n' +
+               '   • Bấm **"Tạo thông tin"** để hệ thống khởi tạo hồ sơ sinh viên trong CSDL.\n\n' +
+               '2. **Bước 2: Quét 3 góc khuôn mặt qua Camera AI**\n' +
+               '   • Đứng trước camera, giữ mặt trong khung hình oval hướng dẫn.\n' +
+               '   • Lần lượt chụp 3 ảnh góc mặt:\n' +
+               '     - **Góc 1**: Nhìn thẳng góc mặt.\n' +
+               '     - **Góc 2**: Nghiêng nhẹ sang góc TRÁI.\n' +
+               '     - **Góc 3**: Nghiêng nhẹ sang góc PHẢI.\n' +
+               '   • AI (MTCNN/ArcFace) trích xuất vector embedding 3 góc và tính vector đặc trưng trung bình (mean embedding).\n\n' +
+               '3. **Bước 3: Hoàn thành & Lưu dữ liệu Vector**\n' +
+               '   • Hệ thống mã hóa vector Base64 BLOB và lưu an toàn vào CSDL MySQL.\n' +
+               '   • Hiển thị thẻ thông báo hoàn thành và cho phép chuyển nhanh sang giao diện Điểm danh AI.';
     }
 
-    // ── SITUATIONAL WORKFLOW HANDLERS (XỬ LÝ TÌNH HUỐNG THỰC TẾ) ──
+    // 3. Greetings
+    if (q === 'xin chao' || q === 'chao' || q === 'hi' || q === 'hello' || q.includes('chao ban')) {
+        return '👋 **Xin chào! Tôi là Trợ lý AI Hệ thống Điểm danh Khuôn mặt.**\n\nBạn có thể hỏi tôi về:\n1. 📸 Quy trình đăng ký khuôn mặt (3 bước AI).\n2. 📷 Quy trình điểm danh sinh viên khi vào ca học (1:N AI).\n3. 📅 Lịch học & Ca giảng dạy (hôm nay, ngày mai, tuần này).\n4. 📝 Lịch thi & Phòng thi.\n5. ⏰ Quy trình xử lý tình huống (đi muộn, lỗi camera, mất mạng, cấm thi).\n6. 🔐 Phân quyền Giảng viên / Admin.\n\nTôi có thể giúp gì cho bạn hôm nay?';
+    }
 
-    // Situation 1: Late check-in / Expired check-in window / Manual attendance override / Student asking for help when late
-    if (q.includes('tôi đi muộn') || q.includes('đi muộn rồi') || q.includes('đi muộn nên') || q.includes('không điểm danh được') || q.includes('cứu tôi') || q.includes('quá giờ') || q.includes('qua gio') || q.includes('trễ giờ') || q.includes('quên điểm danh') || q.includes('điểm danh bù') || (q.includes('muộn') && (q.includes('làm sao') || q.includes('thế nào') || q.includes('giúp') || q.includes('xử lý')))) {
-        return '⏰ **Đừng lo lắng! Quy trình xử lý khi bạn ĐI MUỘN hoặc hệ thống QUÁ GIỜ điểm danh tự động:**\n\n' +
+    // 4. Action Requests Denial (Security Rules)
+    if ((q.includes('tao') || q.includes('them') || q.includes('sua') || q.includes('cap nhat')) && (q.includes('admin') || q.includes('quyen') || q.includes('csdl'))) {
+        return '⛔ **Từ chối thao tác:** Chatbox là trợ lý hướng dẫn thông tin (Read-only) và **KHÔNG CÓ QUYỀN** truy cập hay thay đổi dữ liệu/quyền hạn người dùng.';
+    }
+
+    // 5. Late Check-in / Manual Override / Expired Window
+    if (q.includes('di muon') || q.includes('tre gio') || q.includes('qua gio') || q.includes('quen diem danh') || q.includes('diem danh bu') || q.includes('tre')) {
+        return '⏰ **Đừng lo lắng! Quy trình xử lý khi ĐI MUỘN hoặc QUÁ GIỜ điểm danh tự động:**\n\n' +
                '1. **Báo ngay cho Giảng viên đứng lớp:**\n' +
                '   • Giảng viên có toàn quyền điểm danh bổ sung trực tiếp trên hệ thống Web.\n\n' +
                '2. **Giảng viên điều chỉnh thủ công (Manual Attendance):**\n' +
@@ -256,83 +330,53 @@ function getLocalStaticAnswer(query) {
                '   • Sau khi Giảng viên bấm **Lưu điểm danh**, nhật ký cá nhân của bạn sẽ được tự động cập nhật đúng giờ.';
     }
 
-    // Situation 2: Unregistered face / Face recognition failed
-    if (q.includes('chưa đăng ký') || q.includes('chua dang ky') || q.includes('không nhận diện') || q.includes('khong nhan dien') || q.includes('mặt lạ') || q.includes('chưa có mẫu')) {
+    // 6. Unregistered Face / Recognition Failure
+    if (q.includes('chua dang ky') || q.includes('khong nhan dien') || q.includes('mat la') || q.includes('chua co mau') || q.includes('loi scan') || q.includes('khong quet')) {
         return '👤 **Quy trình xử lý khi AI KHÔNG nhận diện được mặt hoặc chưa đăng ký mẫu:**\n\n' +
                '1. **Xác minh sinh viên:** Giảng viên kiểm tra MSSV/Thẻ sinh viên xem có trong danh sách Lớp/Môn không.\n' +
                '2. **Tích chọn thủ công:** Nếu đúng sinh viên, Giảng viên chọn trạng thái **"Có mặt"** thủ công trên giao diện ca học.\n' +
-               '3. **Đăng ký bổ sung:** Hướng dẫn sinh viên vào mục **"Đăng ký khuôn mặt"** chụp lại 5 ảnh mẫu chuẩn để hệ thống học dữ liệu AI cho các ca sau.';
+               '3. **Đăng ký bổ sung:** Hướng dẫn sinh viên vào mục **"Đăng ký khuôn mặt"** thực hiện đủ 3 bước chụp mẫu chuẩn để hệ thống học dữ liệu AI cho các ca sau.';
     }
 
-    // Situation 3: Hardware / Network failure
-    if (q.includes('mất mạng') || q.includes('mat mang') || q.includes('hỏng camera') || q.includes('hong camera') || q.includes('camera bị đen') || q.includes('mất điện')) {
+    // 7. Network / Camera hardware issues
+    if (q.includes('mat mang') || q.includes('hong camera') || q.includes('camera den') || q.includes('mat dien')) {
         return '🔌 **Quy trình xử lý khi gặp Sự cố Thiết bị / Mất mạng:**\n\n' +
                '1. **Sử dụng Điểm danh thủ công:** Giảng viên chuyển sang danh sách tick chọn thủ công trên hệ thống Web.\n' +
                '2. **Cập nhật bù trong 24h:** Sau khi có mạng/thiết bị hoạt động trở lại, Giảng viên có thể mở lại ca học để cập nhật bù trạng thái điểm danh.';
     }
 
-    // Situation 4: Exam eligibility / Absences threshold
-    if (q.includes('cấm thi') || q.includes('cam thi') || q.includes('đủ điều kiện') || q.includes('du dieu kien') || q.includes('nghỉ quá') || q.includes('vắng quá')) {
+    // 8. Exam Eligibility & Attendance rules
+    if (q.includes('cam thi') || q.includes('du dieu kien') || q.includes('nghi qua') || q.includes('vang qua') || q.includes('dieu kien thi')) {
         return '📋 **Quy định về Điều kiện dự thi & Nghỉ quá số buổi:**\n\n' +
-               '• Hệ thống tự động tính tỷ lệ vắng mặt dựa trên nhật ký điểm danh.\n' +
+               '• Hệ thống tự động tính tỷ lệ vắng mặt dựa trên nhật ký điểm danh 2 ca.\n' +
                '• Nếu sinh viên **vắng quá 20% tổng số tiết** (hoặc quá số buổi quy định), hệ thống sẽ tự động xếp sinh viên vào danh sách **Cấm thi**.\n' +
-               '• Admin & Giảng viên xem danh sách chi tiết tại mục **"Điều kiện dự thi"**.';
+               '• Admin & Giảng viên xem danh sách chi tiết tại mục **"Điểm danh thi / Điều kiện dự thi"** và hệ thống gán vị trí chỗ ngồi tự động.';
     }
 
-    // Role queries about Teacher vs Admin
-    if (q.includes('giảng viên') || q.includes('giang vien') || q.includes('giảng viên làm được gì') || q.includes('quyền giảng viên')) {
+    // 9. Teacher vs Admin Role Boundaries
+    if (q.includes('giang vien') || q.includes('quyen giang vien') || q.includes('giang vien lam duoc gi')) {
         return '👨‍🏫 **Phân quyền tài khoản Giảng viên:**\n' +
-               '• **Được phép:** Xem lịch dạy, điểm danh khuôn mặt bằng camera AI cho ca học, xem danh sách sinh viên lớp mình, xem báo cáo điểm danh, điều chỉnh điểm danh thủ công.\n' +
+               '• **Được phép:** Xem lịch dạy cá nhân, mở camera điểm danh AI ca học của mình (Check-in & Check-out), xem danh sách sinh viên lớp môn học, xem báo cáo điểm danh, điều chỉnh điểm danh thủ công, đăng ký khuôn mặt Giảng viên.\n' +
                '• **Không được phép:** Tạo tài khoản sinh viên mới, sửa thông tin CSDL hệ thống, thay đổi phân quyền Admin.';
     }
 
-    // How to start face attendance / camera ("mở camera", "điểm danh", "kích hoạt")
-    if ((q.includes('cách') || q.includes('hướng dẫn') || q.includes('bắt đầu') || q.includes('mở')) && (q.includes('camera') || q.includes('điểm danh'))) {
-        return '📷 **Cách kích hoạt điểm danh khuôn mặt:**\n' +
-               '1. Tại màn hình Dashboard Giảng viên, chọn ca học muốn điểm danh.\n' +
-               '2. Nút **"Mở Camera Điểm Danh Ngay"** màu xanh dương sẽ nổi bật trên cùng.\n' +
-               '3. Bấm vào nút này để hệ thống bật webcam và bắt đầu nhận diện sinh viên tự động.';
-    }
-
-    // How to add students (Instructional FAQ)
-    if (q.includes('cách thêm') || q.includes('cach them') || q.includes('hướng dẫn thêm') || q.includes('huong dan them') || q.includes('thêm sinh viên')) {
+    // 10. Admin Student Management
+    if (q.includes('them sinh vien') || q.includes('quan ly sinh vien') || q.includes('tao sinh vien')) {
         return '📝 **Cách thêm sinh viên mới (Dành cho tài khoản Admin):**\n' +
                '1. Đăng nhập tài khoản Admin.\n' +
                '2. Vào mục **"Sinh viên"** trên menu quản trị.\n' +
-               '3. Bấm **"Thêm sinh viên mới"**, chọn Khoa, chọn Lớp và nhập MSSV, Họ tên, Email.\n' +
+               '3. Bấm **"Thêm sinh viên mới"**, chọn Khoa, chọn Lớp sinh hoạt và nhập MSSV, Họ tên, Email.\n' +
                '4. Lưu ý: MSSV và Email không được trùng lặp.';
     }
 
-    // Face scanning failure & troubleshooting
-    if (q.includes('scan') || q.includes('không nhận') || q.includes('nhận diện') || q.includes('lỗi scan')) {
-        return '💡 **Hướng dẫn xử lý khi không scan được khuôn mặt:**\n' +
-               '1. Đảm bảo khu vực đứng có đủ ánh sáng (tránh tối quá hoặc ngược sáng).\n' +
-               '2. Sinh viên nhìn thẳng vào camera, khoảng cách từ 40cm đến 60cm.\n' +
-               '3. Đảm bảo trình duyệt đã được cho phép truy cập Camera (biểu tượng khóa bên trái thanh địa chỉ).\n' +
-               '4. Kiểm tra tài khoản sinh viên đã chụp đủ 5 ảnh mẫu khuôn mặt chuẩn trong mục Đăng ký khuôn mặt chưa.';
-    }
-
-    // Rate limiting & server error
-    if (q.includes('request') || q.includes('quá nhiều') || q.includes('qua nhieu') || q.includes('thử lại') || q.includes('lỗi')) {
-        return '⚠️ **Thông báo sự cố hệ thống:**\n' +
-               '• Nếu gặp lỗi "Quá nhiều request": Hệ thống tạm thời giới hạn tần suất gửi yêu cầu để bảo mật. Bạn vui lòng chờ khoảng 15 phút rồi thử lại.\n' +
-               '• Nếu camera bị đen: Hãy kiểm tra thiết bị webcam và cấp lại quyền truy cập camera trên trình duyệt.';
-    }
-
-    // Face registration
-    if (q.includes('đăng ký') || q.includes('dang ky') || q.includes('chụp ảnh') || q.includes('chup anh')) {
-        return '📸 **Hướng dẫn Đăng ký khuôn mặt:**\n' +
-               '1. Đăng nhập tài khoản Admin/Sinh viên, chọn mục **"Đăng ký khuôn mặt"**.\n' +
-               '2. Giữ khuôn mặt giữa khung hình camera tròn.\n' +
-               '3. Lần lượt nghiêng nhẹ sang trái, phải, ngước lên, cúi xuống để chụp đủ 5 bức ảnh chất lượng tốt nhất.';
-    }
-
+    // 11. General fallback summary
     return '🤖 **Trợ lý AI hệ thống điểm danh luôn sẵn sàng giải đáp các thắc mắc:**\n' +
+           '• 📷 **Quy trình điểm danh vào ca**: Kích hoạt camera AI 1:N, Check-in/Check-out.\n' +
+           '• 📸 **Đăng ký khuôn mặt**: Quy trình 3 bước chuẩn AI (Thẳng, Trái, Phải).\n' +
            '• ⏰ **Xử lý tình huống**: Quá giờ điểm danh, sinh viên đi muộn, lỗi camera/scan mặt, mất mạng.\n' +
-           '• 📅 **Lịch học & Ca giảng dạy**: Tra cứu hôm nay, ngày mai, 2 hôm nữa, tuần này.\n' +
-           '• 📋 **Nhật ký điểm danh**: Ai đã điểm danh, ai đi muộn.\n' +
-           '• 📝 **Lịch thi & Phòng thi**: Môn thi và phòng thi sắp tới.\n' +
-           '• 🔐 **Phân quyền & Hướng dẫn**: Quy định Admin/Giảng viên và cách mở camera.\n\nBạn cần hỗ trợ tình huống hoặc thông tin nào cụ thể?';
+           '• 📅 **Lịch học & Ca giảng dạy**: Tra cứu hôm nay, ngày mai, tuần này.\n' +
+           '• 📝 **Lịch thi & Điều kiện dự thi**: Sơ đồ chỗ ngồi, quy định cấm thi (>20% vắng).\n' +
+           '• 🔐 **Phân quyền**: Quy định Admin vs Giảng viên.\n\nBạn cần hỗ trợ thông tin nào cụ thể?';
 }
 
 const _modelCache = {};
@@ -384,7 +428,7 @@ async function callGroq(messages, systemInstruction) {
                     model,
                     messages: formattedMsgs,
                     temperature: 0.3,
-                    max_tokens: 400
+                    max_tokens: 512
                 })
             });
 
@@ -433,7 +477,7 @@ async function callGroqStream(messages, systemInstruction, onChunk) {
                     model,
                     messages: formattedMsgs,
                     temperature: 0.3,
-                    max_tokens: 400,
+                    max_tokens: 512,
                     stream: true
                 })
             });
@@ -507,7 +551,12 @@ function buildHistory(messages) {
 // ── Non-streaming Hybrid AI Engine ───────────────────────────
 async function chat(messages) {
     const { history, lastMsg } = buildHistory(messages);
-    const { contextString, dynamicAnswer } = await getOnDemandDbContext(lastMsg?.content);
+    const userQuery = lastMsg?.content || '';
+
+    // Check if query is instructional/procedural FAQ
+    const staticAnswer = getLocalStaticAnswer(userQuery);
+
+    const { contextString, dynamicAnswer } = await getOnDemandDbContext(userQuery);
 
     const fullInstruction = contextString 
         ? `${SYSTEM_PROMPT}\nTHONG TIN DULIEU CSDL THUCTHOI (AP DUNG CUA NGUOI DUNG): ${contextString}`
@@ -527,9 +576,9 @@ async function chat(messages) {
                 try {
                     const session = getModel(key, modelName, fullInstruction).startChat({
                         history,
-                        generationConfig: { maxOutputTokens: 256, temperature: 0.2, candidateCount: 1 },
+                        generationConfig: { maxOutputTokens: 512, temperature: 0.2, candidateCount: 1 },
                     });
-                    const result = await session.sendMessage(lastMsg.content);
+                    const result = await session.sendMessage(userQuery);
                     return result.response.text();
                 } catch (err) {
                     delete _modelCache[`${key}_${modelName}`];
@@ -538,22 +587,44 @@ async function chat(messages) {
         }
     }
 
+    // Simulate natural thinking delay (1.0s) for smoother experience
+    await new Promise(r => setTimeout(r, 1000));
+
     // 3. Fallback to Local RAG Engine & Static Guidance
-    return dynamicAnswer || getLocalStaticAnswer(lastMsg?.content);
+    return dynamicAnswer || staticAnswer || '🤖 **Trợ lý AI luôn sẵn sàng hỗ trợ bạn.** Bạn có thể hỏi về quy trình đăng ký khuôn mặt, điểm danh 1:N, lịch học, lịch thi hoặc phân quyền hệ thống.';
+}
+
+// Helper to stream text smoothly with word pacing
+async function streamTextSmoothly(text, onChunk, delayMs = 18) {
+    if (!text) return;
+    const words = text.split(' ');
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i] + (i === words.length - 1 ? '' : ' ');
+        onChunk(word);
+        await new Promise(r => setTimeout(r, delayMs));
+    }
 }
 
 // ── Streaming Hybrid AI Engine ───────────────────────────────
 async function chatStream(messages, onChunk) {
     const { history, lastMsg } = buildHistory(messages);
-    const { contextString, dynamicAnswer } = await getOnDemandDbContext(lastMsg?.content);
+    const userQuery = lastMsg?.content || '';
+
+    const staticAnswer = getLocalStaticAnswer(userQuery);
+    const { contextString, dynamicAnswer } = await getOnDemandDbContext(userQuery);
 
     const fullInstruction = contextString 
         ? `${SYSTEM_PROMPT}\nTHONG TIN DULIEU CSDL THUCTHOI (AP DUNG CUA NGUOI DUNG): ${contextString}`
         : SYSTEM_PROMPT;
 
-    // 1. Try Groq Cloud LLM Stream (Ultra-fast Llama-3.3-70b / Mixtral <200ms)
+    // Simulate natural 1.2s thinking delay to display sleek "Thinking..." state
+    await new Promise(r => setTimeout(r, 1200));
+
+    // 1. Try Groq Cloud LLM Stream (Ultra-fast Llama-3.3-70b / Mixtral)
     if (GROQ_API_KEYS.length) {
-        const groqStreamResult = await callGroqStream(messages, fullInstruction, onChunk);
+        const groqStreamResult = await callGroqStream(messages, fullInstruction, async (chunk) => {
+            await streamTextSmoothly(chunk, onChunk, 15);
+        });
         if (groqStreamResult) return groqStreamResult;
     }
 
@@ -565,13 +636,16 @@ async function chatStream(messages, onChunk) {
                 try {
                     const session = getModel(key, modelName, fullInstruction).startChat({
                         history,
-                        generationConfig: { maxOutputTokens: 256, temperature: 0.2, candidateCount: 1 },
+                        generationConfig: { maxOutputTokens: 512, temperature: 0.2, candidateCount: 1 },
                     });
-                    const streamResult = await session.sendMessageStream(lastMsg.content);
+                    const streamResult = await session.sendMessageStream(userQuery);
                     let full = '';
                     for await (const chunk of streamResult.stream) {
                         const text = chunk.text();
-                        if (text) { full += text; onChunk(text); }
+                        if (text) {
+                            full += text;
+                            await streamTextSmoothly(text, onChunk, 15);
+                        }
                     }
                     if (full.trim()) return full;
                 } catch (err) {
@@ -581,15 +655,11 @@ async function chatStream(messages, onChunk) {
         }
     }
 
-    // 3. Fallback to Local RAG Engine & Static Guidance
-    const finalAnswer = dynamicAnswer || getLocalStaticAnswer(lastMsg?.content);
-    onChunk(finalAnswer);
+    // 3. Fallback to Local RAG Engine & Static Guidance with smooth word-by-word streaming
+    const finalAnswer = dynamicAnswer || staticAnswer || '🤖 **Trợ lý AI luôn sẵn sàng hỗ trợ bạn.** Bạn có thể hỏi về quy trình đăng ký khuôn mặt, điểm danh 1:N, lịch học, lịch thi hoặc phân quyền hệ thống.';
+    await streamTextSmoothly(finalAnswer, onChunk, 18);
     return finalAnswer;
 }
 
 module.exports = { chat, chatStream };
-
-
-
-
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-    LayoutDashboard, Calendar, Users, Building2, 
+    LayoutDashboard, Calendar, Users, Building2, Camera,
     FileSpreadsheet, Settings, ShieldCheck, Sparkles, LogOut, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ const TeacherSidebar = () => {
         { path: '/teacher/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
         { path: '/teacher/schedule', label: 'Lịch giảng dạy', icon: Calendar },
         { path: '/teacher/students', label: 'Sinh viên', icon: Users },
+        { path: '/teacher/face-registration', label: 'Đăng ký khuôn mặt', icon: Camera },
         { path: '/teacher/exams', label: 'Phòng thi', icon: Building2 },
     ];
 

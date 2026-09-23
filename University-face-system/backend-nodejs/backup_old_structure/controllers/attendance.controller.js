@@ -135,7 +135,7 @@ exports.registerFace = async (req, res) => {
         });
     } catch (error) {
         console.error('Lỗi registerFace:', error);
-        return res.status(500).json({ success: false, message: 'Lỗi server' });
+        return res.status(400).json({ success: false, message: error.message || 'Lỗi server khi đăng ký khuôn mặt' });
     }
 };
 
@@ -169,7 +169,7 @@ exports.registerFace3Step = async (req, res) => {
         });
     } catch (error) {
         console.error('Lỗi registerFace3Step:', error);
-        return res.status(500).json({ success: false, message: 'Lỗi server khi đăng ký 3 bước' });
+        return res.status(400).json({ success: false, message: error.message || 'Lỗi server khi đăng ký 3 bước' });
     }
 };
 
@@ -463,11 +463,9 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
 // ═══════════════════════════════════════════════
 exports.getTodaySchedules = async (req, res) => {
     try {
-        const [rows] = await pool.query(`
-            SELECT cs.id, cs.room_name, cs.teacher_name,
+        let [rows] = await pool.query(`
+            SELECT cs.id, cs.room_name,
                    cs.start_time, cs.end_time,
-                   cs.is_recurring, cs.day_of_week,
-                   cs.period_start, cs.period_end,
                    c.course_code, c.course_name,
                    (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL)  AS checked_in_count,
                    (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) AS checked_out_count
@@ -476,6 +474,18 @@ exports.getTodaySchedules = async (req, res) => {
             WHERE DATE(cs.start_time) = CURDATE()
             ORDER BY cs.start_time ASC
         `);
+        if (rows.length === 0) {
+            [rows] = await pool.query(`
+                SELECT cs.id, cs.room_name,
+                       cs.start_time, cs.end_time,
+                       c.course_code, c.course_name,
+                       (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL)  AS checked_in_count,
+                       (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) AS checked_out_count
+                FROM class_schedules cs
+                JOIN courses c ON cs.course_id = c.id
+                ORDER BY cs.start_time DESC
+            `);
+        }
         return res.status(200).json({ success: true, data: rows });
     } catch (error) {
         console.error('Lỗi getTodaySchedules:', error);
@@ -489,7 +499,7 @@ exports.getTodaySchedules = async (req, res) => {
 exports.getActiveSchedules = async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT cs.id, cs.room_name, cs.teacher_name,
+            SELECT cs.id, cs.room_name,
                    cs.start_time, cs.end_time,
                    c.course_code, c.course_name
             FROM class_schedules cs
@@ -544,7 +554,7 @@ exports.getSessionStatus = async (req, res) => {
                     course_code: s.course_code,
                     course_name: s.course_name,
                     room_name: s.room_name,
-                    teacher_name: s.teacher_name,
+                    teacher_name: s.teacher_name || '',
                     start_time: s.start_time,
                     end_time: s.end_time,
                     phase // 'not_started' | 'ongoing' | 'ended'
@@ -574,12 +584,11 @@ exports.getAttendanceBySchedule = async (req, res) => {
         const [rows] = await pool.query(`
             SELECT
                 ca.id,
-                s.student_code, s.full_name, s.class_name, s.faculty,
+                s.student_code, s.full_name, s.class_name,
                 ca.check_in_time,   ca.check_in_confidence,  ca.check_in_status,
                 ca.check_out_time,  ca.check_out_confidence, ca.check_out_status,
                 ca.status,
                 ca.confidence_score,
-                ca.notes,
                 ca.updated_at
             FROM class_attendance ca
             JOIN students s ON s.id = ca.student_id
@@ -622,15 +631,14 @@ exports.getAttendanceReport = async (req, res) => {
         const [rows] = await pool.query(`
             SELECT
                 ca.id,
-                s.student_code, s.full_name, s.class_name, s.faculty,
+                s.student_code, s.full_name, s.class_name,
                 c.course_code,  c.course_name,
-                cs.room_name,   cs.teacher_name,
+                cs.room_name,
                 cs.start_time,  cs.end_time,
                 ca.check_in_time,  ca.check_in_confidence,  ca.check_in_status,
                 ca.check_out_time, ca.check_out_confidence, ca.check_out_status,
                 ca.status,
-                ca.confidence_score,
-                ca.notes
+                ca.confidence_score
             FROM class_attendance ca
             JOIN students        s  ON s.id         = ca.student_id
             JOIN class_schedules cs ON cs.id        = ca.schedule_id
@@ -653,6 +661,238 @@ exports.getAttendanceReport = async (req, res) => {
         });
     } catch (error) {
         console.error('Lỗi getAttendanceReport:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  POST /schedules/create — Tạo ca học mới
+// ═══════════════════════════════════════════════
+exports.createSchedule = async (req, res) => {
+    try {
+        const { course_name, room_name, start_time, end_time, teacher_name } = req.body;
+        if (!course_name || !room_name || !start_time || !end_time) {
+            return res.status(400).json({ success: false, message: 'Thiếu thông tin ca học' });
+        }
+
+        // Find or create course
+        let [courses] = await pool.query('SELECT id FROM courses WHERE course_name = ? LIMIT 1', [course_name]);
+        let courseId;
+        if (courses.length > 0) {
+            courseId = courses[0].id;
+        } else {
+            const courseCode = 'CS' + Math.floor(100 + Math.random() * 900);
+            const [newCourse] = await pool.query(
+                'INSERT INTO courses (course_code, course_name, credits) VALUES (?, ?, 3)',
+                [courseCode, course_name]
+            );
+            courseId = newCourse.insertId;
+        }
+
+        const [result] = await pool.query(
+            `INSERT INTO class_schedules (course_id, room_name, teacher_name, start_time, end_time) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [courseId, room_name, teacher_name || 'Giảng viên', start_time, end_time]
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: 'Tạo buổi học mới thành công',
+            data: { id: result.insertId, course_id: courseId, course_name, room_name, start_time, end_time }
+        });
+    } catch (error) {
+        console.error('Lỗi createSchedule:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server khi tạo ca học' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /schedules/all — Lấy toàn bộ lịch giảng dạy
+// ═══════════════════════════════════════════════
+exports.getAllSchedules = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                cs.id, cs.course_id, cs.class_id, cs.room_id, cs.shift_id, cs.room_name, cs.teacher_name,
+                cs.start_time, cs.end_time, cs.is_recurring, cs.day_of_week, cs.period_start, cs.period_end, cs.week_from, cs.week_to,
+                c.course_code, c.course_name, c.credits,
+                cl.class_code as official_class_code, cl.class_name as official_class_name,
+                f.faculty_name,
+                COALESCE(
+                    NULLIF((SELECT COUNT(DISTINCT e.student_id) FROM enrollments e WHERE e.schedule_id = cs.id), 0),
+                    (SELECT COUNT(*) FROM students s WHERE s.class_id = cs.class_id OR s.class_name = cl.class_code),
+                    0
+                ) as student_count,
+                (
+                    SELECT COUNT(DISTINCT ca.student_id) 
+                    FROM class_attendance ca 
+                    WHERE ca.schedule_id = cs.id AND (ca.check_in_time IS NOT NULL OR ca.check_out_time IS NOT NULL)
+                ) as attended_count
+            FROM class_schedules cs
+            JOIN courses c ON cs.course_id = c.id
+            LEFT JOIN classes cl ON cs.class_id = cl.id
+            LEFT JOIN faculties f ON cl.faculty_id = f.id
+            ORDER BY cs.start_time DESC
+        `);
+
+        const now = new Date();
+        const formatted = rows.map(s => {
+            const start = new Date(s.start_time);
+            const end = new Date(s.end_time);
+            let status = 'Upcoming';
+            if (now >= start && now <= end) status = 'Active';
+            else if (now > end) status = 'Ended';
+
+            const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+            const dayStr = days[start.getDay()];
+            const startTimeStr = start.toTimeString().slice(0, 5);
+            const endTimeStr = end.toTimeString().slice(0, 5);
+
+            return {
+                ...s,
+                day: dayStr,
+                time: `${startTimeStr} – ${endTimeStr}`,
+                course: `${s.course_code} - ${s.course_name}`,
+                room: s.room_name || 'Chưa xếp phòng',
+                group: s.official_class_code ? `Lớp ${s.official_class_code}` : 'Nhóm 01',
+                count: Number(s.student_count) || 0,
+                attended_count: Number(s.attended_count) || 0,
+                status
+            };
+        });
+
+        return res.status(200).json({ success: true, data: formatted });
+    } catch (error) {
+        console.error('Lỗi getAllSchedules:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /exams/list — Lấy tất cả ca coi thi
+// ═══════════════════════════════════════════════
+exports.getExamSchedules = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                es.id, es.exam_room, es.exam_time,
+                es.seating_rows, es.seating_cols,
+                c.course_code, c.course_name,
+                (SELECT COUNT(*) FROM students) as total_candidates,
+                (SELECT COUNT(DISTINCT student_id) FROM exam_attendance WHERE exam_schedule_id = es.id) as checked_in_count
+            FROM exam_schedules es
+            JOIN courses c ON es.course_id = c.id
+            ORDER BY es.exam_time DESC
+        `);
+
+        const formatted = rows.map(e => {
+            const examDate = new Date(e.exam_time);
+            const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+            const dateStr = `${days[examDate.getDay()]}, ${examDate.toLocaleDateString('vi-VN')}`;
+            const timeStr = `${examDate.toTimeString().slice(0, 5)} – 10:30`;
+
+            return {
+                id: e.id,
+                title: `Thi · ${e.course_code} - ${e.course_name}`,
+                date: dateStr,
+                time: timeStr,
+                room: e.exam_room,
+                candidates: e.total_candidates || 40,
+                checkedIn: e.checked_in_count || 0,
+                type: 'Giữa/Cuối kỳ',
+                status: 'Upcoming'
+            };
+        });
+
+        return res.status(200).json({ success: true, data: formatted });
+    } catch (error) {
+        console.error('Lỗi getExamSchedules:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /reports/teacher-summary — Thống kê báo cáo giảng viên
+// ═══════════════════════════════════════════════
+exports.getTeacherReportSummary = async (req, res) => {
+    try {
+        const [[stats]] = await pool.query(`
+            SELECT 
+                COUNT(*) as total_attendance,
+                SUM(check_in_time IS NOT NULL AND check_out_time IS NOT NULL) as complete_attendance,
+                SUM(check_in_time IS NOT NULL AND check_out_time IS NULL) as partial_attendance,
+                SUM(check_in_time IS NULL) as absent_attendance
+            FROM class_attendance
+        `);
+
+        const [courseStats] = await pool.query(`
+            SELECT 
+                c.id, c.course_code, c.course_name,
+                (SELECT COUNT(*) FROM students) as total_students,
+                (SELECT COUNT(DISTINCT cs.id) FROM class_schedules cs WHERE cs.course_id = c.id) as total_sessions,
+                (SELECT COUNT(*) FROM class_attendance ca JOIN class_schedules cs ON ca.schedule_id = cs.id WHERE cs.course_id = c.id AND ca.check_in_time IS NOT NULL) as total_checkins
+            FROM courses c
+        `);
+
+        const courseSummary = courseStats.map(c => {
+            const sessions = c.total_sessions || 1;
+            const expected = (c.total_students || 35) * sessions;
+            const actual = c.total_checkins || 0;
+            const rate = expected > 0 ? ((actual / expected) * 100).toFixed(1) : '95.0';
+
+            return {
+                course: `${c.course_code} - ${c.course_name}`,
+                students: `${c.total_students || 40} SV`,
+                sessions: `${sessions} buổi`,
+                rate: `${rate}%`,
+                absent_avg: `${((expected - actual) / sessions).toFixed(1)} SV/buổi`,
+                rating: Number(rate) >= 90 ? 'Rất tốt' : Number(rate) >= 80 ? 'Tốt' : 'Đạt'
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                total_attendance: stats.total_attendance || 0,
+                complete_attendance: stats.complete_attendance || 0,
+                partial_attendance: stats.partial_attendance || 0,
+                absent_attendance: stats.absent_attendance || 0,
+                courseSummary
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi getTeacherReportSummary:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ═══════════════════════════════════════════════
+//  GET /reports/export — Xuất file CSV/Excel điểm danh
+// ═══════════════════════════════════════════════
+exports.exportReportExcel = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                ca.id, s.student_code, s.full_name, s.class_name,
+                c.course_code, c.course_name, cs.room_name,
+                ca.check_in_time, ca.check_out_time, ca.status
+            FROM class_attendance ca
+            JOIN students s ON s.id = ca.student_id
+            JOIN class_schedules cs ON cs.id = ca.schedule_id
+            JOIN courses c ON c.id = cs.course_id
+            ORDER BY ca.id DESC
+        `);
+
+        let csv = '\uFEFFMã SV,Họ và tên,Lớp,Mã HP,Tên môn học,Phòng,Check-in,Check-out,Trạng thái\n';
+        rows.forEach(r => {
+            csv += `"${r.student_code}","${r.full_name}","${r.class_name || ''}","${r.course_code}","${r.course_name}","${r.room_name}","${r.check_in_time ? new Date(r.check_in_time).toLocaleString('vi-VN') : ''}","${r.check_out_time ? new Date(r.check_out_time).toLocaleString('vi-VN') : ''}","${r.status || ''}"\n`;
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="Bao_Cao_Diem_Danh.csv"');
+        return res.send(csv);
+    } catch (error) {
+        console.error('Lỗi exportReportExcel:', error);
         return res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 };

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const classController = require('../controllers/class.controller');
-const authMiddleware = require('../middleware/auth.middleware');
-const roleMiddleware = require('../middleware/role.middleware');
+const classController = require('../../controllers/admin/class.controller');
+const authMiddleware = require('../../middleware/auth.middleware');
+const roleMiddleware = require('../../middleware/role.middleware');
 
 router.use(authMiddleware);
 router.use(roleMiddleware('admin', 'manager', 'teacher'));

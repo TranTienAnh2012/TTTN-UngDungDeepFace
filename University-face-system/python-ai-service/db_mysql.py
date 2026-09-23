@@ -5,8 +5,16 @@ import json
 import base64
 import numpy as np
 import time
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Load .env from current directory or parent directory
+_current_dir = Path(__file__).resolve().parent
+_env_path = _current_dir / '.env'
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv(dotenv_path=_current_dir.parent / '.env')
 load_dotenv()
 
 cached_students = None
@@ -20,9 +28,9 @@ def get_db_connection():
     try:
         connection = mysql.connector.connect(
             host=os.getenv("DB_HOST", "127.0.0.1"),
-            port=int(os.getenv("DB_PORT", "3309")),
+            port=int(os.getenv("DB_PORT", "3306")),
             user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
+            password=os.getenv("DB_PASSWORD", "123456"),
             database=os.getenv("DB_NAME", "face_attendance_db")
         )
         return connection
@@ -39,12 +47,10 @@ def _parse_embedding(raw_data):
         return None
 
     try:
-        # Convert bytes to string if needed
         if isinstance(raw_data, (bytes, bytearray)):
             try:
                 raw_str = raw_data.decode('utf-8')
             except Exception:
-                # If direct raw binary buffer of float64
                 return np.frombuffer(raw_data, dtype=np.float64)
         elif isinstance(raw_data, str):
             raw_str = raw_data
@@ -57,7 +63,6 @@ def _parse_embedding(raw_data):
         if not raw_str:
             return None
 
-        # 1. Try JSON array format (e.g. "[0.123, -0.456, ...]")
         if raw_str.startswith('[') and raw_str.endswith(']'):
             try:
                 emb_list = json.loads(raw_str)
@@ -65,7 +70,6 @@ def _parse_embedding(raw_data):
             except Exception:
                 pass
 
-        # 2. Try Base64 format
         try:
             decoded_bytes = base64.b64decode(raw_str)
             emb = np.frombuffer(decoded_bytes, dtype=np.float64)
@@ -74,7 +78,6 @@ def _parse_embedding(raw_data):
         except Exception:
             pass
 
-        # 3. Fallback: try JSON loads on any string
         try:
             emb_list = json.loads(raw_str)
             if isinstance(emb_list, list):
@@ -146,19 +149,15 @@ def get_student_embedding(student_id):
 
 def get_all_student_embeddings(force_refresh=False):
     """
-    Fetch all registered student embeddings from MySQL, with 10-second caching
+    Fetch all registered student embeddings directly from MySQL
     """
-    global cached_students, last_cache_time
-    if not force_refresh and cached_students is not None and time.time() - last_cache_time < 10:
-        return cached_students
-
     connection = get_db_connection()
     students_list = []
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute(
-                "SELECT id, student_code, full_name, face_embedding FROM students WHERE face_embedding IS NOT NULL"
+                "SELECT id, student_code, full_name, face_embedding FROM students WHERE face_embedding IS NOT NULL AND CHAR_LENGTH(face_embedding) > 10"
             )
             rows = cursor.fetchall()
             for row in rows:
@@ -171,9 +170,6 @@ def get_all_student_embeddings(force_refresh=False):
                             "full_name": row['full_name'],
                             "embedding": emb
                         })
-            
-            cached_students = students_list
-            last_cache_time = time.time()
         except Error as e:
             print(f"[!] Error fetching all embeddings: {e}")
         finally:
@@ -181,7 +177,6 @@ def get_all_student_embeddings(force_refresh=False):
                 cursor.close()
                 connection.close()
     return students_list
-
 
 def update_admin_embedding(admin_id, embedding):
     """
@@ -192,24 +187,27 @@ def update_admin_embedding(admin_id, embedding):
         try:
             cursor = connection.cursor()
             if not isinstance(embedding, np.ndarray):
-                embedding = np.array(embedding)
+                embedding = np.array(embedding, dtype=np.float64)
+            else:
+                embedding = embedding.astype(np.float64)
+
             embedding_bytes = embedding.tobytes()
             embedding_base64 = base64.b64encode(embedding_bytes).decode('utf-8')
             cursor.execute(
                 "UPDATE administrators SET face_embedding = %s WHERE id = %s",
-                (embedding_base64.encode('utf-8'), admin_id)
+                (embedding_base64, admin_id)
             )
             connection.commit()
+            print(f"[+] Da luu admin embedding thanh cong cho admin_id={admin_id}")
             return True
         except Error as e:
-            print(f"Error updating admin embedding: {e}")
+            print(f"[!] Error updating admin embedding: {e}")
             return False
         finally:
             if connection.is_connected():
                 cursor.close()
                 connection.close()
     return False
-
 
 def get_admin_embedding(admin_id):
     """
@@ -227,13 +225,12 @@ def get_admin_embedding(admin_id):
             if row and row['face_embedding']:
                 return _parse_embedding(row['face_embedding'])
         except Error as e:
-            print(f"Error fetching admin embedding: {e}")
+            print(f"[!] Error fetching admin embedding: {e}")
         finally:
             if connection.is_connected():
                 cursor.close()
                 connection.close()
     return None
-
 
 def get_all_admin_embeddings():
     """
@@ -245,7 +242,7 @@ def get_all_admin_embeddings():
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute(
-                "SELECT id, email, full_name, role, face_embedding FROM administrators WHERE face_embedding IS NOT NULL"
+                "SELECT id, email, full_name, role, face_embedding FROM administrators WHERE face_embedding IS NOT NULL AND CHAR_LENGTH(face_embedding) > 10"
             )
             rows = cursor.fetchall()
             for row in rows:
@@ -260,7 +257,7 @@ def get_all_admin_embeddings():
                             "embedding": emb
                         })
         except Error as e:
-            print(f"Error fetching all admin embeddings: {e}")
+            print(f"[!] Error fetching all admin embeddings: {e}")
         finally:
             if connection.is_connected():
                 cursor.close()

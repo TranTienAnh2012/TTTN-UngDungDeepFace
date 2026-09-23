@@ -79,46 +79,78 @@ const ExamSchedules = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
-                                <th className="p-4 font-semibold">Môn Thi</th>
-                                <th className="p-4 font-semibold">Phòng Thi</th>
-                                <th className="p-4 font-semibold">Thời Gian</th>
-                                <th className="p-4 font-semibold">Sơ Đồ Lớp</th>
-                                <th className="p-4 font-semibold text-right">Thao tác</th>
+                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-xs uppercase font-bold tracking-wider">
+                                <th className="p-4">Môn Thi</th>
+                                <th className="p-4">Lớp Dự Thi</th>
+                                <th className="p-4">Phòng Thi</th>
+                                <th className="p-4">Thời Gian</th>
+                                <th className="p-4 text-center">Sơ Đồ Ghế</th>
+                                <th className="p-4 text-right">Thao tác</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-gray-100 text-sm font-medium text-gray-700">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="5" className="p-8 text-center text-gray-400">Đang tải...</td>
+                                    <td colSpan="6" className="p-8 text-center text-gray-400">
+                                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                                        <p className="mt-2 text-sm font-medium">Đang tải...</p>
+                                    </td>
                                 </tr>
                             ) : schedules.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="p-8 text-center text-gray-400 font-medium">Không có dữ liệu</td>
+                                    <td colSpan="6" className="p-8 text-center text-gray-400 font-medium">Không có dữ liệu</td>
                                 </tr>
                             ) : (
                                 schedules.map(item => (
-                                    <tr key={item.id} className="hover:bg-gray-50/80 transition-colors group">
+                                    <tr key={item.id} className="hover:bg-indigo-50/20 transition-colors group">
                                         <td className="p-4">
-                                            <div className="font-semibold text-gray-900">{item.course_name}</div>
-                                            <div className="text-sm font-mono text-gray-500">{item.course_code}</div>
+                                            <div className="font-bold text-gray-900">{item.course_name}</div>
+                                            <div className="text-xs font-mono font-bold text-indigo-700">{item.course_code}</div>
                                         </td>
-                                        <td className="p-4 text-gray-600 font-medium">{item.exam_room}</td>
-                                        <td className="p-4 text-gray-600 text-sm">
-                                            {new Date(item.exam_time).toLocaleString('vi-VN')}
+                                        <td className="p-4">
+                                            {item.academic_class_code ? (
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
+                                                    {item.academic_class_code}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 italic">Thi ghép / Tự do</span>
+                                            )}
                                         </td>
-                                        <td className="p-4 text-gray-600 text-sm">
-                                            {item.seating_rows} hàng x {item.seating_cols} cột
+                                        <td className="p-4 text-gray-800 font-semibold">
+                                            <div className="flex items-center gap-1.5">
+                                                {item.room_code && (
+                                                    <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-xs font-mono font-bold border border-purple-200">
+                                                        {item.room_code}
+                                                    </span>
+                                                )}
+                                                <span>{item.room_full_name || item.exam_room}</span>
+                                            </div>
+                                            {item.building && <div className="text-xs text-gray-500 font-normal">{item.building}</div>}
+                                        </td>
+                                        <td className="p-4 text-gray-700 text-sm">
+                                            <div className="font-bold text-gray-900">
+                                                {new Date(item.exam_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                {item.exam_end_time && ` - ${new Date(item.exam_end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`}
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                                {new Date(item.exam_time).toLocaleDateString('vi-VN')}
+                                                {item.duration_minutes && <span className="ml-1.5 font-bold text-indigo-600">({item.duration_minutes} phút)</span>}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-bold font-mono">
+                                                {item.seating_rows} hàng × {item.seating_cols} cột
+                                            </span>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => { setSelectedSchedule(item); setIsEligibilityOpen(true); }} className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg" title="Xếp thí sinh">
-                                                    <UserPlus size={16} />
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button onClick={() => { setSelectedSchedule(item); setIsEligibilityOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Danh sách dự thi">
+                                                    <Users size={16} />
                                                 </button>
-                                                <button onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                                                <button onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Chỉnh sửa">
                                                     <Edit2 size={16} />
                                                 </button>
-                                                <button onClick={() => { setSelectedSchedule(item); setIsDeleteOpen(true); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                                                <button onClick={() => { setSelectedSchedule(item); setIsDeleteOpen(true); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>

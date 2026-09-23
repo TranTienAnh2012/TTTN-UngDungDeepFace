@@ -1,6 +1,4 @@
-const pool = require('../config/db');
-
-// --- EXAM SCHEDULES ---
+const pool = require('../../config/db');
 
 exports.getAllExamSchedules = async (req, res) => {
     try {
@@ -75,21 +73,23 @@ exports.getExamScheduleById = async (req, res) => {
 
 exports.createExamSchedule = async (req, res) => {
     try {
-        const { course_id, exam_room, exam_time, seating_rows, seating_cols, disabled_seats } = req.body;
+        const { course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats } = req.body;
         
         if (!course_id || !exam_room || !exam_time) {
-            return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc: Môn thi, Phòng thi, Giờ thi' });
+            return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc: Môn thi, Phòng thi, Giờ bắt đầu' });
         }
 
+        const finalEndTime = end_time || new Date(new Date(exam_time).getTime() + 90 * 60000);
+
         const [result] = await pool.query(
-            'INSERT INTO exam_schedules (course_id, exam_room, exam_time, seating_rows, seating_cols, disabled_seats) VALUES (?, ?, ?, ?, ?, ?)',
-            [course_id, exam_room, exam_time, seating_rows || 0, seating_cols || 0, disabled_seats || '']
+            'INSERT INTO exam_schedules (course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [course_id, exam_room, exam_time, finalEndTime, seating_rows || 0, seating_cols || 0, disabled_seats || '']
         );
         
         res.status(201).json({ 
             success: true, 
             message: 'Tạo lịch thi thành công',
-            data: { id: result.insertId, course_id, exam_room, exam_time }
+            data: { id: result.insertId, course_id, exam_room, exam_time, end_time: finalEndTime }
         });
     } catch (error) {
         console.error('Error in createExamSchedule:', error);
@@ -100,15 +100,17 @@ exports.createExamSchedule = async (req, res) => {
 exports.updateExamSchedule = async (req, res) => {
     try {
         const { id } = req.params;
-        const { course_id, exam_room, exam_time, seating_rows, seating_cols, disabled_seats } = req.body;
+        const { course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats } = req.body;
 
         if (!course_id || !exam_room || !exam_time) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc' });
         }
 
+        const finalEndTime = end_time || new Date(new Date(exam_time).getTime() + 90 * 60000);
+
         const [result] = await pool.query(
-            'UPDATE exam_schedules SET course_id = ?, exam_room = ?, exam_time = ?, seating_rows = ?, seating_cols = ?, disabled_seats = ? WHERE id = ?',
-            [course_id, exam_room, exam_time, seating_rows || 0, seating_cols || 0, disabled_seats || '', id]
+            'UPDATE exam_schedules SET course_id = ?, exam_room = ?, exam_time = ?, end_time = ?, seating_rows = ?, seating_cols = ?, disabled_seats = ? WHERE id = ?',
+            [course_id, exam_room, exam_time, finalEndTime, seating_rows || 0, seating_cols || 0, disabled_seats || '', id]
         );
 
         if (result.affectedRows === 0) {
@@ -126,7 +128,6 @@ exports.deleteExamSchedule = async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Check dependencies
         const [eligibility] = await pool.query('SELECT id FROM exam_eligibility WHERE exam_schedule_id = ? LIMIT 1', [id]);
         if (eligibility.length > 0) {
             return res.status(400).json({ success: false, message: 'Không thể xóa lịch thi vì đã có danh sách sinh viên dự thi' });
@@ -148,8 +149,6 @@ exports.deleteExamSchedule = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi server khi xóa lịch thi' });
     }
 };
-
-// --- EXAM ELIGIBILITY ---
 
 exports.getExamEligibility = async (req, res) => {
     try {
@@ -186,7 +185,6 @@ exports.addExamEligibility = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Thiếu exam_schedule_id hoặc student_id' });
         }
 
-        // Check if already exists
         const [existing] = await pool.query(
             'SELECT id FROM exam_eligibility WHERE exam_schedule_id = ? AND student_id = ?', 
             [exam_schedule_id, student_id]
@@ -224,13 +222,11 @@ exports.removeExamEligibility = async (req, res) => {
     }
 };
 
-// --- EXAM ATTENDANCE ---
-
 exports.getExamAttendance = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
-        const schedule_id = req.query.schedule_id; // Optional filter
+        const schedule_id = req.query.schedule_id;
         const offset = (page - 1) * limit;
 
         let whereClause = '';

@@ -50,11 +50,7 @@ const Login = () => {
         setIsLoading(true);
         const result = await login(email, password, rememberMe);
         if (result.success) {
-            if (result.user?.role === 'teacher') {
-                navigate('/teacher/dashboard');
-            } else {
-                navigate('/admin');
-            }
+            navigate('/admin');
         } else {
             setError(result.message);
         }
@@ -399,10 +395,10 @@ const Login = () => {
                         </div>
                     )}
 
-                    <div className="mt-8 text-center text-sm font-medium text-slate-500">
-                        Chưa có tài khoản?{' '}
-                        <Link to="/register" className="text-[#175b9f] hover:underline font-bold">
-                            Đăng ký ngay
+                    <div className="mt-10 text-center text-sm font-medium text-slate-500">
+                        Chưa có tài khoản quản trị?{' '}
+                        <Link to="/admin/register" className="text-[#175b9f] hover:underline font-semibold">
+                            Liên hệ Phòng Đào tạo (Đăng ký)
                         </Link>
                     </div>
                 </div>

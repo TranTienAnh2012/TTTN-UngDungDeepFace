@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { 
     Plus, Bell, X, Calendar, Users, CheckCircle2, 
     ArrowRight, BookOpen, MapPin, Clock, Download, 
-    UserCheck, ChevronRight, Building2, Sparkles, AlertCircle
+    UserCheck, ChevronRight, Building2, Sparkles, AlertCircle, Camera
 } from 'lucide-react';
 import TeacherFaceRecognitionModal from '../../components/teacher/TeacherFaceRecognitionModal';
+import ScheduleDetailModal from '../../components/teacher/ScheduleDetailModal';
+import api from '../../services/api';
 
 const TeacherDashboard = () => {
     const navigate = useNavigate();
@@ -13,6 +15,7 @@ const TeacherDashboard = () => {
     // UI States
     const [showAlertBanner, setShowAlertBanner] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [selectedScheduleForDetail, setSelectedScheduleForDetail] = useState(null);
 
     // AI Face recognition modal state
     const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
@@ -21,6 +24,9 @@ const TeacherDashboard = () => {
     const [todaySchedules, setTodaySchedules] = useState([]);
     const [recentCheckIns, setRecentCheckIns] = useState([]);
     const [activeSchedule, setActiveSchedule] = useState(null);
+    const [totalStudentsCount, setTotalStudentsCount] = useState(0);
+    const [examsList, setExamsList] = useState([]);
+    const [summaryStats, setSummaryStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Form for quick session creation modal
@@ -38,16 +44,44 @@ const TeacherDashboard = () => {
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const resSched = await api.get('/schedules/today');
-            if (resSched.data.success) {
-                setTodaySchedules(resSched.data.data);
+            // 1. Fetch All / Today Schedules
+            const resSched = await api.get('/schedules/all');
+            if (resSched.data.success && resSched.data.data.length > 0) {
+                const scheds = resSched.data.data;
+                setTodaySchedules(scheds);
 
-                // Auto-detect active schedule
-                const now = Date.now();
-                const active = resSched.data.data.find(s => 
-                    new Date(s.start_time) <= now && new Date(s.end_time) >= now
-                );
-                setActiveSchedule(active || resSched.data.data[0] || null);
+                const active = scheds.find(s => s.status === 'Active') || scheds[0];
+                setActiveSchedule(active);
+                if (active) {
+                    fetchRecentCheckIns(active.id);
+                }
+            }
+
+            // 2. Fetch Total Students Count
+            const resStudents = await api.get('/student-list');
+            if (resStudents.data.success) {
+                setTotalStudentsCount(resStudents.data.data.length);
+                if (recentCheckIns.length === 0) {
+                    // Fallback initial list of students
+                    setRecentCheckIns(resStudents.data.data.slice(0, 5).map(s => ({
+                        full_name: s.full_name,
+                        student_code: s.student_code,
+                        check_in_time: s.has_face ? new Date().toISOString() : null,
+                        status: s.has_face ? 'Đã đăng ký' : 'Chưa đăng ký'
+                    })));
+                }
+            }
+
+            // 3. Fetch Real Exam Schedules
+            const resExams = await api.get('/teacher/exams');
+            if (resExams.data.success) {
+                setExamsList(resExams.data.data);
+            }
+
+            // 4. Fetch Summary Stats
+            const resSummary = await api.get('/reports/teacher-summary');
+            if (resSummary.data.success) {
+                setSummaryStats(resSummary.data.data);
             }
         } catch (err) {
             console.error('Lỗi khi tải dữ liệu Dashboard giảng viên:', err);
@@ -56,53 +90,31 @@ const TeacherDashboard = () => {
         }
     };
 
-    // Default mock data to match exact design when API is empty
-    const mockSchedules = [
-        {
-            id: 101,
-            time: '08:00 – 10:00',
-            course_name: 'Nhập môn Khoa học máy tính',
-            code_group: 'CS101 · Nhóm 02 · Phòng A-302',
-            students: '42/45 SV',
-            status: 'active',
-            status_text: 'Đang diễn ra'
-        },
-        {
-            id: 102,
-            time: '10:30 – 12:00',
-            course_name: 'Cấu trúc dữ liệu & Giải thuật',
-            code_group: 'CS204 · Nhóm 01 · Phòng Lab B-101',
-            students: '— SV',
-            status: 'upcoming',
-            status_text: 'Sắp tới'
-        },
-        {
-            id: 103,
-            time: '13:30 – 15:00',
-            course_name: 'Phát triển ứng dụng Web',
-            code_group: 'SE220 · Nhóm 03 · Phòng C-204',
-            students: '— SV',
-            status: 'upcoming',
-            status_text: 'Sắp tới'
+    const fetchRecentCheckIns = async (scheduleId) => {
+        try {
+            const res = await api.get(`/attendance/list/${scheduleId}`);
+            if (res.data.success && res.data.data.length > 0) {
+                setRecentCheckIns(res.data.data);
+            }
+        } catch (err) {
+            console.error('Lỗi khi tải check-in gần đây:', err);
         }
-    ];
+    };
 
-    const mockStudentsLog = [
-        { name: 'Nguyễn Minh Anh', code: 'SV210104', status: 'Có mặt', time: '08:02', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        { name: 'Trần Hoàng Nam', code: 'SV210218', status: 'Có mặt', time: '08:03', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        { name: 'Lê Thảo Vy', code: 'SV210331', status: 'Muộn', time: '08:17', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
-        { name: 'Phạm Gia Huy', code: 'SV210402', status: 'Vắng', time: '—', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200' }
-    ];
-
-    const mockExams = [
-        { title: 'Giữa kỳ · CS204', date: 'Thứ Tư, 16/10 - 09:00', room: 'Phòng A-201', color: 'bg-purple-100 text-purple-700' },
-        { title: 'Cuối kỳ · SE220', date: 'Thứ Sáu, 25/10 - 13:30', room: 'Phòng Lab B-101', color: 'bg-amber-100 text-amber-700' }
-    ];
-
-    const handleCreateSessionSubmit = (e) => {
+    const handleCreateSessionSubmit = async (e) => {
         e.preventDefault();
-        alert(`Đã tạo buổi học mới: ${newSessionForm.course_name} tại ${newSessionForm.room_name}`);
-        setShowCreateModal(false);
+        try {
+            const res = await api.post('/schedules/create', newSessionForm);
+            if (res.data.success) {
+                alert(`Đã tạo buổi học mới thành công: ${newSessionForm.course_name}`);
+                setShowCreateModal(false);
+                setNewSessionForm({ course_name: '', room_name: '', start_time: '', end_time: '' });
+                fetchDashboardData();
+            }
+        } catch (err) {
+            console.error('Lỗi tạo buổi học:', err);
+            alert('Không thể tạo buổi học. Vui lòng kiểm tra lại thông tin!');
+        }
     };
 
     return (
@@ -119,14 +131,23 @@ const TeacherDashboard = () => {
                     </p>
                 </div>
 
-                {/* Primary Action: + Tạo buổi học */}
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 self-start md:self-auto group"
-                >
-                    <Plus size={18} className="group-hover:rotate-90 transition-transform duration-200" />
-                    <span>Tạo buổi học</span>
-                </button>
+                {/* Primary Actions: Đăng ký khuôn mặt & + Tạo buổi học */}
+                <div className="flex items-center gap-3 self-start md:self-auto">
+                    <button
+                        onClick={() => navigate('/teacher/face-registration')}
+                        className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-2xl border border-indigo-200 transition-all flex items-center justify-center gap-2"
+                    >
+                        <Camera size={18} />
+                        <span>Đăng ký khuôn mặt</span>
+                    </button>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
+                    >
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-200" />
+                        <span>Tạo buổi học</span>
+                    </button>
+                </div>
             </div>
 
             {/* Reminder Alert Banner */}
@@ -137,7 +158,7 @@ const TeacherDashboard = () => {
                             <Bell size={18} />
                         </div>
                         <p className="text-sm font-semibold text-indigo-950">
-                            <strong>Nhắc nhở:</strong> Bạn có một ca học sắp bắt đầu trong 30 phút nữa.
+                            <strong>Nhắc nhở:</strong> Bạn có ca học sắp bắt đầu. Vui lòng bật camera để điểm danh tự động.
                         </p>
                     </div>
                     <button
@@ -151,13 +172,13 @@ const TeacherDashboard = () => {
 
             {/* Top 3 Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Stat 1: Buổi học hôm nay */}
+                {/* Stat 1: Buổi học */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
                     <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Buổi học hôm nay</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lịch giảng dạy</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-extrabold text-slate-900">03</span>
-                            <span className="text-xs font-semibold text-slate-500">2 sắp tới</span>
+                            <span className="text-3xl font-extrabold text-slate-900">{todaySchedules.length}</span>
+                            <span className="text-xs font-semibold text-slate-500">Ca học trong hệ thống</span>
                         </div>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -170,8 +191,8 @@ const TeacherDashboard = () => {
                     <div className="space-y-1">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng sinh viên</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-extrabold text-slate-900">128</span>
-                            <span className="text-xs font-semibold text-slate-500">Trong 3 lớp học</span>
+                            <span className="text-3xl font-extrabold text-slate-900">{totalStudentsCount}</span>
+                            <span className="text-xs font-semibold text-slate-500">Sinh viên giảng dạy</span>
                         </div>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
@@ -182,11 +203,13 @@ const TeacherDashboard = () => {
                 {/* Stat 3: Tỷ lệ điểm danh */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
                     <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tỷ lệ điểm danh</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tỷ lệ có mặt AI</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-extrabold text-slate-900">94.2%</span>
+                            <span className="text-3xl font-extrabold text-slate-900">
+                                {summaryStats ? `${((summaryStats.complete_attendance / Math.max(1, summaryStats.total_attendance)) * 100).toFixed(1)}%` : '95.0%'}
+                            </span>
                             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                ↑ 2.4% so với tuần trước
+                                Hoàn thành
                             </span>
                         </div>
                     </div>
@@ -204,8 +227,8 @@ const TeacherDashboard = () => {
                     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="text-base font-bold text-slate-900">Lịch giảng dạy hôm nay</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Thứ Hai, 14 tháng 10</p>
+                                <h3 className="text-base font-bold text-slate-900">Lịch giảng dạy</h3>
+                                <p className="text-xs text-slate-400 mt-0.5">Danh sách các ca giảng dạy từ cơ sở dữ liệu</p>
                             </div>
                             <button 
                                 onClick={() => navigate('/teacher/schedule')}
@@ -218,37 +241,42 @@ const TeacherDashboard = () => {
 
                         {/* Schedule Items */}
                         <div className="space-y-3">
-                            {mockSchedules.map((item) => (
-                                <div 
-                                    key={item.id}
-                                    className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                                        item.status === 'active' 
-                                            ? 'bg-indigo-50/40 border-indigo-200/80 shadow-xs' 
-                                            : 'bg-slate-50/60 border-slate-100 hover:bg-slate-50'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-28 font-mono font-bold text-xs text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-center shrink-0">
-                                            {item.time}
+                            {todaySchedules.length === 0 ? (
+                                <div className="p-4 text-center text-slate-400 text-xs">Chưa có ca học nào trong danh sách</div>
+                            ) : (
+                                todaySchedules.map((item) => (
+                                    <div 
+                                        key={item.id}
+                                        onClick={() => setSelectedScheduleForDetail(item)}
+                                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:shadow-md hover:border-indigo-300 ${
+                                            item.status === 'Active' 
+                                                ? 'bg-indigo-50/40 border-indigo-200/80 shadow-xs' 
+                                                : 'bg-slate-50/60 border-slate-100 hover:bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-28 font-mono font-bold text-xs text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-center shrink-0">
+                                                {item.time || `${new Date(item.start_time).toTimeString().slice(0,5)} – ${new Date(item.end_time).toTimeString().slice(0,5)}`}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 text-sm hover:text-indigo-600 transition-colors">{item.course_name || item.course}</h4>
+                                                <p className="text-xs text-slate-500 mt-0.5">{item.course_code || 'HP'} · Phòng {item.room_name || item.room}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="font-bold text-slate-900 text-sm">{item.course_name}</h4>
-                                            <p className="text-xs text-slate-500 mt-0.5">{item.code_group}</p>
-                                        </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-3 self-end sm:self-auto">
-                                        <span className="text-xs font-bold text-slate-600 font-mono">{item.students}</span>
-                                        <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${
-                                            item.status === 'active'
-                                                ? 'bg-emerald-100 text-emerald-700 animate-pulse'
-                                                : 'bg-slate-200/70 text-slate-600'
-                                        }`}>
-                                            {item.status_text}
-                                        </span>
+                                        <div className="flex items-center gap-3 self-end sm:self-auto">
+                                            <span className="text-xs font-bold text-slate-600 font-mono">{item.student_count || item.count || 40} SV</span>
+                                            <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${
+                                                item.status === 'Active'
+                                                    ? 'bg-emerald-100 text-emerald-700 animate-pulse'
+                                                    : 'bg-slate-200/70 text-slate-600'
+                                            }`}>
+                                                {item.status === 'Active' ? '● Đang diễn ra' : item.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
 
@@ -257,10 +285,10 @@ const TeacherDashboard = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className="text-base font-bold text-slate-900">Danh sách sinh viên gần đây</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Cập nhật từ ca học hiện tại</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Cập nhật dữ liệu từ hệ thống</p>
                             </div>
                             <button 
-                                onClick={() => alert("Đang xuất danh sách sinh viên ra CSV...")}
+                                onClick={() => window.open('http://localhost:5000/api/reports/export', '_blank')}
                                 className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all"
                             >
                                 <Download size={14} />
@@ -276,22 +304,32 @@ const TeacherDashboard = () => {
                                         <th className="pb-3 pl-2">Sinh viên</th>
                                         <th className="pb-3">Mã sinh viên</th>
                                         <th className="pb-3">Trạng thái</th>
-                                        <th className="pb-3 text-right pr-2">Thời gian</th>
+                                        <th className="pb-3 text-right pr-2">Thời gian / Ngày</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 font-medium">
-                                    {mockStudentsLog.map((row, idx) => (
-                                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                                            <td className="py-3 pl-2 font-bold text-slate-900">{row.name}</td>
-                                            <td className="py-3 font-mono text-slate-600">{row.code}</td>
-                                            <td className="py-3">
-                                                <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${row.badgeClass}`}>
-                                                    {row.status}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 text-right pr-2 font-mono text-slate-500">{row.time}</td>
+                                    {recentCheckIns.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="4" className="text-center py-6 text-slate-400">Chưa có lượt điểm danh nào</td>
                                         </tr>
-                                    ))}
+                                    ) : (
+                                        recentCheckIns.map((row, idx) => (
+                                            <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                                                <td className="py-3 pl-2 font-bold text-slate-900">{row.full_name || row.name}</td>
+                                                <td className="py-3 font-mono text-slate-600">{row.student_code || row.code}</td>
+                                                <td className="py-3">
+                                                    <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${
+                                                        row.check_in_time ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                                                    }`}>
+                                                        {row.check_in_time ? 'Có mặt' : (row.status || 'Chưa điểm danh')}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 text-right pr-2 font-mono text-slate-500">
+                                                    {row.check_in_time ? new Date(row.check_in_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -313,28 +351,37 @@ const TeacherDashboard = () => {
                         {/* Active Course Details */}
                         <div className="p-4 bg-slate-50/80 rounded-xl space-y-3 border border-slate-100">
                             <div>
-                                <h4 className="font-extrabold text-slate-900 text-sm">Nhập môn Khoa học máy tính</h4>
+                                <h4 className="font-extrabold text-slate-900 text-sm">
+                                    {activeSchedule ? (activeSchedule.course_name || activeSchedule.course) : 'Ca học trực tiếp'}
+                                </h4>
                                 <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
                                     <Clock size={13} className="text-slate-400" />
-                                    08:00 – 10:00 · Phòng A-302
+                                    {activeSchedule ? `${activeSchedule.time || 'Đang diễn ra'} · Phòng ${activeSchedule.room_name || activeSchedule.room}` : 'Đang chọn ca học'}
                                 </p>
                             </div>
 
                             {/* Progress Bar */}
                             <div className="space-y-1.5 pt-1">
                                 <div className="flex justify-between text-xs font-bold">
-                                    <span className="text-slate-900"><strong className="text-lg">42</strong> / 45 có mặt</span>
-                                    <span className="text-indigo-600 font-mono">Tiến độ 93%</span>
+                                    <span className="text-slate-900">
+                                        <strong className="text-lg">{recentCheckIns.filter(c => c.check_in_time).length}</strong> / {totalStudentsCount || 40} có mặt
+                                    </span>
+                                    <span className="text-indigo-600 font-mono">
+                                        {totalStudentsCount > 0 ? `${Math.round((recentCheckIns.filter(c => c.check_in_time).length / totalStudentsCount) * 100)}%` : '100%'}
+                                    </span>
                                 </div>
                                 <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                                    <div className="h-full bg-indigo-600 rounded-full transition-all duration-500" style={{ width: '93%' }}></div>
+                                    <div 
+                                        className="h-full bg-indigo-600 rounded-full transition-all duration-500" 
+                                        style={{ width: `${totalStudentsCount > 0 ? Math.min(100, Math.round((recentCheckIns.filter(c => c.check_in_time).length / totalStudentsCount) * 100)) : 100}%` }}
+                                    ></div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Primary Button: Open Live Scan */}
                         <button
-                            onClick={() => navigate('/teacher/face-recognition')}
+                            onClick={() => navigate(activeSchedule ? `/teacher/face-recognition?schedule_id=${activeSchedule.id}` : '/teacher/face-recognition')}
                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
                         >
                             <UserCheck size={18} />
@@ -347,11 +394,11 @@ const TeacherDashboard = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className="text-base font-bold text-slate-900">Phòng thi của tôi</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Quản lý ca thi sắp tới</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Quản lý ca thi từ cơ sở dữ liệu</p>
                             </div>
                             <button 
                                 onClick={() => navigate('/teacher/exams')}
-                                title="Thêm ca phòng thi"
+                                title="Xem ca phòng thi"
                                 className="w-7 h-7 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-all"
                             >
                                 <Plus size={16} />
@@ -360,22 +407,26 @@ const TeacherDashboard = () => {
 
                         {/* Exam Items */}
                         <div className="space-y-3">
-                            {mockExams.map((exam, idx) => (
-                                <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold ${exam.color}`}>
-                                            <Building2 size={16} />
+                            {examsList.length === 0 ? (
+                                <div className="p-3 text-center text-slate-400 text-xs">Chưa có ca thi nào</div>
+                            ) : (
+                                examsList.map((exam, idx) => (
+                                    <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold bg-purple-100 text-purple-700">
+                                                <Building2 size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-900 truncate max-w-[150px]">{exam.title}</p>
+                                                <p className="text-[11px] text-slate-500 mt-0.5">{exam.date}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-slate-900">{exam.title}</p>
-                                            <p className="text-[11px] text-slate-500 mt-0.5">{exam.date}</p>
-                                        </div>
+                                        <span className="font-bold text-slate-600 font-mono bg-white px-2 py-1 rounded border border-slate-200 shrink-0">
+                                            {exam.room}
+                                        </span>
                                     </div>
-                                    <span className="font-bold text-slate-600 font-mono bg-white px-2 py-1 rounded border border-slate-200">
-                                        {exam.room}
-                                    </span>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
 
                         <button
@@ -476,6 +527,13 @@ const TeacherDashboard = () => {
                 onClose={() => setIsFaceModalOpen(false)}
                 scheduleId={activeSchedule?.id}
                 sessionTitle={activeSchedule ? `${activeSchedule.course_name}` : ''}
+            />
+
+            {/* Schedule Detail Modal */}
+            <ScheduleDetailModal
+                isOpen={!!selectedScheduleForDetail}
+                onClose={() => setSelectedScheduleForDetail(null)}
+                schedule={selectedScheduleForDetail}
             />
         </div>
     );

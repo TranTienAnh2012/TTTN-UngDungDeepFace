@@ -1,34 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const attendanceController = require('../controllers/attendance.controller');
 
-// ── Face verification (1:1)
-router.post('/attendance/verify', attendanceController.verifyAttendance);
+const teacherScheduleRoutes = require('./teacher/schedule.routes');
+const teacherAttendanceRoutes = require('./teacher/attendance.routes');
+const teacherExamRoutes = require('./teacher/exam.routes');
+const teacherDashboardRoutes = require('./teacher/dashboard.routes');
 
-// ── Auto identify & check-in/check-out (1:N)
-router.post('/attendance/auto-verify', attendanceController.autoIdentifyAndCheckIn);
+// ── Teacher Schedules
+router.use('/schedules', teacherScheduleRoutes);
 
-// ── Schedules
-router.get('/schedules/today', attendanceController.getTodaySchedules);
-router.get('/schedules/active', attendanceController.getActiveSchedules);
+// ── Teacher Attendance & Face Recognition
+router.use('/attendance', teacherAttendanceRoutes);
+router.use('/', teacherAttendanceRoutes);
 
-// ── Session status & attendance list
-router.get('/attendance/session/:schedule_id', attendanceController.getSessionStatus);
-router.get('/attendance/list/:schedule_id',    attendanceController.getAttendanceBySchedule);
+// ── Teacher Exams
+router.use('/', teacherExamRoutes);
 
-// ── Attendance report
-router.get('/attendance/report', attendanceController.getAttendanceReport);
-
-// ── Face registration
-router.post('/student/register-face',  attendanceController.registerFace);
-router.post('/face/detect-pose',       attendanceController.detectPose);
-router.post('/face/register-3step',    attendanceController.registerFace3Step);
-
-// ── Student helpers
-router.get('/student-list',             attendanceController.getStudents);
-router.post('/student/quick-create',    attendanceController.quickCreateStudent);
+// ── Teacher Dashboard & Reports
+router.use('/', teacherDashboardRoutes);
 
 module.exports = router;
-
-
-

@@ -1,6 +1,4 @@
-const pool = require('../config/db');
-
-// --- CLASS SCHEDULES ---
+const pool = require('../../config/db');
 
 exports.getAllClassSchedules = async (req, res) => {
     try {
@@ -126,7 +124,6 @@ exports.deleteClassSchedule = async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Check dependencies
         const [attendance] = await pool.query('SELECT id FROM class_attendance WHERE schedule_id = ? LIMIT 1', [id]);
         if (attendance.length > 0) {
             return res.status(400).json({ success: false, message: 'Không thể xóa lịch học vì đã có dữ liệu điểm danh' });
@@ -144,13 +141,11 @@ exports.deleteClassSchedule = async (req, res) => {
     }
 };
 
-// --- CLASS ATTENDANCE ---
-
 exports.getAllClassAttendance = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
-        const schedule_id = req.query.schedule_id; // Filter by schedule
+        const schedule_id = req.query.schedule_id;
         const offset = (page - 1) * limit;
 
         let query = `

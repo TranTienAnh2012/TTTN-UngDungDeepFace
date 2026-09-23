@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, BookOpen, Users, Plus, CheckCircle, Play, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Calendar, Clock, MapPin, BookOpen, Users, Plus, CheckCircle, Play, ChevronLeft, ChevronRight, Search, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import ScheduleDetailModal from '../../components/teacher/ScheduleDetailModal';
 
 const TeacherSchedule = () => {
     const navigate = useNavigate();
     const [schedules, setSchedules] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterCourse, setFilterCourse] = useState('all');
+    const [selectedSchedule, setSelectedSchedule] = useState(null);
 
     useEffect(() => {
         fetchSchedules();
@@ -16,24 +18,32 @@ const TeacherSchedule = () => {
     const fetchSchedules = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/schedules/today');
+            const res = await api.get('/schedules/all');
             if (res.data.success) {
-                setSchedules(res.data.data);
+                setSchedules(res.data.data || []);
+            } else {
+                setSchedules([]);
             }
         } catch (err) {
             console.error('Lỗi khi tải lịch giảng dạy:', err);
+            setSchedules([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const mockWeeklySchedules = [
-        { id: 1, day: 'Thứ Hai', time: '08:00 – 10:00', course: 'CS101 - Nhập môn Khoa học máy tính', room: 'Phòng A-302', group: 'Nhóm 02', count: 45, status: 'Active' },
-        { id: 2, day: 'Thứ Hai', time: '10:30 – 12:00', course: 'CS204 - Cấu trúc dữ liệu & Giải thuật', room: 'Lab B-101', group: 'Nhóm 01', count: 40, status: 'Upcoming' },
-        { id: 3, day: 'Thứ Ba', time: '13:30 – 15:00', course: 'SE220 - Phát triển ứng dụng Web', room: 'Phòng C-204', group: 'Nhóm 03', count: 42, status: 'Upcoming' },
-        { id: 4, day: 'Thứ Tư', time: '08:00 – 10:00', course: 'CS101 - Nhập môn Khoa học máy tính', room: 'Phòng A-302', group: 'Nhóm 01', count: 44, status: 'Upcoming' },
-        { id: 5, day: 'Thứ Sáu', time: '09:00 – 11:30', course: 'SE220 - Phát triển ứng dụng Web', room: 'Lab B-101', group: 'Nhóm 02', count: 41, status: 'Upcoming' }
-    ];
+    const uniqueCourses = Array.from(new Set(
+        schedules.map(s => {
+            if (s.course_code && s.course_name) return `${s.course_code} - ${s.course_name}`;
+            return s.course;
+        }).filter(Boolean)
+    ));
+
+    const displaySchedules = schedules.filter(s => {
+        if (filterCourse === 'all') return true;
+        const fullCourse = s.course || `${s.course_code || ''} ${s.course_name || ''}`;
+        return fullCourse.toLowerCase().includes(filterCourse.toLowerCase());
+    });
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
@@ -69,47 +79,80 @@ const TeacherSchedule = () => {
                         <select
                             value={filterCourse}
                             onChange={(e) => setFilterCourse(e.target.value)}
-                            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none"
+                            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none cursor-pointer"
                         >
                             <option value="all">Tất cả môn học</option>
-                            <option value="CS101">CS101 - Nhập môn Khoa học máy tính</option>
-                            <option value="CS204">CS204 - Cấu trúc dữ liệu & Giải thuật</option>
-                            <option value="SE220">SE220 - Phát triển ứng dụng Web</option>
+                            {uniqueCourses.map((cStr, idx) => (
+                                <option key={idx} value={cStr}>{cStr}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-                    {mockWeeklySchedules.map((s) => (
-                        <div key={s.id} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all space-y-3 flex flex-col justify-between">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-mono">
-                                        {s.day} · {s.time}
-                                    </span>
-                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                                        {s.status === 'Active' ? '● Đang diễn ra' : 'Sắp tới'}
-                                    </span>
+                {loading ? (
+                    <div className="text-center py-12 text-slate-400 font-medium">Đang tải lịch giảng dạy...</div>
+                ) : displaySchedules.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-medium">Không tìm thấy ca giảng dạy nào phù hợp.</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                        {displaySchedules.map((s) => (
+                            <div 
+                                key={s.id} 
+                                onClick={() => setSelectedSchedule(s)}
+                                className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-lg hover:border-indigo-300 hover:-translate-y-0.5 transition-all space-y-3 flex flex-col justify-between cursor-pointer group"
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-mono">
+                                            {s.day} · {s.time}
+                                        </span>
+                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : s.status === 'Ended' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>
+                                            {s.status === 'Active' ? '● Đang diễn ra' : s.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors flex items-center justify-between">
+                                        <span>{s.course}</span>
+                                        <Info size={14} className="text-slate-300 group-hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all shrink-0" />
+                                    </h4>
+                                    <div className="text-xs text-slate-500 space-y-1">
+                                        <p className="flex items-center gap-1.5"><MapPin size={13} className="text-slate-400" /> {s.room}</p>
+                                        <p className="flex items-center gap-1.5"><Users size={13} className="text-slate-400" /> {s.group} ({s.count} Sinh viên)</p>
+                                    </div>
                                 </div>
-                                <h4 className="font-bold text-slate-900 text-sm">{s.course}</h4>
-                                <div className="text-xs text-slate-500 space-y-1">
-                                    <p className="flex items-center gap-1.5"><MapPin size={13} className="text-slate-400" /> {s.room}</p>
-                                    <p className="flex items-center gap-1.5"><Users size={13} className="text-slate-400" /> {s.group} ({s.count} Sinh viên)</p>
-                                </div>
-                            </div>
 
-                            <div className="pt-3 border-t border-slate-100">
-                                <button
-                                    onClick={() => navigate(`/teacher/face-recognition?schedule_id=${s.id}`)}
-                                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
-                                >
-                                    <Play size={14} /> Điểm danh ca này
-                                </button>
+                                <div className="pt-3 border-t border-slate-100 flex gap-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedSchedule(s);
+                                        }}
+                                        className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all"
+                                        title="Xem chi tiết lớp học & sinh viên"
+                                    >
+                                        Chi tiết
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/teacher/face-recognition?schedule_id=${s.id}`);
+                                        }}
+                                        className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        <Play size={14} /> Điểm danh ca này
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
+
+            {/* Schedule Detail Modal */}
+            <ScheduleDetailModal
+                isOpen={!!selectedSchedule}
+                onClose={() => setSelectedSchedule(null)}
+                schedule={selectedSchedule}
+            />
         </div>
     );
 };

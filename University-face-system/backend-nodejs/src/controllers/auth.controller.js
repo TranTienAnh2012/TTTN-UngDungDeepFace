@@ -50,6 +50,8 @@ const signin = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: "Đăng nhập thành công",
+            access_token: result.accessToken,
+            refresh_token: result.refreshToken,
             data: result,
         });
     } catch (error) {
@@ -59,12 +61,13 @@ const signin = async (req, res, next) => {
 
 const refreshToken = async (req, res, next) => {
     try {
-        // Normally refresh token can be in body or cookie
-        const token = req.body.refreshToken;
+        const token = req.body.refreshToken || req.body.refresh_token;
         const result = await authService.refreshToken(token);
         res.status(200).json({
             success: true,
             message: "Refresh token thành công",
+            access_token: result.accessToken,
+            refresh_token: result.refreshToken,
             data: result,
         });
     } catch (error) {
@@ -163,6 +166,8 @@ const faceLogin = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: `Xác nhận khuôn mặt thành công`,
+            access_token: result.accessToken,
+            refresh_token: result.refreshToken,
             data: result,
         });
     } catch (error) {

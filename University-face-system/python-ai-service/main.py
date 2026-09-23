@@ -1,10 +1,18 @@
+import sys
+import os
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 import numpy as np
 import time
 import asyncio
-import os
 from dotenv import load_dotenv
 import db_mysql
 import face_processor
@@ -35,79 +43,25 @@ class AdminRegister3StepRequest(BaseModel):
     image_left: str
     image_right: str
 
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.45"))
-
-# ============================================================
-# Server-side result cache (Stage 2: non-AI speedup layer)
-# ============================================================
-_identify_cache = {
-    "result": None,
-    "embedding": None,
-    "timestamp": 0.0,
-    "ttl": 2.0,           # Cache TTL in seconds
-    "similarity_min": 0.92  # Minimum similarity to reuse cache vs current embedding
-}
+MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.50"))
+MARGIN_MIN = float(os.getenv("MATCH_MARGIN", "0.02"))
 
 def _try_use_cache(current_embedding):
-    """
-    Check if current frame's embedding is similar enough to use cached result.
-    Returns cached result dict or None.
-    """
-    if _identify_cache["result"] is None:
-        return None
-    if time.time() - _identify_cache["timestamp"] > _identify_cache["ttl"]:
-        return None
-    if _identify_cache["embedding"] is None:
-        return None
-
-    cached_emb = _identify_cache["embedding"]
-    # Quick similarity check vs cached embedding
-    dot = float(np.dot(cached_emb, current_embedding))
-    n1 = float(np.linalg.norm(cached_emb))
-    n2 = float(np.linalg.norm(current_embedding))
-    if n1 == 0 or n2 == 0:
-        return None
-    sim = dot / (n1 * n2)
-
-    if sim >= _identify_cache["similarity_min"]:
-        print(f"[Cache HIT] Reusing result (emb-sim={sim:.3f})")
-        return _identify_cache["result"]
-
     return None
 
 def _update_cache(embedding, result):
-    _identify_cache["embedding"] = embedding.copy()
-    _identify_cache["result"] = result
-    _identify_cache["timestamp"] = time.time()
-
-# ============================================================
+    pass
 
 @app.post("/api/v1/identify")
 async def identify_face(req: IdentifyRequest):
     """
-    3-stage face identification pipeline:
-    
-    Stage 0 (< 2ms):   Frame quality pre-filter (brightness + sharpness).
-                        Reject dark/blurry frames immediately.
-    
-    Stage 1 (100-400ms): MTCNN detection + ArcFace embedding extraction.
-                          MTCNN runs ONCE, crop passed directly to ArcFace.
-    
-    Stage 2 (< 1ms):   Server-side embedding cache.
-                          If current embedding is nearly identical to last
-                          known good embedding (2s TTL), return cached
-                          student info without running similarity search.
-    
-    Stage 3 (< 5ms):   Vectorized NumPy cosine similarity vs all embeddings.
+    Face identification pipeline (1:N search vs MySQL registered embeddings)
     """
     t0 = time.time()
-
-    # STAGE 1: Detect face + extract embedding (combined single MTCNN pass)
     try:
-        # Run detection in a thread with a 3‑second timeout to avoid hanging
         detect_result = await asyncio.wait_for(
-            asyncio.to_thread(face_processor.detect_and_extract, req.image_base64),
-            timeout=3
+            asyncio.to_thread(face_processor.detect_and_extract, req.image_base64, False),
+            timeout=5
         )
     except asyncio.TimeoutError:
         return {
@@ -119,8 +73,6 @@ async def identify_face(req: IdentifyRequest):
             "message": "Processing timeout"
         }
 
-
-    # Quality or detection failed — return early (cheap)
     if not detect_result["quality_ok"] or detect_result["box"] is None:
         reason = detect_result.get("quality_reason", "unknown")
         status_text = detect_result.get("status_text") or f"Frame skipped: {reason}"
@@ -146,17 +98,6 @@ async def identify_face(req: IdentifyRequest):
 
     current_embedding = detect_result["embedding"]
 
-    # STAGE 2: Try server-side cache first
-    cached = _try_use_cache(current_embedding)
-    if cached is not None:
-        # Return cached result but update box for current frame position
-        cached_clone = dict(cached)
-        cached_clone["box"] = detect_result["box"]
-        cached_clone["image_size"] = detect_result.get("image_size")
-        cached_clone["from_cache"] = True
-        return cached_clone
-
-    # STAGE 3: Full similarity search (vectorized NumPy)
     all_students = db_mysql.get_all_student_embeddings()
     if not all_students:
         return {
@@ -168,7 +109,6 @@ async def identify_face(req: IdentifyRequest):
             "message": "No registered face embeddings in database"
         }
 
-    # Filter students with matching embedding dimensions
     target_shape = current_embedding.shape
     valid_students = [
         s for s in all_students 
@@ -185,7 +125,6 @@ async def identify_face(req: IdentifyRequest):
             "message": f"No embeddings matching dimension {target_shape}"
         }
 
-    # Build normalized matrix for batch cosine similarity
     embeddings_matrix = np.array([s["embedding"] for s in valid_students], dtype=np.float64)
     norms = np.linalg.norm(embeddings_matrix, axis=1, keepdims=True)
     current_norm = np.linalg.norm(current_embedding)
@@ -197,16 +136,26 @@ async def identify_face(req: IdentifyRequest):
 
     norm_matrix = embeddings_matrix / np.maximum(norms, 1e-8)
     norm_current = current_embedding / current_norm
-    similarities = norm_matrix @ norm_current  # Vectorized dot product
+    similarities = norm_matrix @ norm_current
 
     best_idx = int(np.argmax(similarities))
     best_similarity = float(similarities[best_idx])
     best_student = valid_students[best_idx]
 
-    is_match = best_similarity >= MATCH_THRESHOLD
+    # Margin check: best must be clearly better than 2nd best (prevent ambiguous matches)
+    if len(similarities) > 1:
+        sorted_sims = np.sort(similarities)[::-1]
+        second_best = float(sorted_sims[1])
+        margin = best_similarity - second_best
+    else:
+        second_best = 0.0
+        margin = best_similarity
+
+    is_match = best_similarity >= MATCH_THRESHOLD and margin >= MARGIN_MIN
 
     t1 = time.time()
-    print(f"[Identify] {(t1-t0)*1000:.0f}ms | best={best_similarity:.3f} | match={is_match} | n_students={len(valid_students)}")
+    score_report = " | ".join([f"ID{s['id']}({s['student_code']})={float(similarities[i]):.3f}" for i, s in enumerate(valid_students)])
+    print(f"[Identify] {(t1-t0)*1000:.0f}ms | threshold={MATCH_THRESHOLD} | margin={margin:.3f}(min={MARGIN_MIN}) | match={is_match} | scores: {score_report}")
 
     result = {
         "match": is_match,
@@ -217,11 +166,8 @@ async def identify_face(req: IdentifyRequest):
         "from_cache": False
     }
 
-    # Update cache only on successful match
-    if is_match:
-        _update_cache(current_embedding, result)
-
     return result
+
 @app.post("/api/v1/detect_pose")
 async def detect_pose(req: DetectPoseRequest):
     result = face_processor.detect_face_pose(req.image_base64)
@@ -257,50 +203,46 @@ async def verify_face(req: VerifyRequest):
 
 @app.post("/api/v1/register_3step")
 async def register_face_3step(req: Register3StepRequest):
-    emb_straight = face_processor.extract_embedding(req.image_straight)
-    emb_left = face_processor.extract_embedding(req.image_left)
-    emb_right = face_processor.extract_embedding(req.image_right)
+    emb_straight = face_processor.extract_embedding(req.image_straight, require_oval=False)
+    emb_left = face_processor.extract_embedding(req.image_left, require_oval=False)
+    emb_right = face_processor.extract_embedding(req.image_right, require_oval=False)
 
-    if emb_straight is None or emb_left is None or emb_right is None:
-        raise HTTPException(status_code=400, detail="Could not detect face in one or more images")
+    valid_embs = [emb for emb in [emb_straight, emb_left, emb_right] if emb is not None]
 
-    mean_embedding = np.mean([emb_straight, emb_left, emb_right], axis=0)
+    if not valid_embs:
+        raise HTTPException(status_code=400, detail="Could not detect face in any of the images")
+
+    mean_embedding = np.mean(valid_embs, axis=0)
     success = db_mysql.update_student_embedding(req.student_id, mean_embedding)
 
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save embedding to database")
 
-    # Invalidate cache after new registration
-    _identify_cache["result"] = None
-    _identify_cache["embedding"] = None
-
+    print(f"[*] Successfully registered 3-step face for student ID={req.student_id} using {len(valid_embs)} valid embeddings")
     return {"success": True}
 
 @app.post("/api/v1/register")
 async def register_face(req: VerifyRequest):
-    embedding = face_processor.extract_embedding(req.image_base64)
+    embedding = face_processor.extract_embedding(req.image_base64, require_oval=False)
     if embedding is None:
-        raise HTTPException(status_code=400, detail="Could not detect face")
+        raise HTTPException(status_code=400, detail="Không tìm thấy khuôn mặt trong hình ảnh. Vui lòng chọn ảnh chụp rõ nét hơn.")
     success = db_mysql.update_student_embedding(req.student_id, embedding)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to save")
+        raise HTTPException(status_code=500, detail="Lỗi lưu dữ liệu vector vào CSDL")
 
-    _identify_cache["result"] = None
-    _identify_cache["embedding"] = None
     return {"success": True}
-
 
 @app.post("/api/v1/admin/register_face")
 async def admin_register_face(req: AdminRegister3StepRequest):
     """Register face for an administrator (3-step: straight, left, right)"""
-    emb_straight = face_processor.extract_embedding(req.image_straight)
-    emb_left = face_processor.extract_embedding(req.image_left)
-    emb_right = face_processor.extract_embedding(req.image_right)
+    emb_straight = face_processor.extract_embedding(req.image_straight, require_oval=False)
+    emb_left = face_processor.extract_embedding(req.image_left, require_oval=False)
+    emb_right = face_processor.extract_embedding(req.image_right, require_oval=False)
 
-    valid_embs = [e for e in [emb_straight, emb_left, emb_right] if e is not None]
+    valid_embs = [emb for emb in [emb_straight, emb_left, emb_right] if emb is not None]
 
-    if not valid_embs or emb_straight is None:
-        raise HTTPException(status_code=400, detail="Could not detect face in primary image")
+    if not valid_embs:
+        raise HTTPException(status_code=400, detail="Could not detect face in any of the images")
 
     mean_embedding = np.mean(valid_embs, axis=0)
     success = db_mysql.update_admin_embedding(req.admin_id, mean_embedding)
@@ -308,23 +250,23 @@ async def admin_register_face(req: AdminRegister3StepRequest):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save admin embedding to database")
 
+    print(f"[*] Successfully registered 3-step face for admin ID={req.admin_id} using {len(valid_embs)} valid embeddings")
     return {"success": True}
-
 
 @app.post("/api/v1/admin/identify")
 async def admin_identify_face(req: IdentifyRequest):
     """Identify an administrator by face - used for face login"""
-    pose_res = face_processor.detect_face_pose(req.image_base64)
-    if pose_res["box"] is None:
+    detect_result = face_processor.detect_and_extract(req.image_base64)
+    if not detect_result["quality_ok"] or detect_result["box"] is None:
         return {"match": False, "box": None, "admin_id": None, "confidence": 0, "message": "No face detected"}
 
-    current_embedding = face_processor.extract_embedding(req.image_base64)
+    current_embedding = detect_result.get("embedding")
     if current_embedding is None:
-        return {"match": False, "box": pose_res["box"], "admin_id": None, "confidence": 0, "message": "No embedding extracted"}
+        return {"match": False, "box": detect_result["box"], "admin_id": None, "confidence": 0, "message": "No embedding extracted"}
 
     all_admins = db_mysql.get_all_admin_embeddings()
     if not all_admins:
-        return {"match": False, "box": pose_res["box"], "admin_id": None, "confidence": 0, "message": "No registered admin faces in database"}
+        return {"match": False, "box": detect_result["box"], "admin_id": None, "confidence": 0, "message": "No registered admin faces in database"}
 
     best_admin_id = None
     best_similarity = -1.0
@@ -341,15 +283,15 @@ async def admin_identify_face(req: IdentifyRequest):
 
     return {
         "match": is_match,
-        "box": pose_res["box"],
-        "image_size": pose_res.get("image_size"),
+        "box": detect_result["box"],
+        "image_size": detect_result.get("image_size"),
         "admin_id": best_admin_id if is_match else None,
-        "full_name": best_admin["full_name"] if is_match else None,
-        "role": best_admin["role"] if is_match else None,
+        "full_name": best_admin["full_name"] if is_match and best_admin else None,
+        "role": best_admin["role"] if is_match and best_admin else None,
         "confidence": float(best_similarity) if best_similarity > 0 else 0.0
     }
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("AI_SERVICE_PORT", "8000"))
     print(f"[*] Starting AI Service on port {port} (MATCH_THRESHOLD={MATCH_THRESHOLD})...")
     uvicorn.run(app, host="0.0.0.0", port=port)
