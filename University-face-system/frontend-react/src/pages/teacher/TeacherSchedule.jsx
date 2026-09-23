@@ -45,6 +45,32 @@ const TeacherSchedule = () => {
         return fullCourse.toLowerCase().includes(filterCourse.toLowerCase());
     });
 
+    const handleStartAttendance = (s, e) => {
+        if (e) e.stopPropagation();
+        
+        const now = new Date();
+        const start = s.start_time ? new Date(s.start_time) : null;
+        const end = s.end_time ? new Date(s.end_time) : null;
+
+        if (start) {
+            const windowStart = new Date(start.getTime() - 60 * 60 * 1000);
+            const windowEnd = new Date(end ? end.getTime() + 60 * 60 * 1000 : start.getTime() + 3 * 60 * 60 * 1000);
+
+            if (now < windowStart) {
+                const timeStr = windowStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                alert(`Chưa tới thời gian điểm danh!\nHệ thống chỉ mở điểm danh trước ca học 1 tiếng (bắt đầu mở từ ${timeStr}).`);
+                return;
+            }
+
+            if (now > windowEnd) {
+                alert(`Đã quá thời hạn điểm danh cho ca học này (hệ thống đóng điểm danh sau ca học 1 tiếng).`);
+                return;
+            }
+        }
+
+        navigate(`/teacher/face-recognition?schedule_id=${s.id}`);
+    };
+
     return (
         <div className="space-y-6 w-full pb-12 animate-in fade-in duration-300">
             {/* Header */}
@@ -133,10 +159,7 @@ const TeacherSchedule = () => {
                                     </button>
                                     {s.status !== 'Ended' && (
                                         <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(`/teacher/face-recognition?schedule_id=${s.id}`);
-                                            }}
+                                            onClick={(e) => handleStartAttendance(s, e)}
                                             className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                                         >
                                             <Play size={14} /> Điểm danh ca này

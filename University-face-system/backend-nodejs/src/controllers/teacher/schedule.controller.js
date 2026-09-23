@@ -66,9 +66,24 @@ exports.getAllSchedules = async (req, res) => {
         const formatted = rows.map(s => {
             const start = new Date(s.start_time);
             const end = new Date(s.end_time);
+
+            // Attendance Window: 1 hour before start_time to 1 hour after end_time
+            const windowStart = new Date(start.getTime() - 60 * 60 * 1000);
+            const windowEnd = new Date(end.getTime() + 60 * 60 * 1000);
+
             let status = 'Upcoming';
-            if (now >= start && now <= end) status = 'Active';
-            else if (now > end) status = 'Ended';
+            let canAttendance = false;
+
+            if (now < start) {
+                status = 'Upcoming';
+                canAttendance = now >= windowStart;
+            } else if (now >= start && now <= windowEnd) {
+                status = 'Active';
+                canAttendance = true;
+            } else {
+                status = 'Ended';
+                canAttendance = false;
+            }
 
             const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
             const dayStr = days[start.getDay()];
@@ -83,7 +98,10 @@ exports.getAllSchedules = async (req, res) => {
                 room: s.room_name,
                 group: 'Nhóm 01',
                 count: s.student_count || 40,
-                status
+                status,
+                can_attendance: canAttendance,
+                window_start: windowStart.toISOString(),
+                window_end: windowEnd.toISOString()
             };
         });
 

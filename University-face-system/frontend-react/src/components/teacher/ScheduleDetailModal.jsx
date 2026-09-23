@@ -617,6 +617,26 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
                     {schedule.status !== 'Ended' && (
                         <button
                             onClick={() => {
+                                const now = new Date();
+                                const start = schedule.start_time ? new Date(schedule.start_time) : null;
+                                const end = schedule.end_time ? new Date(schedule.end_time) : null;
+
+                                if (start) {
+                                    const windowStart = new Date(start.getTime() - 60 * 60 * 1000);
+                                    const windowEnd = new Date(end ? end.getTime() + 60 * 60 * 1000 : start.getTime() + 3 * 60 * 60 * 1000);
+
+                                    if (now < windowStart) {
+                                        const timeStr = windowStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                                        alert(`Chưa tới thời gian điểm danh!\nHệ thống chỉ mở điểm danh trước ca học 1 tiếng (bắt đầu mở từ ${timeStr}).`);
+                                        return;
+                                    }
+
+                                    if (now > windowEnd) {
+                                        alert(`Đã quá thời hạn điểm danh cho ca học này (hệ thống đóng điểm danh sau ca học 1 tiếng).`);
+                                        return;
+                                    }
+                                }
+
                                 onClose();
                                 navigate(`/teacher/face-recognition?schedule_id=${schedule.id}`);
                             }}
