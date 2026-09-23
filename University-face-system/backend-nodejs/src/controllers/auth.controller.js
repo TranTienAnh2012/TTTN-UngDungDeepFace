@@ -180,6 +180,104 @@ const registerAdminFace = async (req, res, next) => {
     }
 };
 
+const approveTeacher = async (req, res, next) => {
+    try {
+        const token = req.query.token;
+        if (!token) {
+            return res.status(400).send("<h1>Thiếu token phê duyệt</h1>");
+        }
+        const result = await authService.approveTeacher(token);
+        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+
+        return res.send(`
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Phê duyệt thành công</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+                    .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); text-align: center; max-width: 440px; border: 1px solid #e2e8f0; }
+                    .icon { width: 72px; height: 72px; background: #d1fae5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px; font-weight: bold; }
+                    h2 { color: #0f172a; margin: 0 0 10px; font-size: 22px; }
+                    p { color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
+                    a { background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: 600; display: inline-block; font-size: 14px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">✓</div>
+                    <h2>Phê Duyệt Thành Công!</h2>
+                    <p>${result.message}</p>
+                    <a href="${clientUrl}">Truy cập Trang chủ Hệ thống</a>
+                </div>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        return res.status(400).send(`
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head><meta charset="UTF-8"><title>Lỗi phê duyệt</title>
+            <style>
+                body { font-family: sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+                .card { background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 440px; border: 1px solid #fee2e2; }
+                .icon { width: 72px; height: 72px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px; }
+                h2 { color: #991b1b; } p { color: #64748b; }
+            </style></head>
+            <body>
+                <div class="card">
+                    <div class="icon">✕</div>
+                    <h2>Thông báo</h2>
+                    <p>${error.message || 'Token phê duyệt không hợp lệ hoặc đã hết hạn.'}</p>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+};
+
+const rejectTeacher = async (req, res, next) => {
+    try {
+        const token = req.query.token;
+        if (!token) {
+            return res.status(400).send("<h1>Thiếu token từ chối</h1>");
+        }
+        const result = await authService.rejectTeacher(token);
+        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+
+        return res.send(`
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Đã từ chối tài khoản</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+                    .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); text-align: center; max-width: 440px; border: 1px solid #e2e8f0; }
+                    .icon { width: 72px; height: 72px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px; font-weight: bold; }
+                    h2 { color: #0f172a; margin: 0 0 10px; font-size: 22px; }
+                    p { color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
+                    a { background: #475569; color: white; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: 600; display: inline-block; font-size: 14px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">✕</div>
+                    <h2>Đã Từ Chối Đăng Ký</h2>
+                    <p>${result.message}</p>
+                    <a href="${clientUrl}">Truy cập Trang chủ</a>
+                </div>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        return res.status(400).send(`<h1>Lỗi: ${error.message}</h1>`);
+    }
+};
+
 module.exports = {
     signup,
     verifyEmail,
@@ -192,4 +290,6 @@ module.exports = {
     verifyForgotPassword,
     resetPassword,
     getMe,
+    approveTeacher,
+    rejectTeacher,
 };

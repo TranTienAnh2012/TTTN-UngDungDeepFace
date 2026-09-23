@@ -26,9 +26,12 @@ const Register = () => {
         const result = await register(formData);
         
         if (result.success) {
-            setSuccessMessage(result.message);
-            // Optional: redirect to login after few seconds
-            setTimeout(() => navigate('/login'), 3000);
+            if (result.data && result.data.is_approved === 0) {
+                setSuccessMessage("🎉 Đăng ký thành công! Thông tin tài khoản của bạn đã được gửi tới Email Admin để phê duyệt. Hệ thống sẽ tự động thông báo qua Email khi tài khoản của bạn được phê duyệt.");
+            } else {
+                setSuccessMessage(result.message || "Đăng ký thành công!");
+                setTimeout(() => navigate('/login'), 3000);
+            }
         } else {
             setError(result.message);
         }
