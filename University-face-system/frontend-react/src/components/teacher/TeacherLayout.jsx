@@ -20,7 +20,7 @@ const TeacherLayout = () => {
     }
 
     return (
-        <div className="flex min-h-screen bg-[#F8FAFC] font-sans antialiased text-slate-800">
+        <div className="flex min-h-screen bg-canvas-pattern font-sans antialiased text-slate-800">
             {/* Sidebar */}
             <TeacherSidebar />
 
@@ -30,7 +30,7 @@ const TeacherLayout = () => {
                 <TeacherHeader />
 
                 {/* Dynamic Page Content */}
-                <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+                <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-canvas-pattern">
                     <div className="w-full max-w-[1600px] mx-auto">
                         <Outlet />
                     </div>

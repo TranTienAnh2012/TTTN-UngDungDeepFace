@@ -24,11 +24,11 @@ const AdminLayout = () => {
     }
 
     return (
-        <div className="flex h-screen bg-slate-50/60 overflow-hidden font-sans antialiased text-slate-800">
+        <div className="flex h-screen bg-canvas-pattern overflow-hidden font-sans antialiased text-slate-800">
             <Sidebar />
             <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
                 <Header />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/60 p-4 sm:p-6 lg:p-8">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-canvas-pattern p-4 sm:p-6 lg:p-8">
                     <div className="w-full max-w-[1600px] mx-auto">
                         <Outlet />
                     </div>
