@@ -41,6 +41,28 @@ const ExamSchedules = () => {
         fetchSchedules(1, search);
     };
 
+    const formatTimeSafe = (d) => {
+        if (!d) return '';
+        try {
+            const date = new Date(d);
+            if (isNaN(date.getTime())) return '';
+            return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return '';
+        }
+    };
+
+    const formatDateSafe = (d) => {
+        if (!d) return 'Chưa xếp ngày';
+        try {
+            const date = new Date(d);
+            if (isNaN(date.getTime())) return 'Chưa xếp ngày';
+            return date.toLocaleDateString('vi-VN');
+        } catch {
+            return 'Chưa xếp ngày';
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -96,71 +118,77 @@ const ExamSchedules = () => {
                                         <p className="mt-2 text-sm font-medium">Đang tải...</p>
                                     </td>
                                 </tr>
-                            ) : schedules.length === 0 ? (
+                            ) : !Array.isArray(schedules) || schedules.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-gray-400 font-medium">Không có dữ liệu</td>
+                                    <td colSpan="6" className="p-8 text-center text-gray-400 font-medium">Không có dữ liệu lịch thi</td>
                                 </tr>
                             ) : (
-                                schedules.map(item => (
-                                    <tr key={item.id} className="hover:bg-indigo-50/20 transition-colors group">
-                                        <td className="p-4">
-                                            <div className="font-bold text-gray-900">{item.course_name}</div>
-                                            <div className="text-xs font-mono font-bold text-indigo-700">{item.course_code}</div>
-                                        </td>
-                                        <td className="p-4">
-                                            {item.academic_class_code ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
-                                                    {item.academic_class_code}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-gray-400 italic">Thi ghép / Tự do</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-gray-800 font-semibold">
-                                            <div className="flex items-center gap-1.5">
-                                                {item.room_code && (
-                                                    <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-xs font-mono font-bold border border-purple-200">
-                                                        {item.room_code}
+                                schedules.map(item => {
+                                    const startTimeStr = formatTimeSafe(item.exam_time);
+                                    const endTimeStr = formatTimeSafe(item.exam_end_time || item.end_time);
+                                    const dateStr = formatDateSafe(item.exam_time);
+
+                                    return (
+                                        <tr key={item.id} className="hover:bg-indigo-50/20 transition-colors group">
+                                            <td className="p-4">
+                                                <div className="font-bold text-gray-900">{item.course_name || 'Chưa chọn môn'}</div>
+                                                <div className="text-xs font-mono font-bold text-indigo-700">{item.course_code || '---'}</div>
+                                            </td>
+                                            <td className="p-4">
+                                                {item.academic_class_code ? (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
+                                                        {item.academic_class_code}
                                                     </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400 italic">Thi ghép / Tự do</span>
                                                 )}
-                                                <span>{item.room_full_name || item.exam_room}</span>
-                                            </div>
-                                            {item.building && <div className="text-xs text-gray-500 font-normal">{item.building}</div>}
-                                        </td>
-                                        <td className="p-4 text-gray-700 text-sm">
-                                            <div className="font-bold text-gray-900">
-                                                {new Date(item.exam_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                                {item.exam_end_time && ` - ${new Date(item.exam_end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`}
-                                            </div>
-                                            <div className="text-xs text-gray-500">
-                                                {new Date(item.exam_time).toLocaleDateString('vi-VN')}
-                                                {item.duration_minutes && <span className="ml-1.5 font-bold text-indigo-600">({item.duration_minutes} phút)</span>}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <button 
-                                                onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold font-mono transition-all hover:scale-105"
-                                                title="Bấm để chỉnh sửa sơ đồ chỗ ngồi & khóa ghế"
-                                            >
-                                                <span>{item.seating_rows} hàng × {item.seating_cols} cột</span>
-                                            </button>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => { setSelectedSchedule(item); setIsEligibilityOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Danh sách dự thi">
-                                                    <Users size={16} />
+                                            </td>
+                                            <td className="p-4 text-gray-800 font-semibold">
+                                                <div className="flex items-center gap-1.5">
+                                                    {item.room_code && (
+                                                        <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-xs font-mono font-bold border border-purple-200">
+                                                            {item.room_code}
+                                                        </span>
+                                                    )}
+                                                    <span>{item.room_full_name || item.exam_room || 'Chưa xếp phòng'}</span>
+                                                </div>
+                                                {item.building && <div className="text-xs text-gray-500 font-normal">{item.building}</div>}
+                                            </td>
+                                            <td className="p-4 text-gray-700 text-sm">
+                                                <div className="font-bold text-gray-900">
+                                                    {startTimeStr || 'Chưa xếp giờ'}
+                                                    {endTimeStr && ` - ${endTimeStr}`}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {dateStr}
+                                                    {item.duration_minutes && <span className="ml-1.5 font-bold text-indigo-600">({item.duration_minutes} phút)</span>}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <button 
+                                                    onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold font-mono transition-all hover:scale-105"
+                                                    title="Bấm để chỉnh sửa sơ đồ chỗ ngồi & khóa ghế"
+                                                >
+                                                    <span>{item.seating_rows} hàng × {item.seating_cols} cột</span>
                                                 </button>
-                                                <button onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Chỉnh sửa">
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button onClick={() => { setSelectedSchedule(item); setIsDeleteOpen(true); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={() => { setSelectedSchedule(item); setIsEligibilityOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Danh sách dự thi">
+                                                        <Users size={16} />
+                                                    </button>
+                                                    <button onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Chỉnh sửa">
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button onClick={() => { setSelectedSchedule(item); setIsDeleteOpen(true); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

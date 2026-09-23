@@ -14,7 +14,7 @@ import FaceRecognition from './components/admin/FaceRecognition';
 import AdminFaceRegistration from './components/admin/AdminFaceRegistration';
 
 import CourseManagement from './pages/admin/CourseManagement';
-import RoomManagement from './pages/admin/RoomManagement';
+import RoomManagement from './pages/admin/RoomManagement/index';
 import FacultyManagement from './pages/admin/FacultyManagement';
 import ClassManagement from './pages/admin/ClassManagement';
 import StudentManagement from './pages/admin/StudentManagement';
