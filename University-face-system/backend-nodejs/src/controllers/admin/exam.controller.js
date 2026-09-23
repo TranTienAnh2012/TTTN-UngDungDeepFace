@@ -73,23 +73,39 @@ exports.getExamScheduleById = async (req, res) => {
 
 exports.createExamSchedule = async (req, res) => {
     try {
-        const { course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats } = req.body;
+        const { course_id, room_id, class_id, exam_room, exam_time, duration_minutes, seating_rows, seating_cols, disabled_seats } = req.body;
         
         if (!course_id || !exam_room || !exam_time) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc: Môn thi, Phòng thi, Giờ bắt đầu' });
         }
 
-        const finalEndTime = end_time || new Date(new Date(exam_time).getTime() + 90 * 60000);
+        const duration = parseInt(duration_minutes) || 90;
+        const startTimeDate = new Date(exam_time);
+        const finalEndTime = new Date(startTimeDate.getTime() + duration * 60000);
+        const disabledStr = typeof disabled_seats === 'string' ? disabled_seats : JSON.stringify(disabled_seats || []);
 
         const [result] = await pool.query(
-            'INSERT INTO exam_schedules (course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [course_id, exam_room, exam_time, finalEndTime, seating_rows || 0, seating_cols || 0, disabled_seats || '']
+            `INSERT INTO exam_schedules 
+            (course_id, room_id, class_id, exam_room, exam_time, end_time, duration_minutes, seating_rows, seating_cols, disabled_seats) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                course_id, 
+                room_id || null, 
+                class_id || null, 
+                exam_room, 
+                startTimeDate, 
+                finalEndTime, 
+                duration, 
+                seating_rows || 6, 
+                seating_cols || 8, 
+                disabledStr
+            ]
         );
         
         res.status(201).json({ 
             success: true, 
             message: 'Tạo lịch thi thành công',
-            data: { id: result.insertId, course_id, exam_room, exam_time, end_time: finalEndTime }
+            data: { id: result.insertId, course_id, exam_room, exam_time: startTimeDate, end_time: finalEndTime }
         });
     } catch (error) {
         console.error('Error in createExamSchedule:', error);
@@ -100,17 +116,34 @@ exports.createExamSchedule = async (req, res) => {
 exports.updateExamSchedule = async (req, res) => {
     try {
         const { id } = req.params;
-        const { course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats } = req.body;
+        const { course_id, room_id, class_id, exam_room, exam_time, duration_minutes, seating_rows, seating_cols, disabled_seats } = req.body;
 
         if (!course_id || !exam_room || !exam_time) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc' });
         }
 
-        const finalEndTime = end_time || new Date(new Date(exam_time).getTime() + 90 * 60000);
+        const duration = parseInt(duration_minutes) || 90;
+        const startTimeDate = new Date(exam_time);
+        const finalEndTime = new Date(startTimeDate.getTime() + duration * 60000);
+        const disabledStr = typeof disabled_seats === 'string' ? disabled_seats : JSON.stringify(disabled_seats || []);
 
         const [result] = await pool.query(
-            'UPDATE exam_schedules SET course_id = ?, exam_room = ?, exam_time = ?, end_time = ?, seating_rows = ?, seating_cols = ?, disabled_seats = ? WHERE id = ?',
-            [course_id, exam_room, exam_time, finalEndTime, seating_rows || 0, seating_cols || 0, disabled_seats || '', id]
+            `UPDATE exam_schedules 
+             SET course_id = ?, room_id = ?, class_id = ?, exam_room = ?, exam_time = ?, end_time = ?, duration_minutes = ?, seating_rows = ?, seating_cols = ?, disabled_seats = ? 
+             WHERE id = ?`,
+            [
+                course_id, 
+                room_id || null, 
+                class_id || null, 
+                exam_room, 
+                startTimeDate, 
+                finalEndTime, 
+                duration, 
+                seating_rows || 6, 
+                seating_cols || 8, 
+                disabledStr, 
+                id
+            ]
         );
 
         if (result.affectedRows === 0) {
@@ -121,6 +154,91 @@ exports.updateExamSchedule = async (req, res) => {
     } catch (error) {
         console.error('Error in updateExamSchedule:', error);
         res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật lịch thi' });
+    }
+};
+
+exports.bulkEnrollClassForExam = async (req, res) => {
+    try {
+        const { id } = req.params; // exam_schedule_id
+        const { class_id, student_type, notes } = req.body;
+
+        if (!class_id) {
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn lớp sinh viên' });
+        }
+
+        const [schedules] = await pool.query('SELECT * FROM exam_schedules WHERE id = ?', [id]);
+        if (schedules.length === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lịch thi' });
+        }
+        const schedule = schedules[0];
+
+        const [classStudents] = await pool.query(
+            `SELECT id, student_code, full_name FROM students 
+             WHERE class_id = ? OR class_name = (SELECT class_code FROM academic_classes WHERE id = ?) OR class_name = (SELECT class_name FROM academic_classes WHERE id = ?)`,
+            [class_id, class_id, class_id]
+        );
+        if (classStudents.length === 0) {
+            return res.status(400).json({ success: false, message: 'Lớp này chưa có sinh viên nào' });
+        }
+
+        const [existing] = await pool.query('SELECT student_id, seat_row, seat_col FROM exam_eligibility WHERE exam_schedule_id = ?', [id]);
+        const existingIds = new Set(existing.map(e => e.student_id));
+        const occupiedSeats = new Set(existing.filter(e => e.seat_row !== null && e.seat_col !== null).map(e => `${e.seat_row}-${e.seat_col}`));
+
+        let disabledList = [];
+        try {
+            disabledList = typeof schedule.disabled_seats === 'string' ? JSON.parse(schedule.disabled_seats) : (schedule.disabled_seats || []);
+        } catch (e) {
+            disabledList = [];
+        }
+        disabledList.forEach(s => occupiedSeats.add(`${s.row || s.split('-')[0]}-${s.col || s.split('-')[1]}`));
+
+        const availableSeats = [];
+        const sRows = schedule.seating_rows || 6;
+        const sCols = schedule.seating_cols || 8;
+        for (let r = 0; r < sRows; r++) {
+            for (let c = 0; c < sCols; c++) {
+                if (!occupiedSeats.has(`${r}-${c}`)) {
+                    availableSeats.push({ row: r, col: c });
+                }
+            }
+        }
+
+        let addedCount = 0;
+        let seatIdx = 0;
+        const toInsert = [];
+
+        for (const student of classStudents) {
+            if (!existingIds.has(student.id)) {
+                const seat = seatIdx < availableSeats.length ? availableSeats[seatIdx++] : null;
+                toInsert.push([
+                    id,
+                    student.id,
+                    1,
+                    seat ? seat.row : null,
+                    seat ? seat.col : null,
+                    student_type || 'regular',
+                    notes || 'Nạp theo lớp'
+                ]);
+                addedCount++;
+            }
+        }
+
+        if (toInsert.length > 0) {
+            await pool.query(
+                'INSERT INTO exam_eligibility (exam_schedule_id, student_id, is_eligible, seat_row, seat_col, student_type, notes) VALUES ?',
+                [toInsert]
+            );
+        }
+
+        res.json({
+            success: true,
+            message: `Đã nạp ${addedCount} sinh viên vào danh sách dự thi (bỏ qua ${classStudents.length - addedCount} SV đã có sẵn).`,
+            data: { addedCount }
+        });
+    } catch (error) {
+        console.error('Error in bulkEnrollClassForExam:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server khi nạp lớp vào lịch thi' });
     }
 };
 

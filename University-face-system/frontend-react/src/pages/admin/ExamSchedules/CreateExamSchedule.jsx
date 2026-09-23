@@ -200,7 +200,7 @@ const CreateExamSchedule = ({ isOpen, onClose, onCreated }) => {
                         </select>
                     </div>
 
-                    {/* Room Preview (Collapsible) */}
+                    {/* Room Preview */}
                     {selectedRoomObj && showPreview && (
                         <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 animate-in fade-in">
                             <div className="flex items-center justify-between text-xs font-bold text-gray-700">
@@ -208,10 +208,11 @@ const CreateExamSchedule = ({ isOpen, onClose, onCreated }) => {
                                 <span className="text-indigo-600">{selectedRoomObj.capacity} chỗ khả dụng</span>
                             </div>
                             <SeatMatrixEditor
-                                rows={selectedRoomObj.seating_rows}
-                                cols={selectedRoomObj.seating_cols}
-                                disabledSeats={selectedRoomObj.disabled_seats}
-                                readOnly={true}
+                                rows={formData.seating_rows}
+                                cols={formData.seating_cols}
+                                disabledSeats={formData.disabled_seats}
+                                onChange={(newDisabled) => setFormData({ ...formData, disabled_seats: newDisabled })}
+                                readOnly={false}
                             />
                         </div>
                     )}
