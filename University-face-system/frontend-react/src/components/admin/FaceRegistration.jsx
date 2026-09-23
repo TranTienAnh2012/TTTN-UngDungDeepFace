@@ -472,7 +472,7 @@ const FaceRegistration = ({ onComplete }) => {
                                             : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                                     }`}
                                 >
-                                    <Camera size={16} /> 📹 Quét Trực Tiếp qua Camera
+                                    <Camera size={16} /> Quét Trực Tiếp qua Camera
                                 </button>
                                 <button
                                     type="button"
@@ -483,7 +483,7 @@ const FaceRegistration = ({ onComplete }) => {
                                             : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                                     }`}
                                 >
-                                    <UploadCloud size={16} /> 🖼️ Tải Ảnh Tĩnh Từ Máy Tính
+                                    <UploadCloud size={16} /> Tải Ảnh Tĩnh Từ Máy Tính
                                 </button>
                             </div>
                         </div>
@@ -732,7 +732,7 @@ const FaceRegistration = ({ onComplete }) => {
                                 }`}
                             >
                                 <Camera size={16} />
-                                <span>📹 Quét Trực Tiếp qua Camera (3 Hướng AI)</span>
+                                <span>Quét Trực Tiếp qua Camera (3 Hướng AI)</span>
                             </button>
                             <button
                                 type="button"
@@ -747,7 +747,7 @@ const FaceRegistration = ({ onComplete }) => {
                                 }`}
                             >
                                 <UploadCloud size={16} />
-                                <span>🖼️ Tải Ảnh Tĩnh Từ Máy Tính</span>
+                                <span>Tải Ảnh Tĩnh Từ Máy Tính</span>
                             </button>
                         </div>
                     </div>
@@ -869,7 +869,7 @@ const FaceRegistration = ({ onComplete }) => {
                                         uploadType === 'single' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                                     }`}
                                 >
-                                    📷 1 Ảnh Chân Dung (Nhanh)
+                                    1 Ảnh Chân Dung (Nhanh)
                                 </button>
                                 <button
                                     type="button"

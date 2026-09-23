@@ -246,7 +246,7 @@ const ScheduleEnrollmentModal = ({ isOpen, onClose, schedule }) => {
                                 disabled={isBulkLoading || !selectedClassId}
                                 className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-[0.98]"
                             >
-                                {isBulkLoading ? 'Đang nạp sinh viên...' : '⚡ Nạp Toàn Bộ Sinh Viên Của Lớp'}
+                                {isBulkLoading ? 'Đang nạp sinh viên...' : 'Nạp Toàn Bộ Sinh Viên Của Lớp'}
                             </button>
                         </form>
                     </div>

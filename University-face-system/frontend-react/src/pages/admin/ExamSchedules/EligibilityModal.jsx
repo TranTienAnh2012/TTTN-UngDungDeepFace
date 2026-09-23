@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Plus, Users, Search, AlertCircle, CheckCircle2, UserPlus, Armchair, Layers } from 'lucide-react';
+import { X, Trash2, Plus, Users, Search, AlertCircle, CheckCircle2, UserPlus, Armchair, Layers, Sparkles } from 'lucide-react';
 import api from '../../../services/api';
 
 const EligibilityModal = ({ isOpen, onClose, schedule }) => {
@@ -247,7 +247,7 @@ const EligibilityModal = ({ isOpen, onClose, schedule }) => {
                                 disabled={isBulkLoading || !selectedClassId}
                                 className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-[0.98]"
                             >
-                                {isBulkLoading ? 'Đang nạp sinh viên...' : '⚡ Nạp Toàn Bộ Lớp & Xếp Ghế Tự Động'}
+                                {isBulkLoading ? 'Đang nạp sinh viên...' : <><Sparkles size={14} /> Nạp Toàn Bộ Lớp & Xếp Ghế Tự Động</>}
                             </button>
                         </form>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, User as UserIcon, CheckCircle, FileText, Users, ArrowRight } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, CheckCircle, FileText, Users, ArrowRight, AlertCircle } from 'lucide-react';
 
 const Register = () => {
     const [formData, setFormData] = useState({ email: '', password: '', full_name: '' });
@@ -116,14 +116,14 @@ const Register = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                         {error && (
                             <div className="mb-6 p-4 bg-red-50/80 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex items-start gap-2">
-                                <span className="mt-0.5 text-lg">⚠️</span>
+                                <AlertCircle size={18} className="mt-0.5 text-red-500 shrink-0" />
                                 {error}
                             </div>
                         )}
                         
                         {successMessage && (
                             <div className="mb-6 p-4 bg-emerald-50/80 border border-emerald-100 text-emerald-600 rounded-xl text-sm font-medium flex items-start gap-2">
-                                <span className="mt-0.5 text-lg">✅</span>
+                                <CheckCircle size={18} className="mt-0.5 text-emerald-500 shrink-0" />
                                 {successMessage}
                             </div>
                         )}

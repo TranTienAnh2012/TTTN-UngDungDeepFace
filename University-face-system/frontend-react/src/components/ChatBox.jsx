@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { Mascot } from 'page-mascot';
 import './ChatBox.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = rawApiUrl.replace(/\/api\/?$/, '');
 
 const SUGGESTED_QUESTIONS = [
   'Cach them sinh vien?',
