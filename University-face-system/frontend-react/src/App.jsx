@@ -23,6 +23,7 @@ import ClassAttendance from './pages/admin/ClassAttendance';
 import ExamSchedules from './pages/admin/ExamSchedules';
 import ExamAttendance from './pages/admin/ExamAttendance';
 import AttendanceReport from './pages/admin/AttendanceReport';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Teacher Components & Pages
 import TeacherLayout from './components/teacher/TeacherLayout';
@@ -96,7 +97,7 @@ function App() {
             <Route path="face-recognition" element={<FaceRecognition />} />
             <Route path="admin-face-registration" element={<AdminFaceRegistration />} />
             <Route path="attendance-report" element={<AttendanceReport />} />
-            <Route path="settings" element={<div className="p-8 text-center text-gray-500">Trang Cài đặt (Đang phát triển)</div>} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Teacher Portal Routes */}
