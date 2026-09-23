@@ -241,61 +241,95 @@ select option {
 }
 
 /* ════════════════════════════════════════════════════════════════ */
-/* Canvas Background & Floating Depth System (Card Elevation)       */
+/* Custom Image Background & Glass Floating Depth System             */
 /* ════════════════════════════════════════════════════════════════ */
 
-/* Elevated canvas background with ambient light highlights and subtle dot grid matrix */
-.bg-canvas-pattern {
-  background-color: #f8fafc;
+/* Custom Image Background using pexels-codioful-7134995.jpg */
+.bg-canvas-pattern,
+.bg-app-image {
+  background-color: #f1f5f9;
   background-image: 
-    radial-gradient(at 15% 15%, rgba(23, 91, 159, 0.07) 0px, transparent 45%),
-    radial-gradient(at 85% 85%, rgba(23, 91, 159, 0.05) 0px, transparent 45%),
-    radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.8) 0px, transparent 70%),
-    radial-gradient(rgba(148, 163, 184, 0.22) 1.2px, transparent 1.2px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
-  background-attachment: fixed;
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.72), rgba(241, 245, 249, 0.82)),
+    url('/bg-app.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
 }
 
-/* Floating card depth utility */
+body {
+  background-image: 
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.72), rgba(241, 245, 249, 0.82)),
+    url('/bg-app.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* Glassmorphism Floating Card Depth System */
 .card-floating, .card-elevated {
-  background-color: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.85);
-  border-radius: 1rem;
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 1.25rem;
   box-shadow: 
-    0 10px 25px -5px rgba(15, 23, 42, 0.05),
-    0 4px 10px -2px rgba(23, 91, 159, 0.03),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+    0 20px 40px -12px rgba(15, 23, 42, 0.1),
+    0 8px 16px -4px rgba(23, 91, 159, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
 }
 
 .card-floating:hover, .card-elevated:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   box-shadow: 
-    0 20px 35px -8px rgba(23, 91, 159, 0.12),
-    0 8px 16px -4px rgba(15, 23, 42, 0.04),
+    0 28px 50px -14px rgba(23, 91, 159, 0.18),
+    0 12px 24px -6px rgba(15, 23, 42, 0.08),
     inset 0 1px 0 0 rgba(255, 255, 255, 1);
-  border-color: rgba(23, 91, 159, 0.3);
+  border-color: rgba(23, 91, 159, 0.35) !important;
 }
 
 /* Automatic elevation depth for standard Tailwind white card containers */
 .bg-white.rounded-xl, 
 .bg-white.rounded-2xl,
+.bg-white.rounded-3xl,
 .bg-white.rounded-lg.shadow-sm,
 .bg-white.rounded-xl.shadow-sm,
 .bg-white.rounded-2xl.shadow-sm,
 .bg-white.rounded-2xl.shadow-md {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
   box-shadow: 
-    0 10px 25px -5px rgba(15, 23, 42, 0.05),
-    0 4px 10px -2px rgba(23, 91, 159, 0.03),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.8) !important;
-  border: 1px solid rgba(226, 232, 240, 0.85);
+    0 15px 35px -8px rgba(15, 23, 42, 0.09),
+    0 6px 14px -3px rgba(23, 91, 159, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .bg-white.rounded-xl:hover, 
 .bg-white.rounded-2xl:hover {
+  transform: translateY(-2px);
   box-shadow: 
-    0 16px 32px -8px rgba(23, 91, 159, 0.1),
-    0 6px 12px -3px rgba(15, 23, 42, 0.04);
+    0 22px 42px -10px rgba(23, 91, 159, 0.14),
+    0 8px 18px -4px rgba(15, 23, 42, 0.06) !important;
+  border-color: rgba(23, 91, 159, 0.3) !important;
+}
+
+/* Glass Header & Sidebar Styling */
+aside.bg-white {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: 4px 0 24px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+header.bg-white {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.05) !important;
 }
 
