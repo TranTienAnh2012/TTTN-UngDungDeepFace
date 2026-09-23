@@ -40,8 +40,8 @@ const RecognitionResultCard = ({ recognized }) => {
             {/* Header */}
             <div className={`p-5 text-white flex items-center gap-4 ${
                 isCheckIn
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                    ? 'bg-emerald-600'
+                    : 'bg-[#175b9f]'
             }`}>
                 <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center font-bold text-2xl shadow-inner shrink-0">
                     {recognized.student.full_name?.charAt(0) || 'S'}
@@ -498,7 +498,7 @@ const FaceRecognition = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-primary-700 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                        <div className="w-10 h-10 rounded-xl bg-[#175b9f] flex items-center justify-center text-white shadow-md">
                             <Sparkles size={22} />
                         </div>
                         Nhận Diện & Điểm Danh Khuôn Mặt

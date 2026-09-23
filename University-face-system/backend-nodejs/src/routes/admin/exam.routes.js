@@ -5,7 +5,7 @@ const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
 router.use(authMiddleware);
-router.use(roleMiddleware('admin', 'manager'));
+router.use(roleMiddleware('admin', 'manager', 'teacher'));
 
 // --- Exam Schedules ---
 router.get('/schedules', examController.getAllExamSchedules);

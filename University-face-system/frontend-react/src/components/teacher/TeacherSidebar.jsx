@@ -26,14 +26,14 @@ const TeacherSidebar = () => {
         <aside className="w-64 bg-white border-r border-slate-100 flex flex-col h-screen sticky top-0 z-30 shadow-sm shrink-0">
             {/* Brand Logo Header */}
             <div className="p-6 pb-5 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                <div className="w-10 h-10 rounded-2xl bg-[#175b9f] flex items-center justify-center text-white shadow-md">
                     <Sparkles size={20} className="animate-pulse" />
                 </div>
                 <div>
-                    <h1 className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-700 bg-clip-text text-transparent">
+                    <h1 className="font-extrabold text-xl tracking-tight text-slate-900">
                         Classroomly
                     </h1>
-                    <p className="text-[10px] font-bold tracking-widest text-indigo-500 uppercase">Giao diện Giảng viên</p>
+                    <p className="text-[10px] font-bold tracking-widest text-[#175b9f] uppercase">Giao diện Giảng viên</p>
                 </div>
             </div>
 
@@ -111,7 +111,7 @@ const TeacherSidebar = () => {
             </div>
 
             {/* Bottom Promo Widget: Trợ lý giảng viên */}
-            <div className="p-4 m-3 bg-gradient-to-br from-indigo-50/90 via-purple-50/50 to-indigo-50/30 border border-indigo-100/80 rounded-2xl space-y-2">
+            <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
                 <div className="w-8 h-8 rounded-xl bg-white text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100">
                     <ShieldCheck size={18} />
                 </div>

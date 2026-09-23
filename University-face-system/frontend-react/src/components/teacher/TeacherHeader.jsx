@@ -82,7 +82,7 @@ const TeacherHeader = () => {
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
                         className="flex items-center gap-3 p-1.5 pr-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200/60"
                     >
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-200 to-orange-300 border-2 border-white shadow-sm flex items-center justify-center text-slate-800 font-extrabold text-sm shrink-0">
+                        <div className="w-10 h-10 rounded-2xl bg-[#175b9f] text-white border-2 border-white shadow-sm flex items-center justify-center font-extrabold text-sm shrink-0">
                             {displayName.charAt(0) || 'T'}
                         </div>
                         <div className="text-left hidden sm:block">

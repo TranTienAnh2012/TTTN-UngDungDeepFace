@@ -32,7 +32,7 @@ const TeacherSettings = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto pb-12 animate-in fade-in duration-300">
+        <div className="space-y-6 w-full pb-12 animate-in fade-in duration-300">
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">

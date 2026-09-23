@@ -63,10 +63,17 @@ const FaceRegistration = ({ onComplete }) => {
                 setExistingStudents(res.data.data);
 
                 const paramStudentId = searchParams.get('student_id');
+                const paramMode = searchParams.get('mode');
+                
+                if (paramMode === 'upload') {
+                    setRegMode('upload');
+                    setIsDetecting(false);
+                }
+
                 if (paramStudentId) {
                     const found = res.data.data.find(s => s.id === parseInt(paramStudentId));
                     if (found) {
-                        handleSelectExistingStudent(found);
+                        handleSelectExistingStudent(found, paramMode);
                     }
                 }
             }
@@ -98,8 +105,12 @@ const FaceRegistration = ({ onComplete }) => {
                 setSelectedStudent(res.data.data);
                 setPagePhase('camera_scan');
                 setStep('straight');
-                setIsDetecting(true);
-                setStatusMessage('Vui lòng nhìn thẳng vào camera');
+                if (regMode === 'upload') {
+                    setIsDetecting(false);
+                } else {
+                    setIsDetecting(true);
+                    setStatusMessage('Vui lòng nhìn thẳng vào camera');
+                }
             } else {
                 setFormError(res.data.message || 'Không thể tạo thông tin sinh viên');
             }
@@ -112,7 +123,7 @@ const FaceRegistration = ({ onComplete }) => {
     };
 
     // Select existing student from list
-    const handleSelectExistingStudent = (student) => {
+    const handleSelectExistingStudent = (student, overrideMode = null) => {
         setSelectedStudent(student);
         setStudentForm({
             student_code: student.student_code,
@@ -122,8 +133,16 @@ const FaceRegistration = ({ onComplete }) => {
         });
         setPagePhase('camera_scan');
         setStep('straight');
-        setIsDetecting(true);
-        setStatusMessage('Vui lòng nhìn thẳng vào camera');
+
+        const activeMode = overrideMode || searchParams.get('mode') || regMode;
+        if (activeMode === 'upload') {
+            setRegMode('upload');
+            setIsDetecting(false);
+        } else {
+            setRegMode('camera');
+            setIsDetecting(true);
+            setStatusMessage('Vui lòng nhìn thẳng vào camera');
+        }
     };
 
     // Manual snap helper
@@ -395,7 +414,7 @@ const FaceRegistration = ({ onComplete }) => {
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="w-full space-y-6">
             {/* Header */}
             <div className="mb-8 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
@@ -406,7 +425,7 @@ const FaceRegistration = ({ onComplete }) => {
                         Đăng Ký Khuôn Mặt Sinh Viên
                     </h1>
                     <p className="text-gray-500 mt-1">
-                        BƯỚC 1: Điền thông tin sinh viên ➔ BƯỚC 2: Quét khuôn mặt 3 hướng AI
+                        BƯỚC 1: Chọn / Điền thông tin sinh viên ➔ BƯỚC 2: Quét camera hoặc Tải ảnh tĩnh
                     </p>
                 </div>
 
@@ -417,7 +436,7 @@ const FaceRegistration = ({ onComplete }) => {
                     </span>
                     <ArrowRight size={14} className="text-gray-400" />
                     <span className={`px-3 py-1.5 rounded-lg transition-all ${pagePhase === 'camera_scan' ? 'bg-white text-primary-700 shadow-sm font-bold' : 'text-gray-500'}`}>
-                        2. Quét camera
+                        2. {regMode === 'upload' ? 'Tải ảnh tĩnh' : 'Quét camera'}
                     </span>
                     <ArrowRight size={14} className="text-gray-400" />
                     <span className={`px-3 py-1.5 rounded-lg transition-all ${pagePhase === 'success' ? 'bg-emerald-500 text-white shadow-sm font-bold' : 'text-gray-500'}`}>
@@ -431,10 +450,43 @@ const FaceRegistration = ({ onComplete }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left: Input Form */}
                     <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-3 border-gray-100">
-                            <UserPlus size={20} className="text-primary-600" />
-                            Nhập Thông Tin Sinh Viên
-                        </h2>
+                        <div className="flex items-center justify-between border-b pb-3 mb-4">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <UserPlus size={20} className="text-primary-600" />
+                                Nhập Thông Tin Sinh Viên
+                            </h2>
+                        </div>
+
+                        {/* Mode Selection Upfront */}
+                        <div className="mb-5 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                                Chế độ đăng ký khuôn mặt:
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setRegMode('camera'); setIsDetecting(true); }}
+                                    className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                                        regMode === 'camera'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-indigo-500/20'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <Camera size={16} /> 📹 Quét Trực Tiếp qua Camera
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setRegMode('upload'); setIsDetecting(false); }}
+                                    className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                                        regMode === 'upload'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-indigo-500/20'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <UploadCloud size={16} /> 🖼️ Tải Ảnh Tĩnh Từ Máy Tính
+                                </button>
+                            </div>
+                        </div>
 
                         {formError && (
                             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center gap-2">
@@ -622,7 +674,7 @@ const FaceRegistration = ({ onComplete }) => {
 
             {/* PHASE 2: CAMERA 3-STEP SCAN / STATIC FILE UPLOAD */}
             {pagePhase === 'camera_scan' && selectedStudent && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full max-w-2xl mx-auto">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden w-full max-w-4xl mx-auto">
                     {/* Selected Student Banner */}
                     <div className={`p-4 border-b flex items-center justify-between ${
                         selectedStudent.has_face
@@ -1011,7 +1063,7 @@ const FaceRegistration = ({ onComplete }) => {
                                 const base = window.location.pathname.startsWith('/teacher') ? '/teacher' : '/admin';
                                 navigate(`${base}/face-recognition?student_id=${selectedStudent.id}`);
                             }}
-                            className="py-3 px-6 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                            className="py-3 px-6 bg-[#175b9f] hover:bg-[#124a82] text-white font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                         >
                             <UserCheck size={20} />
                             Nhận Diện Khuôn Mặt Ngay
