@@ -55,6 +55,8 @@ const RoomManagement = () => {
         }
     };
 
+    const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
@@ -79,7 +81,7 @@ const RoomManagement = () => {
                 </button>
             </div>
 
-            {/* Filter / Search Bar */}
+            {/* Filter / Search Bar & View Mode Toggle */}
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <form onSubmit={handleSearch} className="relative w-full sm:w-80">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -92,7 +94,7 @@ const RoomManagement = () => {
                     />
                 </form>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
@@ -102,10 +104,30 @@ const RoomManagement = () => {
                         <option value="Active">Đang hoạt động</option>
                         <option value="Maintenance">Đang bảo trì</option>
                     </select>
+
+                    <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                viewMode === 'table' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                        >
+                            <span>Danh sách dạng bảng</span>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                        >
+                            <LayoutGrid size={14} />
+                            <span>Dạng lưới thẻ</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Room Cards Grid */}
+            {/* Room Display: Table or Grid */}
             {loading ? (
                 <div className="py-20 text-center text-gray-500 flex flex-col items-center justify-center gap-3">
                     <div className="w-9 h-9 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
@@ -117,7 +139,86 @@ const RoomManagement = () => {
                     <p className="text-base font-bold text-gray-700">Chưa có phòng học nào được tạo</p>
                     <p className="text-xs text-gray-400 mt-1">Bấm nút "Tạo Phòng Mới" để bắt đầu thiết lập sơ đồ ghế.</p>
                 </div>
+            ) : viewMode === 'table' ? (
+                /* Table View */
+                <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-700 font-extrabold text-xs uppercase tracking-wider">
+                                    <th className="py-3.5 px-5">MÃ PHÒNG</th>
+                                    <th className="py-3.5 px-5">TÊN PHÒNG HỌC</th>
+                                    <th className="py-3.5 px-5">TÒA NHÀ</th>
+                                    <th className="py-3.5 px-5 text-center">SỨC CHỨA</th>
+                                    <th className="py-3.5 px-5 text-center">MA TRẬN CHỖ NGỒI (H x C)</th>
+                                    <th className="py-3.5 px-5 text-right">THAO TÁC</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
+                                {rooms.map((room) => {
+                                    const totalSeats = room.seating_rows * room.seating_cols;
+                                    const disabledCount = room.disabled_seats?.length || 0;
+                                    const usableSeats = totalSeats - disabledCount;
+
+                                    return (
+                                        <tr key={room.id} className="hover:bg-indigo-50/20 transition-colors">
+                                            <td className="py-4 px-5 font-bold font-mono text-indigo-700">{room.room_code}</td>
+                                            <td className="py-4 px-5 font-bold text-gray-900">{room.room_name}</td>
+                                            <td className="py-4 px-5">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                                                    {room.building || 'Tòa nhà'}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-5 text-center font-bold text-indigo-600">
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Users size={15} />
+                                                    {usableSeats} chỗ
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-5 text-center">
+                                                <button
+                                                    onClick={() => setPreviewRoom(room)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 text-xs font-bold font-mono transition-all hover:scale-105"
+                                                    title="Bấm để xem sơ đồ chỗ ngồi"
+                                                >
+                                                    <Armchair size={14} className="text-indigo-600" />
+                                                    <span>{room.seating_rows} hàng × {room.seating_cols} cột</span>
+                                                </button>
+                                            </td>
+                                            <td className="py-4 px-5 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => setPreviewRoom(room)}
+                                                        className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
+                                                        title="Xem sơ đồ ghế"
+                                                    >
+                                                        <Eye size={14} /> Xem Sơ Đồ
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setSelectedRoom(room); setIsEditOpen(true); }}
+                                                        className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
+                                                        title="Sửa sơ đồ ghế & thông tin phòng"
+                                                    >
+                                                        <Edit2 size={14} /> Sửa Sơ Đồ
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setSelectedRoom(room); setIsDeleteOpen(true); }}
+                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Xóa phòng"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             ) : (
+                /* Card Grid View */
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {rooms.map((room) => {
                         const totalSeats = room.seating_rows * room.seating_cols;
@@ -179,10 +280,10 @@ const RoomManagement = () => {
                                     <div className="flex items-center gap-1">
                                         <button
                                             onClick={() => { setSelectedRoom(room); setIsEditOpen(true); }}
-                                            className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                            title="Sửa phòng & sơ đồ"
+                                            className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition-all flex items-center gap-1"
+                                            title="Sửa phòng & sơ đồ chỗ ngồi"
                                         >
-                                            <Edit2 size={16} />
+                                            <Edit2 size={14} /> Sửa Sơ Đồ
                                         </button>
                                         <button
                                             onClick={() => { setSelectedRoom(room); setIsDeleteOpen(true); }}
