@@ -106,7 +106,7 @@ const TeacherSchedule = () => {
                                         <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-mono">
                                             {s.day} · {s.time}
                                         </span>
-                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : s.status === 'Ended' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>
+                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : s.status === 'Ended' ? 'bg-slate-200 text-slate-600' : 'bg-blue-100 text-blue-700'}`}>
                                             {s.status === 'Active' ? '● Đang diễn ra' : s.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
                                         </span>
                                     </div>
@@ -126,20 +126,22 @@ const TeacherSchedule = () => {
                                             e.stopPropagation();
                                             setSelectedSchedule(s);
                                         }}
-                                        className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all"
+                                        className={`py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all ${s.status === 'Ended' ? 'w-full' : ''}`}
                                         title="Xem chi tiết lớp học & sinh viên"
                                     >
                                         Chi tiết
                                     </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigate(`/teacher/face-recognition?schedule_id=${s.id}`);
-                                        }}
-                                        className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        <Play size={14} /> Điểm danh ca này
-                                    </button>
+                                    {s.status !== 'Ended' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/teacher/face-recognition?schedule_id=${s.id}`);
+                                            }}
+                                            className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                                        >
+                                            <Play size={14} /> Điểm danh ca này
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
