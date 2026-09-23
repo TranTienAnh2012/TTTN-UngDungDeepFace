@@ -239,3 +239,63 @@ select option {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ════════════════════════════════════════════════════════════════ */
+/* Canvas Background & Floating Depth System (Card Elevation)       */
+/* ════════════════════════════════════════════════════════════════ */
+
+/* Elevated canvas background with ambient light highlights and subtle dot grid matrix */
+.bg-canvas-pattern {
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(23, 91, 159, 0.07) 0px, transparent 45%),
+    radial-gradient(at 85% 85%, rgba(23, 91, 159, 0.05) 0px, transparent 45%),
+    radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.8) 0px, transparent 70%),
+    radial-gradient(rgba(148, 163, 184, 0.22) 1.2px, transparent 1.2px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
+  background-attachment: fixed;
+}
+
+/* Floating card depth utility */
+.card-floating, .card-elevated {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 1rem;
+  box-shadow: 
+    0 10px 25px -5px rgba(15, 23, 42, 0.05),
+    0 4px 10px -2px rgba(23, 91, 159, 0.03),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.card-floating:hover, .card-elevated:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 20px 35px -8px rgba(23, 91, 159, 0.12),
+    0 8px 16px -4px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1);
+  border-color: rgba(23, 91, 159, 0.3);
+}
+
+/* Automatic elevation depth for standard Tailwind white card containers */
+.bg-white.rounded-xl, 
+.bg-white.rounded-2xl,
+.bg-white.rounded-lg.shadow-sm,
+.bg-white.rounded-xl.shadow-sm,
+.bg-white.rounded-2xl.shadow-sm,
+.bg-white.rounded-2xl.shadow-md {
+  box-shadow: 
+    0 10px 25px -5px rgba(15, 23, 42, 0.05),
+    0 4px 10px -2px rgba(23, 91, 159, 0.03),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.bg-white.rounded-xl:hover, 
+.bg-white.rounded-2xl:hover {
+  box-shadow: 
+    0 16px 32px -8px rgba(23, 91, 159, 0.1),
+    0 6px 12px -3px rgba(15, 23, 42, 0.04);
+}
+
