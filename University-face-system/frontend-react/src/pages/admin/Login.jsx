@@ -222,7 +222,7 @@ const Login = () => {
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
                                                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-medium text-sm"
-                                                placeholder="VD: admin@system.com"
+                                                placeholder="Nhập email của bạn"
                                             />
                                         </div>
                                     </div>
