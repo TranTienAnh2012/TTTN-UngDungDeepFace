@@ -1,6 +1,13 @@
 const AiService = require('../../services/ai.service');
 const pool = require('../../config/db');
 
+let ExcelJS = null;
+try {
+    ExcelJS = require('exceljs');
+} catch (err) {
+    console.warn('exceljs module not loaded:', err.message);
+}
+
 exports.verifyAttendance = async (req, res) => {
     try {
         const { student_id, schedule_id, image_base64, attendance_type = 'check_in' } = req.body;
@@ -134,6 +141,7 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
                 image_size: aiRes.image_size || null,
                 confidence: aiRes.confidence || 0,
                 quality_reason: aiRes.quality_reason || null,
+                is_live: aiRes.is_live !== false,
                 message: aiRes.message || 'Chưa tìm thấy khuôn mặt phù hợp'
             });
         }
@@ -320,6 +328,7 @@ exports.autoIdentifyAndCheckIn = async (req, res) => {
             box: aiRes.box || null,
             image_size: aiRes.image_size || null,
             confidence: aiRes.confidence,
+            is_live: aiRes.is_live !== false,
             student,
             class_attendance: classAttendanceInfo,
             exam_attendance: examAttendanceInfo,
@@ -560,5 +569,210 @@ exports.getAttendanceReport = async (req, res) => {
     } catch (error) {
         console.error('Lỗi getAttendanceReport:', error);
         return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// GET /attendance/sessions/recent?limit=10 — lấy danh sách buổi học gần đây có điểm danh
+exports.getRecentSessions = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const [rows] = await pool.query(`
+            SELECT 
+                cs.id as schedule_id,
+                cs.room_name,
+                cs.start_time,
+                cs.end_time,
+                c.course_code,
+                c.course_name,
+                COUNT(DISTINCT ca.student_id) as total_attended,
+                SUM(CASE WHEN ca.check_in_time IS NOT NULL THEN 1 ELSE 0 END) as checked_in_count,
+                SUM(CASE WHEN ca.check_out_time IS NOT NULL THEN 1 ELSE 0 END) as checked_out_count,
+                SUM(CASE WHEN ca.status = 'Completed' THEN 1 ELSE 0 END) as completed_count
+            FROM class_schedules cs
+            JOIN courses c ON c.id = cs.course_id
+            LEFT JOIN class_attendance ca ON ca.schedule_id = cs.id
+            GROUP BY cs.id, cs.room_name, cs.start_time, cs.end_time, c.course_code, c.course_name
+            ORDER BY cs.start_time DESC
+            LIMIT ?
+        `, [limit]);
+
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getRecentSessions:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// GET /attendance/export/:schedule_id — xuất Excel danh sách điểm danh
+exports.exportAttendanceExcel = async (req, res) => {
+    try {
+        const { schedule_id } = req.params;
+
+        const [scheduleRows] = await pool.query(`
+            SELECT cs.*, c.course_code, c.course_name
+            FROM class_schedules cs JOIN courses c ON c.id = cs.course_id
+            WHERE cs.id = ?
+        `, [schedule_id]);
+
+        if (scheduleRows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+        }
+        const schedule = scheduleRows[0];
+
+        const [rows] = await pool.query(`
+            SELECT 
+                s.student_code, s.full_name, s.class_name,
+                ca.check_in_time, ca.check_out_time, ca.status, ca.confidence_score
+            FROM class_attendance ca
+            JOIN students s ON s.id = ca.student_id
+            WHERE ca.schedule_id = ?
+            ORDER BY COALESCE(ca.check_in_time, ca.check_out_time) ASC
+        `, [schedule_id]);
+
+        if (!ExcelJS) {
+            const csvHeaders = ['STT', 'Mã Sinh Viên', 'Họ và Tên', 'Lớp', 'Thời gian Check-in', 'Thời gian Check-out', 'Trạng thái'];
+            const lines = [csvHeaders.join(',')];
+            rows.forEach((r, i) => {
+                const statusLabel = r.status === 'Completed' ? 'Đủ đầu & cuối giờ'
+                    : r.status === 'Checked-in' ? 'Chỉ check-in'
+                    : r.status === 'Only Checked-out' ? 'Chỉ check-out'
+                    : 'Vắng';
+                lines.push([
+                    i + 1,
+                    r.student_code,
+                    `"${r.full_name}"`,
+                    `"${r.class_name || ''}"`,
+                    r.check_in_time ? new Date(r.check_in_time).toLocaleString('vi-VN') : '—',
+                    r.check_out_time ? new Date(r.check_out_time).toLocaleString('vi-VN') : '—',
+                    `"${statusLabel}"`
+                ].join(','));
+            });
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="diemdanh_${schedule_id}.csv"`);
+            return res.send('\uFEFF' + lines.join('\n'));
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'He thong Diem danh Khuon mat';
+        workbook.created = new Date();
+
+        const sheet = workbook.addWorksheet('Danh sach diem danh', {
+            pageSetup: { paperSize: 9, orientation: 'landscape' }
+        });
+
+        const startTime = new Date(schedule.start_time);
+        const endTime = new Date(schedule.end_time);
+        const fmtDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        }) : '—';
+        const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            hour: '2-digit', minute: '2-digit'
+        }) : '';
+        const dateStr = startTime.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+        // Title
+        sheet.mergeCells('A1:G1');
+        sheet.getCell('A1').value = 'DANH SÁCH ĐIỂM DANH SINH VIÊN';
+        sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FF1E3A5F' } };
+        sheet.getCell('A1').alignment = { horizontal: 'center' };
+        sheet.getRow(1).height = 24;
+
+        sheet.mergeCells('A2:G2');
+        sheet.getCell('A2').value = `${schedule.course_code} - ${schedule.course_name} | Phòng: ${schedule.room_name} | Ngày: ${dateStr} | Giờ: ${fmtTime(startTime)} – ${fmtTime(endTime)}`;
+        sheet.getCell('A2').font = { italic: true, size: 11, color: { argb: 'FF555555' } };
+        sheet.getCell('A2').alignment = { horizontal: 'center' };
+        sheet.getRow(2).height = 20;
+
+        sheet.addRow([]);
+
+        // Header
+        const headerRow = sheet.addRow([
+            'STT', 'Mã Sinh Viên', 'Họ và Tên', 'Lớp',
+            'Thời gian Check-in', 'Thời gian Check-out', 'Trạng thái'
+        ]);
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF312E81' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = {
+                top: { style: 'thin' }, bottom: { style: 'thin' },
+                left: { style: 'thin' }, right: { style: 'thin' }
+            };
+        });
+        headerRow.height = 22;
+
+        // Data rows
+        rows.forEach((r, i) => {
+            const statusLabel = r.status === 'Completed' ? 'Đủ đầu & cuối giờ'
+                : r.status === 'Checked-in' ? 'Chỉ check-in'
+                : r.status === 'Only Checked-out' ? 'Chỉ check-out'
+                : 'Vắng';
+
+            const statusColor = r.status === 'Completed' ? 'FFD1FAE5'
+                : r.status === 'Checked-in' ? 'FFFEF3C7'
+                : 'FFFEE2E2';
+
+            const dataRow = sheet.addRow([
+                i + 1,
+                r.student_code,
+                r.full_name,
+                r.class_name || '—',
+                r.check_in_time ? fmtDateTime(r.check_in_time) : '—',
+                r.check_out_time ? fmtDateTime(r.check_out_time) : '—',
+                statusLabel
+            ]);
+
+            dataRow.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } };
+            if (i % 2 === 1) {
+                for (let c = 1; c <= 6; c++) {
+                    dataRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                }
+            }
+            dataRow.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+                cell.alignment = { vertical: 'middle' };
+            });
+            dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+            dataRow.height = 20;
+        });
+
+        // Column widths
+        sheet.getColumn(1).width = 6;
+        sheet.getColumn(2).width = 16;
+        sheet.getColumn(3).width = 28;
+        sheet.getColumn(4).width = 14;
+        sheet.getColumn(5).width = 24;
+        sheet.getColumn(6).width = 24;
+        sheet.getColumn(7).width = 22;
+
+        // Summary footer
+        const total = rows.length;
+        const ci = rows.filter(r => r.check_in_time).length;
+        const co = rows.filter(r => r.check_out_time).length;
+        const comp = rows.filter(r => r.status === 'Completed').length;
+        sheet.addRow([]);
+        const sumRow = sheet.addRow([`Tổng: ${total} SV | Check-in: ${ci} | Check-out: ${co} | Hoàn thành (đủ 2 lượt): ${comp}`]);
+        sheet.mergeCells(`A${sumRow.number}:G${sumRow.number}`);
+        sumRow.getCell(1).font = { bold: true, italic: true, color: { argb: 'FF4F46E5' } };
+
+        const safeCourseName = (schedule.course_code || 'export').replace(/[^a-zA-Z0-9]/g, '_');
+        const safeDateStr = dateStr.replace(/\//g, '-');
+        const filename = `diemdanh_${safeCourseName}_${safeDateStr}.xlsx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error('Lỗi exportAttendanceExcel:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server khi xuất Excel' });
     }
 };

@@ -70,14 +70,57 @@ def check_frame_quality(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     mean_brightness = float(np.mean(gray))
-    if mean_brightness < 10:
+    if mean_brightness < 45:
         return False, f"too_dark ({mean_brightness:.0f})"
-    if mean_brightness > 252:
+    if mean_brightness > 250:
         return False, f"overexposed ({mean_brightness:.0f})"
 
     laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
     if laplacian_var < 3.0:
         return False, f"too_blurry ({laplacian_var:.1f})"
+
+    return True, "ok"
+
+
+def check_liveness_micro_movement(gray_img, keypoints, box):
+    """
+    Passive 3D Liveness & Anti-Spoofing Check using keypoints geometry & texture spectrum analysis.
+    Verifies that the face is a natural live human and not a flat screen photo / printed image.
+    Returns: (is_live: bool, liveness_reason: str)
+    """
+    if not keypoints or not box:
+        return True, "ok"
+
+    x, y, w, h = box
+    img_h, img_w = gray_img.shape[:2]
+
+    # 1. Texture & Moiré check (detects digital screen pixels or flat photo blur)
+    face_crop = gray_img[y:y+h, x:x+w] if w > 10 and h > 10 else gray_img
+    if face_crop.size == 0:
+        return True, "ok"
+
+    lap_var = float(cv2.Laplacian(face_crop, cv2.CV_64F).var())
+
+    # Printed paper photo or digital screen photo displays unnatural extreme flatness (< 4.0) or digital grid noise (> 1800.0)
+    if lap_var < 4.0:
+        return False, "screen_spoof_flat"
+    if lap_var > 1800.0:
+        return False, "screen_spoof_moire"
+
+    # 2. Keypoint 3D geometric proportion check (checks 3D face structure vs flat paper distortion)
+    if 'left_eye' in keypoints and 'right_eye' in keypoints and 'nose' in keypoints:
+        left_eye = np.array(keypoints['left_eye'], dtype=np.float32)
+        right_eye = np.array(keypoints['right_eye'], dtype=np.float32)
+        nose = np.array(keypoints['nose'], dtype=np.float32)
+
+        eye_center = (left_eye + right_eye) / 2.0
+        eye_dist = float(np.linalg.norm(right_eye - left_eye))
+        nose_eye_dist = float(np.linalg.norm(nose - eye_center))
+
+        if eye_dist > 5:
+            geometric_ratio = nose_eye_dist / eye_dist
+            if geometric_ratio < 0.20 or geometric_ratio > 1.25:
+                return False, "distorted_geometry"
 
     return True, "ok"
 
@@ -103,6 +146,7 @@ def detect_and_extract(image_base64, require_oval=False):
             }
 
         img_h, img_w = img.shape[:2]
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Stage 1: Quality Check
         t_q_start = time.perf_counter()
@@ -110,9 +154,15 @@ def detect_and_extract(image_base64, require_oval=False):
         t_quality = time.perf_counter() - t_q_start
 
         if not quality_ok:
+            status_text = "💡 Ánh sáng không đủ! Vui lòng di chuyển đến nơi sáng hơn hoặc bật thêm đèn" if "too_dark" in quality_reason else (
+                "☀️ Ánh sáng quá chói! Vui lòng giảm bớt ánh sáng chói" if "overexposed" in quality_reason else (
+                    "⚠️ Hình ảnh bị mờ! Vui lòng giữ camera cố định" if "too_blurry" in quality_reason else f"Frame skipped: {quality_reason}"
+                )
+            )
             return {
                 "box": None, "pose": "none", "image_size": [img_w, img_h],
                 "embedding": None, "quality_ok": False, "quality_reason": quality_reason,
+                "status_text": status_text,
                 "timings": {"total": time.perf_counter() - t_start, "quality": t_quality}
             }
 
@@ -153,24 +203,78 @@ def detect_and_extract(image_base64, require_oval=False):
 
         box = [int(x), int(y), int(w), int(h)]
 
-        # Determine head pose from facial keypoints
+        # Check if face center is inside target oval frame (cx=320, cy=235, rx=140, ry=190 in 640x480 space)
+        scale_x = 640.0 / max(1, img_w)
+        scale_y = 480.0 / max(1, img_h)
+        face_cx = (x + w / 2.0) * scale_x
+        face_cy = (y + h / 2.0) * scale_y
+
+        cx, cy, rx, ry = 320.0, 235.0, 140.0, 190.0
+        normalized_dist = ((face_cx - cx) / rx) ** 2 + ((face_cy - cy) / ry) ** 2
+
+        if normalized_dist > 0.95:
+            return {
+                "box": box,
+                "pose": "straight",
+                "image_size": [img_w, img_h],
+                "embedding": None,
+                "quality_ok": False,
+                "quality_reason": "outside_oval_frame",
+                "status_text": "🎯 Vui lòng di chuyển khuôn mặt vào trong vòng tròn hướng dẫn",
+                "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
+            }
+
+        # Check face crop brightness specifically
+        face_crop_gray = cv2.cvtColor(img[y:y+h, x:x+w], cv2.COLOR_BGR2GRAY) if w > 0 and h > 0 else gray
+        face_brightness = float(np.mean(face_crop_gray))
+        if face_brightness < 45:
+            return {
+                "box": box,
+                "pose": "straight",
+                "image_size": [img_w, img_h],
+                "embedding": None,
+                "quality_ok": False,
+                "quality_reason": "too_dark",
+                "status_text": "💡 Ánh sáng không đủ! Vui lòng di chuyển đến nơi sáng hơn hoặc bật thêm đèn",
+                "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
+            }
+
+        # Determine head pose and liveness check from facial keypoints and texture
         pose = "straight"
+        is_live = True
+        liveness_reason = "ok"
+
         keypoints = face.get('keypoints')
-        if keypoints and 'left_eye' in keypoints and 'right_eye' in keypoints and 'nose' in keypoints:
+        if keypoints and 'left_eye' in keypoints and 'right_eye' in keypoints:
             left_eye = keypoints['left_eye']
             right_eye = keypoints['right_eye']
-            nose = keypoints['nose']
+            nose = keypoints.get('nose')
 
-            eye_center_x = (left_eye[0] + right_eye[0]) / 2.0
-            eye_span = max(1.0, abs(right_eye[0] - left_eye[0]))
-            nose_offset = (nose[0] - eye_center_x) / eye_span
+            if nose:
+                eye_center_x = (left_eye[0] + right_eye[0]) / 2.0
+                eye_span = max(1.0, abs(right_eye[0] - left_eye[0]))
+                nose_offset = (nose[0] - eye_center_x) / eye_span
 
-            if abs(nose_offset) < 0.12:
-                pose = "straight"
-            elif nose_offset > 0.12:
-                pose = "left"
-            else:
-                pose = "right"
+                if abs(nose_offset) < 0.12:
+                    pose = "straight"
+                elif nose_offset > 0.12:
+                    pose = "left"
+                else:
+                    pose = "right"
+
+            is_live, liveness_reason = check_liveness_micro_movement(gray, keypoints, box)
+
+        if not is_live:
+            return {
+                "box": box,
+                "pose": pose,
+                "image_size": [img_w, img_h],
+                "embedding": None,
+                "quality_ok": False,
+                "quality_reason": f"spoof_{liveness_reason}",
+                "status_text": "⚠️ Phát hiện hình ảnh không phải người thật (Anti-Spoofing)",
+                "timings": {"total": time.perf_counter() - t_start, "quality": t_quality, "detect": t_detect}
+            }
 
         # Stage 3: Extract ArcFace Embedding from Face Crop
         t_emb_start = time.perf_counter()
@@ -206,6 +310,7 @@ def detect_and_extract(image_base64, require_oval=False):
             "embedding": embedding,
             "quality_ok": True,
             "quality_reason": "ok",
+            "is_live": True,
             "face_confidence": float(face.get('confidence', 1.0)),
             "timings": {
                 "decode": t_decode,

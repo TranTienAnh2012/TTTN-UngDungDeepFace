@@ -5,6 +5,7 @@ const scheduleController = require('../../controllers/teacher/schedule.controlle
 router.get('/today', scheduleController.getTodaySchedules);
 router.get('/active', scheduleController.getActiveSchedules);
 router.get('/all', scheduleController.getAllSchedules);
+router.get('/:id/students', scheduleController.getScheduleStudents);
 router.post('/create', scheduleController.createSchedule);
 
 module.exports = router;

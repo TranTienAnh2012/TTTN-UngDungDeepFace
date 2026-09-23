@@ -130,8 +130,8 @@ function ChatBox() {
 
   return (
     <div className="chatbox-wrapper">
-      {/* FAB — dùng div khi hiện mascot để tránh nested <button> */}
-      {!isOpen ? (
+      {/* FAB — chỉ hiện khi chatbox đóng */}
+      {!isOpen && (
         <div
           className="chatbox-fab"
           onClick={() => setIsOpen(true)}
@@ -148,17 +148,6 @@ function ChatBox() {
           />
           {hasUnread && <span className="chatbox-fab__badge" />}
         </div>
-      ) : (
-        <button
-          className="chatbox-fab chatbox-fab--open"
-          onClick={() => setIsOpen(false)}
-          aria-label="Đóng hỗ trợ"
-          id="chatbox-fab-btn"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
       )}
 
       {/* Panel */}

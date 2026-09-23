@@ -150,6 +150,12 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
         URL.revokeObjectURL(url);
     };
 
+    const handleExportExcel = () => {
+        if (!session?.id) return;
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        window.open(`${API_BASE}/api/attendance/export/${session.id}`, '_blank');
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh]">
@@ -191,6 +197,16 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {!isExam && (
+                            <button
+                                onClick={handleExportExcel}
+                                className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                                title="Xuất Excel danh sách điểm danh với thời gian Check-in / Check-out"
+                            >
+                                <Download size={14} />
+                                <span>Xuất Excel (.xlsx)</span>
+                            </button>
+                        )}
                         <button
                             onClick={handleExportCSV}
                             className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"

@@ -56,6 +56,8 @@ exports.getAllSchedules = async (req, res) => {
                 cs.id, cs.room_name,
                 cs.start_time, cs.end_time,
                 c.course_code, c.course_name,
+                (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_in_time IS NOT NULL) as checked_in_count,
+                (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND ca.check_out_time IS NOT NULL) as checked_out_count,
                 (SELECT COUNT(*) FROM students) as student_count
             FROM class_schedules cs
             JOIN courses c ON cs.course_id = c.id
@@ -131,3 +133,69 @@ exports.createSchedule = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Lỗi server khi tạo ca học' });
     }
 };
+
+// GET /schedules/:id/students
+exports.getScheduleStudents = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if class_id is linked with schedule
+        const [schedRows] = await pool.query('SELECT class_id FROM class_schedules WHERE id = ?', [id]);
+        const classId = schedRows.length > 0 ? schedRows[0].class_id : null;
+
+        let query = `
+            SELECT 
+                s.id as student_id,
+                s.student_code,
+                s.full_name,
+                s.class_name,
+                s.class_name as student_official_class,
+                'regular' as enrollment_type,
+                (s.face_embedding IS NOT NULL) AS face_registered,
+                ca.check_in_time,
+                ca.check_out_time,
+                ca.status as attendance_status,
+                ca.confidence_score
+            FROM students s
+            LEFT JOIN class_attendance ca ON ca.schedule_id = ? AND ca.student_id = s.id
+        `;
+        let params = [id];
+
+        if (classId) {
+            query += ` WHERE s.class_id = ? OR s.class_name = (SELECT class_code FROM classes WHERE id = ?)`;
+            params.push(classId, classId);
+        }
+
+        query += ` ORDER BY s.student_code ASC`;
+
+        let [rows] = await pool.query(query, params);
+
+        // Fallback: If filtered list is empty, return all students with attendance status
+        if (rows.length === 0) {
+            const [allRows] = await pool.query(`
+                SELECT 
+                    s.id as student_id,
+                    s.student_code,
+                    s.full_name,
+                    s.class_name,
+                    s.class_name as student_official_class,
+                    'regular' as enrollment_type,
+                    (s.face_embedding IS NOT NULL) AS face_registered,
+                    ca.check_in_time,
+                    ca.check_out_time,
+                    ca.status as attendance_status,
+                    ca.confidence_score
+                FROM students s
+                LEFT JOIN class_attendance ca ON ca.schedule_id = ? AND ca.student_id = s.id
+                ORDER BY s.student_code ASC
+            `, [id]);
+            rows = allRows;
+        }
+
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Lỗi getScheduleStudents:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server khi lấy danh sách sinh viên ca học' });
+    }
+};
+
