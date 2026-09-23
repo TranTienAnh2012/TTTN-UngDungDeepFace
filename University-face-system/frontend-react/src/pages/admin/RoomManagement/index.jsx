@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit2, Trash2, Building2, LayoutGrid, Eye, Armchair, ShieldCheck } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Building2, LayoutGrid, Eye, Armchair, ShieldCheck, Users } from 'lucide-react';
 import api from '../../../services/api';
 import CreateRoom from './CreateRoom';
 import EditRoom from './EditRoom';
