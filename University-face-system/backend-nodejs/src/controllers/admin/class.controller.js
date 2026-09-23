@@ -3,34 +3,42 @@ const pool = require('../../config/db');
 exports.getAllClassSchedules = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+        const limit = parseInt(req.query.limit) || 100;
         const search = req.query.search || '';
         const offset = (page - 1) * limit;
 
         let query = `
-            SELECT cs.*, c.course_code, c.course_name 
+            SELECT cs.*, c.course_code, c.course_name, cl.class_code, cl.class_name,
+                COALESCE(
+                    NULLIF((SELECT COUNT(*) FROM enrollments e WHERE e.schedule_id = cs.id), 0),
+                    NULLIF((SELECT COUNT(*) FROM students s WHERE cs.class_id IS NOT NULL AND (s.class_id = cs.class_id OR s.class_name = cl.class_code)), 0),
+                    (SELECT COUNT(*) FROM students)
+                ) AS total_enrolled,
+                (SELECT COUNT(*) FROM class_attendance ca WHERE ca.schedule_id = cs.id AND (ca.check_in_time IS NOT NULL OR ca.check_out_time IS NOT NULL OR ca.status = 'Completed' OR ca.status = 'Checked-in')) AS attended_count
             FROM class_schedules cs 
             LEFT JOIN courses c ON cs.course_id = c.id
+            LEFT JOIN classes cl ON cs.class_id = cl.id
         `;
         let countQuery = `
             SELECT COUNT(*) as total 
             FROM class_schedules cs 
             LEFT JOIN courses c ON cs.course_id = c.id
+            LEFT JOIN classes cl ON cs.class_id = cl.id
         `;
         const queryParams = [];
 
         if (search) {
-            const searchCondition = ' WHERE cs.room_name LIKE ? OR c.course_code LIKE ? OR c.course_name LIKE ?';
+            const searchCondition = ' WHERE cs.room_name LIKE ? OR c.course_code LIKE ? OR c.course_name LIKE ? OR cl.class_code LIKE ?';
             query += searchCondition;
             countQuery += searchCondition;
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         query += ' ORDER BY cs.start_time DESC LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
         const [rows] = await pool.query(query, queryParams);
-        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : []);
         const total = countResult[0].total;
 
         res.json({

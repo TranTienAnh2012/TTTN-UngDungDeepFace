@@ -175,7 +175,8 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
     const handleExportExcel = () => {
         if (!session?.id) return;
         const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        window.open(`${API_BASE}/api/attendance/export/${session.id}`, '_blank');
+        const typeParam = isExam ? '?type=exam' : '?type=class';
+        window.open(`${API_BASE}/api/attendance/export/${session.id}${typeParam}`, '_blank');
     };
 
     // Calendar generation helpers
@@ -240,16 +241,14 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {!isExam && (
-                            <button
-                                onClick={handleExportExcel}
-                                className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                                title="Xuất Excel danh sách điểm danh với thời gian Check-in / Check-out"
-                            >
-                                <Download size={14} />
-                                <span>Xuất Excel (.xlsx)</span>
-                            </button>
-                        )}
+                        <button
+                            onClick={handleExportExcel}
+                            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                            title="Xuất Excel danh sách điểm danh với thời gian Check-in / Check-out"
+                        >
+                            <Download size={14} />
+                            <span>Xuất Excel (.xlsx)</span>
+                        </button>
                         <button
                             onClick={handleExportCSV}
                             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-colors"
