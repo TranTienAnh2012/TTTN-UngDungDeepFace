@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, User as UserIcon, CheckCircle, FileText, Users, Eye, EyeOff, Camera, Scan } from 'lucide-react';
+import { Lock, User as UserIcon, CheckCircle, FileText, Users, Eye, EyeOff, Camera, Scan, AlertCircle, GraduationCap } from 'lucide-react';
 import Webcam from 'react-webcam';
 
 const Login = () => {
@@ -207,7 +207,7 @@ const Login = () => {
                             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                                 {error && (
                                     <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex items-start gap-2">
-                                        <span className="mt-0.5">⚠️</span>
+                                        <AlertCircle size={18} className="mt-0.5 text-red-500 shrink-0" />
                                         {error}
                                     </div>
                                 )}
@@ -286,7 +286,7 @@ const Login = () => {
                             </div>
                             <div className="mt-6">
                                 <button className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 rounded-xl transition-colors shadow-sm text-sm">
-                                    <span className="text-[#175b9f]">📚</span> Đăng nhập qua Cổng thông tin HCMUT
+                                    <GraduationCap size={18} className="text-[#175b9f]" /> Đăng nhập qua Cổng thông tin HCMUT
                                 </button>
                             </div>
                         </>
@@ -337,10 +337,10 @@ const Login = () => {
                                         'bg-white/10 text-white/70 border border-white/20'
                                     }`}
                                 >
-                                    {faceStatus === 'scanning' && '🔍 Đang quét...'}
-                                    {faceStatus === 'success' && '✅ Thành công'}
-                                    {faceStatus === 'error' && '❌ Thất bại'}
-                                    {faceStatus === 'idle' && '📷 Sẵn sàng'}
+                                    {faceStatus === 'scanning' && 'Đang quét...'}
+                                    {faceStatus === 'success' && 'Thành công'}
+                                    {faceStatus === 'error' && 'Thất bại'}
+                                    {faceStatus === 'idle' && 'Sẵn sàng'}
                                 </div>
                             </div>
 

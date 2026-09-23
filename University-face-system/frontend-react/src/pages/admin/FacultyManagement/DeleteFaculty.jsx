@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, AlertCircle } from 'lucide-react';
 import api from '../../../services/api';
 
 const DeleteFaculty = ({ isOpen, onClose, onSuccess, faculty }) => {
@@ -54,8 +54,9 @@ const DeleteFaculty = ({ isOpen, onClose, onSuccess, faculty }) => {
                     </p>
 
                     {(faculty.class_count > 0 || faculty.student_count > 0) && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
-                            ⚠️ Khoa này hiện đang có <b>{faculty.class_count || 0} lớp</b> và <b>{faculty.student_count || 0} sinh viên</b>. Bạn chỉ có thể xóa khi đã chuyển hết các lớp và sinh viên sang khoa khác.
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium flex items-start gap-2">
+                            <AlertCircle size={16} className="mt-0.5 text-amber-600 shrink-0" />
+                            <span>Khoa này hiện đang có <b>{faculty.class_count || 0} lớp</b> và <b>{faculty.student_count || 0} sinh viên</b>. Bạn chỉ có thể xóa khi đã chuyển hết các lớp và sinh viên sang khoa khác.</span>
                         </div>
                     )}
 

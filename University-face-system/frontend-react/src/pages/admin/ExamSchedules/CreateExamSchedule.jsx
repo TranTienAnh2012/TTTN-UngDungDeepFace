@@ -165,7 +165,7 @@ const CreateExamSchedule = ({ isOpen, onClose, onCreated }) => {
                                     onChange={e => setFormData({...formData, auto_enroll_class: e.target.checked})}
                                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                                 />
-                                <span>⚡ Tự động nạp toàn bộ sinh viên trong lớp & xếp ghế theo sơ đồ</span>
+                                <span>Tự động nạp toàn bộ sinh viên trong lớp & xếp ghế theo sơ đồ</span>
                             </label>
                         )}
                     </div>
