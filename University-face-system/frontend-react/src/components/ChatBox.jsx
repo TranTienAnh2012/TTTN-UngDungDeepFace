@@ -14,17 +14,17 @@ const SUGGESTED_QUESTIONS = [
 
 function ChatBox() {
   const { user } = useAuth();
-  const [isOpen, setIsOpen]   = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: `Xin chào ${user?.name || 'bạn'}! Tôi là Trợ lý AI Hệ thống Điểm danh Khuôn mặt. Tôi có thể giúp bạn giải đáp thắc mắc về lịch học, lịch thi, danh sách sinh viên và hướng dẫn sử dụng.` },
   ]);
-  const [input, setInput]     = useState('');
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const messagesEndRef = useRef(null);
-  const inputRef       = useRef(null);
-  const abortRef       = useRef(null); // to cancel stream
+  const inputRef = useRef(null);
+  const abortRef = useRef(null); // to cancel stream
 
   useEffect(() => {
     if (isOpen) {
@@ -103,7 +103,7 @@ function ChatBox() {
                 return updated;
               });
             }
-          } catch (_) {}
+          } catch (_) { }
         }
       }
 
@@ -156,29 +156,33 @@ function ChatBox() {
           id="chatbox-fab-btn"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
       )}
 
       {/* Panel */}
       {isOpen && (
-        <div className={`chatbox-panel ${isMaximized ? 'chatbox-panel--maximized' : ''}`} id="chatbox-panel">
+        <>
+          {/* Mascot nổi bên ngoài - float above panel header */}
+          <div className="chatbox-mascot-float">
+            <Mascot
+              directions="/mascots/drone-directions.webp"
+              reactions="/mascots/drone-reactions.webp"
+              style={{ width: 56, height: 56 }}
+            />
+          </div>
+
+          <div className={`chatbox-panel ${isMaximized ? 'chatbox-panel--maximized' : ''}`} id="chatbox-panel">
           {/* Header */}
           <div className="chatbox-header">
-            <div className="chatbox-header__avatar chatbox-header__avatar--mascot">
-              <Mascot
-                directions="/mascots/drone-directions.webp"
-                reactions="/mascots/drone-reactions.webp"
-                style={{ width: 28, height: 28 }}
-              />
-            </div>
+
             <div className="chatbox-header__info">
               <span className="chatbox-header__name">Trợ lý Hệ thống</span>
               <span className="chatbox-header__status">
                 <span className={`chatbox-status-dot ${loading ? 'chatbox-status-dot--typing' : ''}`} />
-                {loading 
-                  ? (messages[messages.length - 1]?.content ? 'Đang trả lời...' : 'Đang suy nghĩ...') 
+                {loading
+                  ? (messages[messages.length - 1]?.content ? 'Đang trả lời...' : 'Đang suy nghĩ...')
                   : 'Trực tuyến'}
               </span>
             </div>
@@ -190,17 +194,17 @@ function ChatBox() {
             >
               {isMaximized ? (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3v5H3M16 3v5h5M8 21v-5H3M16 21v-5h5"/>
+                  <path d="M8 3v5H3M16 3v5h5M8 21v-5H3M16 21v-5h5" />
                 </svg>
               ) : (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                 </svg>
               )}
             </button>
             <button className="chatbox-header__close" onClick={() => setIsOpen(false)} aria-label="Đóng">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
@@ -268,11 +272,12 @@ function ChatBox() {
               aria-label="Gui"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   );
