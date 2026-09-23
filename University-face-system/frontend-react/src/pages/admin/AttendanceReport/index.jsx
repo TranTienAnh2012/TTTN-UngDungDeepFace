@@ -189,7 +189,7 @@ const AttendanceReport = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                        <div className="w-10 h-10 rounded-2xl bg-[#175b9f] flex items-center justify-center text-white shadow-md">
                             <BarChart2 size={22} />
                         </div>
                         Báo Cáo Điểm Danh Từng Ca
@@ -438,7 +438,7 @@ const AttendanceReport = () => {
                                         className="bg-white rounded-3xl p-5 border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                                     >
                                         {/* Top accent line */}
-                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400"></div>
+                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#175b9f]"></div>
 
                                         <div className="space-y-3.5">
                                             {/* Course badge & status pill */}
@@ -605,7 +605,7 @@ const AttendanceReport = () => {
                                         className="bg-white rounded-3xl p-5 border border-slate-200/80 hover:border-purple-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                                     >
                                         {/* Top accent line */}
-                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-500"></div>
+                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#175b9f]"></div>
 
                                         <div className="space-y-3.5">
                                             {/* Course badge & status pill */}
@@ -764,7 +764,7 @@ const AttendanceReport = () => {
                                             <tr key={r.id || i} className="hover:bg-slate-50 transition-colors">
                                                 <td className="py-3 px-4">
                                                     <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                                        <div className="w-8 h-8 rounded-full bg-[#175b9f] flex items-center justify-center text-white text-xs font-bold shrink-0">
                                                             {r.full_name?.[0]?.toUpperCase() || 'S'}
                                                         </div>
                                                         <div>

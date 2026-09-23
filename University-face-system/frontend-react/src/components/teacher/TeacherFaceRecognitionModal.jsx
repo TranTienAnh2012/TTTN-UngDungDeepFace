@@ -252,7 +252,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh] border border-slate-100">
                 
                 {/* Modal Header */}
-                <div className="p-5 bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-700 text-white flex items-center justify-between shadow-md">
+                <div className="p-5 bg-[#175b9f] text-white flex items-center justify-between shadow-md">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold text-white shadow-inner">
                             <Camera size={22} />

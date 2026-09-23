@@ -6,13 +6,12 @@ const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
 router.use(authMiddleware);
+router.use(roleMiddleware('admin', 'manager', 'teacher'));
 
 // --- Read-only endpoints accessible by teachers & admins ---
 router.get('/schedules/:id/students', teacherScheduleController.getScheduleStudents);
 router.get('/schedules', classController.getAllClassSchedules);
 router.get('/schedules/:id', classController.getClassScheduleById);
-
-router.use(roleMiddleware('admin', 'manager'));
 
 // --- Admin Write Class Schedules ---
 router.post('/schedules', classController.createClassSchedule);
