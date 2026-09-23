@@ -7,8 +7,8 @@ echo ===================================================
 echo             FRONTEND REACT (PORT 5173)
 echo ===================================================
 echo.
-if not exist node_modules (
-    echo [*] Dang cai dat thu vien cho Frontend...
+if not exist "node_modules\page-mascot" (
+    echo [*] Dang cai dat/cap nhat thu vien cho Frontend...
     call npm install
 )
 call npm run dev
