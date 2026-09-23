@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit2, Trash2, ClipboardList, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, ClipboardList, ChevronLeft, ChevronRight, UserPlus, Users, Armchair } from 'lucide-react';
 import api from '../../../services/api';
 import CreateExamSchedule from './CreateExamSchedule';
 import EditExamSchedule from './EditExamSchedule';

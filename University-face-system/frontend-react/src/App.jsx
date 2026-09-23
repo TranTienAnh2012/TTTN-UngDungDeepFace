@@ -87,8 +87,10 @@ function App() {
             <Route path="students" element={<StudentManagement />} />
             <Route path="class-schedules" element={<ClassSchedules />} />
             <Route path="class-attendance" element={<ClassAttendance />} />
+            <Route path="attendance/class" element={<ClassAttendance />} />
             <Route path="exam-schedules" element={<ExamSchedules />} />
             <Route path="exam-attendance" element={<ExamAttendance />} />
+            <Route path="attendance/exam" element={<ExamAttendance />} />
 
             <Route path="face-registration-demo" element={<FaceRegistration />} />
             <Route path="face-recognition" element={<FaceRecognition />} />
