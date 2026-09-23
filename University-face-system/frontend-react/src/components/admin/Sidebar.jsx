@@ -22,7 +22,6 @@ const Sidebar = () => {
                 { path: '/admin/courses', icon: BookOpen, label: 'Môn Học' },
                 { path: '/admin/rooms', icon: Building2, label: 'Phòng & Sơ Đồ' },
                 { path: '/admin/students', icon: GraduationCap, label: 'Sinh Viên' },
-                { path: '/admin/faculties-classes', icon: Building, label: 'Khoa & Lớp (Cũ)' },
             ]
         },
         {
