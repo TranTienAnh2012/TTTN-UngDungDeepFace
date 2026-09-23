@@ -28,6 +28,7 @@
   color: #fff;
   box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: visible;
 }
 
 .chatbox-fab:hover {
@@ -35,9 +36,24 @@
   box-shadow: 0 6px 28px rgba(99, 102, 241, 0.65);
 }
 
+/* When mascot is showing, make FAB background transparent */
+.chatbox-fab:not(.chatbox-fab--open) {
+  background: transparent;
+  box-shadow: none;
+  width: 64px;
+  height: 64px;
+}
+
 .chatbox-fab--open {
   background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
   box-shadow: 0 4px 20px rgba(239, 68, 68, 0.45);
+  width: 56px;
+  height: 56px;
+}
+
+.chatbox-fab:not(.chatbox-fab--open):hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 6px 18px rgba(99, 102, 241, 0.5));
 }
 
 .chatbox-fab__badge {
@@ -104,6 +120,14 @@
   justify-content: center;
   color: #c4b5fd;
   flex-shrink: 0;
+}
+
+/* Mascot variant: no background, let sprite show naturally */
+.chatbox-header__avatar--mascot {
+  background: transparent;
+  width: 44px;
+  height: 44px;
+  overflow: visible;
 }
 
 .chatbox-header__info {
@@ -213,6 +237,15 @@
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+}
+
+/* Mascot variant: no background circle */
+.chatbox-msg__avatar--mascot {
+  background: transparent;
+  width: 36px;
+  height: 36px;
+  overflow: visible;
+  align-self: flex-end;
 }
 
 .chatbox-msg__bubble {

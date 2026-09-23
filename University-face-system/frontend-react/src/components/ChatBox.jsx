@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Mascot } from 'page-mascot';
 import './ChatBox.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -129,36 +130,48 @@ function ChatBox() {
 
   return (
     <div className="chatbox-wrapper">
-      {/* FAB */}
-      <button
-        className={`chatbox-fab ${isOpen ? 'chatbox-fab--open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Mở hỗ trợ"
-        id="chatbox-fab-btn"
-      >
-        {isOpen ? (
+      {/* FAB — dùng div khi hiện mascot để tránh nested <button> */}
+      {!isOpen ? (
+        <div
+          className="chatbox-fab"
+          onClick={() => setIsOpen(true)}
+          role="button"
+          tabIndex={0}
+          aria-label="Mở hỗ trợ AI"
+          id="chatbox-fab-btn"
+          onKeyDown={e => e.key === 'Enter' && setIsOpen(true)}
+        >
+          <Mascot
+            directions="/mascots/drone-directions.webp"
+            reactions="/mascots/drone-reactions.webp"
+            style={{ width: 56, height: 56 }}
+          />
+          {hasUnread && <span className="chatbox-fab__badge" />}
+        </div>
+      ) : (
+        <button
+          className="chatbox-fab chatbox-fab--open"
+          onClick={() => setIsOpen(false)}
+          aria-label="Đóng hỗ trợ"
+          id="chatbox-fab-btn"
+        >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
-        ) : (
-          <>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            {hasUnread && <span className="chatbox-fab__badge" />}
-          </>
-        )}
-      </button>
+        </button>
+      )}
 
       {/* Panel */}
       {isOpen && (
         <div className={`chatbox-panel ${isMaximized ? 'chatbox-panel--maximized' : ''}`} id="chatbox-panel">
           {/* Header */}
           <div className="chatbox-header">
-            <div className="chatbox-header__avatar">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-              </svg>
+            <div className="chatbox-header__avatar chatbox-header__avatar--mascot">
+              <Mascot
+                directions="/mascots/drone-directions.webp"
+                reactions="/mascots/drone-reactions.webp"
+                style={{ width: 28, height: 28 }}
+              />
             </div>
             <div className="chatbox-header__info">
               <span className="chatbox-header__name">Trợ lý Hệ thống</span>
@@ -196,7 +209,7 @@ function ChatBox() {
           <div className="chatbox-messages" id="chatbox-messages">
             {messages.map((msg, idx) => (
               <div key={idx} className={`chatbox-msg chatbox-msg--${msg.role}`}>
-                {msg.role === 'assistant' && <div className="chatbox-msg__avatar">AI</div>}
+
                 <div className="chatbox-msg__bubble">
                   {msg.content === '' && loading && idx === messages.length - 1 ? (
                     <div className="chatbox-thinking">
