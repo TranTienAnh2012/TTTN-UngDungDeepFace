@@ -138,9 +138,13 @@ const ExamSchedules = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-bold font-mono">
-                                                {item.seating_rows} hàng × {item.seating_cols} cột
-                                            </span>
+                                            <button 
+                                                onClick={() => { setSelectedSchedule(item); setIsEditOpen(true); }}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold font-mono transition-all hover:scale-105"
+                                                title="Bấm để chỉnh sửa sơ đồ chỗ ngồi & khóa ghế"
+                                            >
+                                                <span>{item.seating_rows} hàng × {item.seating_cols} cột</span>
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">

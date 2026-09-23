@@ -11,6 +11,7 @@ router.use(roleMiddleware('admin', 'manager', 'teacher'));
 router.get('/schedules', examController.getAllExamSchedules);
 router.get('/schedules/:id', examController.getExamScheduleById);
 router.post('/schedules', examController.createExamSchedule);
+router.post('/schedules/:id/bulk-class', examController.bulkEnrollClassForExam);
 router.put('/schedules/:id', examController.updateExamSchedule);
 router.delete('/schedules/:id', examController.deleteExamSchedule);
 
