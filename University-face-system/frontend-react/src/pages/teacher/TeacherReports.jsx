@@ -26,7 +26,8 @@ const TeacherReports = () => {
     };
 
     const handleExport = () => {
-        window.open('http://localhost:5000/api/reports/export', '_blank');
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        window.open(`${baseUrl}/api/reports/export`, '_blank');
     };
 
     const reportCards = summaryData ? [

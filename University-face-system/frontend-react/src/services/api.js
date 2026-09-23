@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+const getBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL.endsWith('/api') 
+            ? import.meta.env.VITE_API_URL 
+            : `${import.meta.env.VITE_API_URL}/api`;
+    }
+    return '/api';
+};
+
+const API_BASE_URL = getBaseUrl();
+
 const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -41,7 +52,7 @@ api.interceptors.response.use(
                 }
                 
                 // Gọi API refresh token
-                const response = await axios.post('http://localhost:5000/api/auth/refresh-token', {
+                const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
                     refreshToken: refreshToken
                 });
                 
