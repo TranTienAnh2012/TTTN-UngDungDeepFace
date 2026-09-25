@@ -127,25 +127,157 @@ function ChatBox() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  // Dragging state for Mascot
+  const [pos, setPos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chatbox_mascot_pos');
+      return saved ? JSON.parse(saved) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+  const [isDraggingState, setIsDraggingState] = useState(false);
+  const dragInfoRef = useRef(null);
+  const isMovedRef = useRef(false);
+
+  const startDrag = (e) => {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Current position
+    const currentX = pos ? pos.x : (window.innerWidth - 84);
+    const currentY = pos ? pos.y : (window.innerHeight - 84);
+
+    dragInfoRef.current = {
+      startX: clientX,
+      startY: clientY,
+      elemX: currentX,
+      elemY: currentY,
+    };
+    isMovedRef.current = false;
+
+    const onMove = (moveEvent) => {
+      if (!dragInfoRef.current) return;
+      const curX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const curY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
+
+      const deltaX = curX - dragInfoRef.current.startX;
+      const deltaY = curY - dragInfoRef.current.startY;
+
+      if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+        isMovedRef.current = true;
+        setIsDraggingState(true);
+      }
+
+      let newX = dragInfoRef.current.elemX + deltaX;
+      let newY = dragInfoRef.current.elemY + deltaY;
+
+      // Clamping inside viewport
+      newX = Math.max(10, Math.min(window.innerWidth - 74, newX));
+      newY = Math.max(10, Math.min(window.innerHeight - 74, newY));
+
+      const newPos = { x: newX, y: newY };
+      setPos(newPos);
+    };
+
+    const onEnd = () => {
+      if (dragInfoRef.current && isMovedRef.current) {
+        setPos((latestPos) => {
+          if (latestPos) {
+            try {
+              localStorage.setItem('chatbox_mascot_pos', JSON.stringify(latestPos));
+            } catch (_) {}
+          }
+          return latestPos;
+        });
+      }
+      dragInfoRef.current = null;
+      setTimeout(() => setIsDraggingState(false), 50);
+
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  };
+
+  const handleFabClick = () => {
+    if (isMovedRef.current) return; // ignore click if dragging
+    setIsOpen(true);
+  };
+
   if (!user) return null;
 
+  // Calculate active mascot position (either custom pos or default bottom-right)
+  const mascotX = pos ? pos.x : (window.innerWidth - 84);
+  const mascotY = pos ? pos.y : (window.innerHeight - 84);
+
+  const isBottomHalf = mascotY > (window.innerHeight / 2);
+  const isRightHalf = mascotX > (window.innerWidth / 2);
+
+  const quadrant = isBottomHalf
+    ? (isRightHalf ? 'bottom-right' : 'bottom-left')
+    : (isRightHalf ? 'top-right' : 'top-left');
+
+  let wrapperStyle = {};
+  if (isOpen) {
+    const pWidth = isMaximized ? Math.min(window.innerWidth * 0.9, 950) : 450;
+    const pHeight = isMaximized ? Math.min(window.innerHeight * 0.85, 580) : 580;
+
+    let panelLeft;
+    if (isRightHalf) {
+      panelLeft = Math.max(60, Math.min(mascotX - pWidth + 50, window.innerWidth - pWidth - 65));
+    } else {
+      panelLeft = Math.max(60, Math.min(mascotX, window.innerWidth - pWidth - 65));
+    }
+
+    let panelTop;
+    if (isBottomHalf) {
+      panelTop = Math.max(20, Math.min(mascotY - pHeight + 50, window.innerHeight - pHeight - 20));
+    } else {
+      panelTop = Math.max(20, Math.min(mascotY, window.innerHeight - pHeight - 20));
+    }
+
+    wrapperStyle = {
+      position: 'fixed',
+      left: `${panelLeft}px`,
+      top: `${panelTop}px`,
+      zIndex: 9999,
+    };
+  } else if (pos) {
+    wrapperStyle = {
+      position: 'fixed',
+      left: `${pos.x}px`,
+      top: `${pos.y}px`,
+      zIndex: 9999,
+    };
+  }
+
   return (
-    <div className="chatbox-wrapper">
+    <div className={`chatbox-wrapper ${isDraggingState ? 'chatbox-wrapper--dragging' : ''}`} style={wrapperStyle}>
       {/* FAB — chỉ hiện khi chatbox đóng */}
       {!isOpen && (
         <div
           className="chatbox-fab"
-          onClick={() => setIsOpen(true)}
+          onClick={handleFabClick}
+          onMouseDown={startDrag}
+          onTouchStart={startDrag}
           role="button"
           tabIndex={0}
-          aria-label="Mở hỗ trợ AI"
+          aria-label="Mở hỗ trợ AI (Có thể kéo thả)"
+          title="Kéo thả Mascot đến vị trí bất kỳ"
           id="chatbox-fab-btn"
           onKeyDown={e => e.key === 'Enter' && setIsOpen(true)}
         >
           <Mascot
             directions="/mascots/drone-directions.webp"
             reactions="/mascots/drone-reactions.webp"
-            style={{ width: 56, height: 56 }}
+            style={{ width: 56, height: 56, pointerEvents: 'none' }}
           />
           {hasUnread && <span className="chatbox-fab__badge" />}
         </div>
@@ -153,17 +285,20 @@ function ChatBox() {
 
       {/* Panel */}
       {isOpen && (
-        <>
-          {/* Mascot nổi bên ngoài - float above panel header */}
-          <div className="chatbox-mascot-float">
+        <div className={`chatbox-panel ${isMaximized ? 'chatbox-panel--maximized' : ''}`} id="chatbox-panel">
+          {/* Mascot Robot AI nhỏ nhắn đính ở góc viền ngoài (Khoanh đỏ) */}
+          <div
+            className={`chatbox-mascot-corner chatbox-mascot-corner--${quadrant}`}
+            onMouseDown={startDrag}
+            onTouchStart={startDrag}
+            title="Kéo thả vị trí Mascot"
+          >
             <Mascot
               directions="/mascots/drone-directions.webp"
               reactions="/mascots/drone-reactions.webp"
-              style={{ width: 56, height: 56 }}
+              style={{ width: 44, height: 44, pointerEvents: 'none' }}
             />
           </div>
-
-          <div className={`chatbox-panel ${isMaximized ? 'chatbox-panel--maximized' : ''}`} id="chatbox-panel">
           {/* Header */}
           <div className="chatbox-header">
 
@@ -267,7 +402,6 @@ function ChatBox() {
             </button>
           </div>
         </div>
-        </>
       )}
     </div>
   );

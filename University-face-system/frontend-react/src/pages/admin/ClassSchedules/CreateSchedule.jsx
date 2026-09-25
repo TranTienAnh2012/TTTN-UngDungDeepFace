@@ -12,6 +12,11 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
     const [selectedShiftId, setSelectedShiftId] = useState('');
     const [autoEnrollClass, setAutoEnrollClass] = useState(true);
 
+    const [classStudents, setClassStudents] = useState([]);
+    const [loadingStudents, setLoadingStudents] = useState(false);
+    const [enrollMode, setEnrollMode] = useState('all'); // 'all' | 'selective'
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+
     const [formData, setFormData] = useState({ 
         course_id: '', 
         room_id: '', 
@@ -33,6 +38,44 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
             api.get('/academic-classes?limit=1000').then(res => setAcademicClasses(res.data.data || [])).catch(console.error);
         }
     }, [isOpen]);
+
+    const handleClassChange = async (classId) => {
+        setFormData(prev => ({ ...prev, class_id: classId }));
+        setSelectedStudentIds([]);
+        if (!classId) {
+            setClassStudents([]);
+            return;
+        }
+
+        setLoadingStudents(true);
+        try {
+            const res = await api.get(`/students?class_id=${classId}&limit=500`);
+            if (res.data.success) {
+                const list = res.data.data || [];
+                setClassStudents(list);
+                setSelectedStudentIds(list.map(s => s.id));
+            }
+        } catch (err) {
+            console.error('Lỗi nạp danh sách sinh viên của lớp:', err);
+        } finally {
+            setLoadingStudents(false);
+        }
+    };
+
+    const handleToggleStudent = (studentId) => {
+        setSelectedStudentIds(prev =>
+            prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]
+        );
+    };
+
+    const handleSelectAllStudents = (e) => {
+        if (e.target.checked) {
+            setSelectedStudentIds(classStudents.map(s => s.id));
+        } else {
+            setSelectedStudentIds([]);
+        }
+    };
+
 
     if (!isOpen) return null;
 
@@ -88,12 +131,20 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
 
         setIsSubmitting(true);
         try {
-            await api.post('/classes/schedules', formData);
+            const payload = {
+                ...formData,
+                auto_enroll_class: enrollMode === 'all',
+                student_ids: enrollMode === 'selective' ? selectedStudentIds : []
+            };
+            await api.post('/classes/schedules', payload);
             onCreated();
             onClose();
             // Reset
-            setFormData({ course_id: '', room_id: '', shift_id: '', room_name: '', teacher_name: '', start_time: '', end_time: '' });
+            setFormData({ course_id: '', room_id: '', class_id: '', shift_id: '', room_name: '', teacher_name: '', start_time: '', end_time: '', auto_enroll_class: true });
             setSelectedShiftId('');
+            setClassStudents([]);
+            setSelectedStudentIds([]);
+            setEnrollMode('all');
         } catch (error) {
             alert(error.response?.data?.message || 'Lỗi thêm lịch học');
         } finally {
@@ -144,7 +195,7 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
                         </label>
                         <select
                             value={formData.class_id}
-                            onChange={e => setFormData({...formData, class_id: e.target.value})}
+                            onChange={e => handleClassChange(e.target.value)}
                             className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                         >
                             <option value="" className="text-gray-500">-- Không gắn lớp cụ thể (Hoặc chọn lớp) --</option>
@@ -155,17 +206,74 @@ const CreateSchedule = ({ isOpen, onClose, onCreated }) => {
                             ))}
                         </select>
                         {formData.class_id && (
-                            <label className="flex items-center gap-2 mt-2 text-xs font-bold text-indigo-700 cursor-pointer bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-100">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.auto_enroll_class}
-                                    onChange={e => setFormData({...formData, auto_enroll_class: e.target.checked})}
-                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span>Tự động nạp toàn bộ sinh viên của lớp này vào lịch học</span>
-                            </label>
+                            <div className="mt-2.5 p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 space-y-2">
+                                <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
+                                    <span>Nạp sinh viên vào lịch học:</span>
+                                    <div className="flex items-center gap-3">
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="enrollMode"
+                                                value="all"
+                                                checked={enrollMode === 'all'}
+                                                onChange={() => setEnrollMode('all')}
+                                                className="text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span>Nạp cả lớp ({classStudents.length} SV)</span>
+                                        </label>
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="enrollMode"
+                                                value="selective"
+                                                checked={enrollMode === 'selective'}
+                                                onChange={() => setEnrollMode('selective')}
+                                                className="text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span>Chọn từng SV</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {enrollMode === 'selective' && (
+                                    <div className="mt-2 bg-white rounded-lg p-2.5 border border-indigo-200 max-h-44 overflow-y-auto space-y-1.5 text-xs">
+                                        {loadingStudents ? (
+                                            <p className="text-gray-400 text-center py-2">Đang nạp sinh viên lớp...</p>
+                                        ) : classStudents.length === 0 ? (
+                                            <p className="text-gray-400 text-center py-2">Lớp này không có sinh viên</p>
+                                        ) : (
+                                            <>
+                                                <label className="flex items-center gap-2 pb-1 border-b border-gray-100 font-bold text-gray-800 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedStudentIds.length === classStudents.length && classStudents.length > 0}
+                                                        onChange={handleSelectAllStudents}
+                                                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <span>Chọn tất cả ({selectedStudentIds.length}/{classStudents.length})</span>
+                                                </label>
+                                                {classStudents.map(st => (
+                                                    <label key={st.id} className="flex items-center justify-between py-1 px-1 rounded hover:bg-gray-50 cursor-pointer">
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedStudentIds.includes(st.id)}
+                                                                onChange={() => handleToggleStudent(st.id)}
+                                                                className="rounded text-indigo-600 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="font-mono text-gray-700">{st.student_code}</span>
+                                                            <span className="font-medium text-gray-900">{st.full_name}</span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
+
 
                     {/* Room Selection */}
                     <div>

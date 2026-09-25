@@ -929,10 +929,9 @@ exports.exportAttendanceExcel = async (req, res) => {
                     s.student_code, s.full_name, s.class_name,
                     ea.seat_row, ea.seat_col,
                     ea.check_in_time, ea.check_out_time, ea.status, ea.confidence_score
-                FROM exam_attendance ea
-                JOIN students s ON s.id = ea.student_id
-                WHERE ea.exam_schedule_id = ?
-                ORDER BY COALESCE(ea.check_in_time, ea.check_out_time) ASC
+                FROM students s
+                LEFT JOIN exam_attendance ea ON s.id = ea.student_id AND ea.exam_schedule_id = ?
+                ORDER BY COALESCE(ea.check_in_time, ea.check_out_time) DESC, s.student_code ASC
             `, [schedule_id]);
 
             if (!ExcelJS) {
@@ -1101,10 +1100,9 @@ exports.exportAttendanceExcel = async (req, res) => {
             SELECT 
                 s.student_code, s.full_name, s.class_name,
                 ca.check_in_time, ca.check_out_time, ca.status, ca.confidence_score
-            FROM class_attendance ca
-            JOIN students s ON s.id = ca.student_id
-            WHERE ca.schedule_id = ?
-            ORDER BY COALESCE(ca.check_in_time, ca.check_out_time) ASC
+            FROM students s
+            LEFT JOIN class_attendance ca ON s.id = ca.student_id AND ca.schedule_id = ?
+            ORDER BY COALESCE(ca.check_in_time, ca.check_out_time) DESC, s.student_code ASC
         `, [schedule_id]);
 
         if (!ExcelJS) {

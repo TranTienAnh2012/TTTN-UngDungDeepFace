@@ -67,8 +67,9 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
 
     const handleExportExcel = () => {
         if (!schedule?.id) return;
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        window.open(`${API_BASE}/api/attendance/export/${schedule.id}`, '_blank');
+        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+        const targetUrl = `${apiBase}/api/attendance/export/${schedule.id}?type=class`;
+        window.open(targetUrl, '_blank');
     };
 
     if (!isOpen || !schedule) return null;

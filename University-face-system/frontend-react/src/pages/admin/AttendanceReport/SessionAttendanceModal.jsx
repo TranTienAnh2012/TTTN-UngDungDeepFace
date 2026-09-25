@@ -174,9 +174,10 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
 
     const handleExportExcel = () => {
         if (!session?.id) return;
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
         const typeParam = isExam ? '?type=exam' : '?type=class';
-        window.open(`${API_BASE}/api/attendance/export/${session.id}${typeParam}`, '_blank');
+        const targetUrl = `${apiBase}/api/attendance/export/${session.id}${typeParam}`;
+        window.open(targetUrl, '_blank');
     };
 
     // Calendar generation helpers

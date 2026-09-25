@@ -38,8 +38,12 @@ api.interceptors.response.use(
         
         // Nếu lỗi 401 và chưa thử refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
-            // Bỏ qua interceptor cho các endpoint liên quan đến auth (login, face-login,...)
-            if (originalRequest.url?.includes('/auth/')) {
+            // Bỏ qua interceptor cho các endpoint đăng nhập/refresh (signin, face-login, refresh-token)
+            const isAuthAuthEndpoint = originalRequest.url?.includes('/auth/signin') || 
+                                       originalRequest.url?.includes('/auth/login') || 
+                                       originalRequest.url?.includes('/auth/refresh-token') || 
+                                       originalRequest.url?.includes('/auth/face-login');
+            if (isAuthAuthEndpoint) {
                 return Promise.reject(error);
             }
 

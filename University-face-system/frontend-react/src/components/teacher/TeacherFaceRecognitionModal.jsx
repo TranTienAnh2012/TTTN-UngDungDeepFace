@@ -116,7 +116,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
 
         isProcessingRef.current = true;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
             const res = await api.post('/attendance/auto-verify', {

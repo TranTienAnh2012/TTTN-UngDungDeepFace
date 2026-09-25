@@ -202,25 +202,27 @@ exports.getScheduleStudents = async (req, res) => {
 
         // Fallback nếu enrollments chưa có
         if (students.length === 0) {
-            const classFilter = currentSchedule.class_id ? 'WHERE s.class_id = ?' : '';
-            const queryParams = currentSchedule.class_id ? [scheduleId, currentSchedule.class_id] : [scheduleId];
-            [students] = await pool.query(`
-                SELECT s.id as student_id, s.student_code, s.full_name, s.email, s.date_of_birth,
-                       s.class_id, cl.class_code as student_official_class, cl.class_name,
-                       f.faculty_code, f.faculty_name,
-                       (s.face_embedding IS NOT NULL) as face_registered,
-                       'regular' as enrollment_type,
-                       ca.id as attendance_id,
-                       ca.check_in_time, ca.check_in_confidence, ca.check_in_status,
-                       ca.check_out_time, ca.check_out_confidence, ca.check_out_status,
-                       ca.status as attendance_status, ca.confidence_score, ca.notes
-                FROM students s
-                LEFT JOIN classes cl ON s.class_id = cl.id
-                LEFT JOIN faculties f ON s.faculty_id = f.id
-                LEFT JOIN class_attendance ca ON ca.student_id = s.id AND ca.schedule_id = ?
-                ${classFilter}
-                ORDER BY s.student_code ASC
-            `, queryParams);
+            if (currentSchedule.class_id) {
+                [students] = await pool.query(`
+                    SELECT s.id as student_id, s.student_code, s.full_name, s.email, s.date_of_birth,
+                           s.class_id, cl.class_code as student_official_class, cl.class_name,
+                           f.faculty_code, f.faculty_name,
+                           (s.face_embedding IS NOT NULL) as face_registered,
+                           'regular' as enrollment_type,
+                           ca.id as attendance_id,
+                           ca.check_in_time, ca.check_in_confidence, ca.check_in_status,
+                           ca.check_out_time, ca.check_out_confidence, ca.check_out_status,
+                           ca.status as attendance_status, ca.confidence_score, ca.notes
+                    FROM students s
+                    LEFT JOIN classes cl ON s.class_id = cl.id
+                    LEFT JOIN faculties f ON s.faculty_id = f.id
+                    LEFT JOIN class_attendance ca ON ca.student_id = s.id AND ca.schedule_id = ?
+                    WHERE s.class_id = ? OR s.class_name = (SELECT class_code FROM classes WHERE id = ?)
+                    ORDER BY s.student_code ASC
+                `, [scheduleId, currentSchedule.class_id, currentSchedule.class_id]);
+            } else {
+                students = [];
+            }
         }
 
         // 3. Lấy toàn bộ các buổi học trong kỳ của môn học này (cho Lịch học / Tiến trình học)

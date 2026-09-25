@@ -290,7 +290,10 @@ const TeacherDashboard = () => {
                                 <p className="text-xs text-slate-400 mt-0.5">Cập nhật dữ liệu từ hệ thống</p>
                             </div>
                             <button 
-                                onClick={() => window.open((import.meta.env.VITE_API_URL || '') + '/api/reports/export', '_blank')}
+                                onClick={() => {
+                                    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+                                    window.open(`${apiBase}/api/reports/export`, '_blank');
+                                }}
                                 className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all"
                             >
                                 <Download size={14} />
