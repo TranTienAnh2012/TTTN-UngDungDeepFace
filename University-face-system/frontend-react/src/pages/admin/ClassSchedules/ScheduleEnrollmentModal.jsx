@@ -50,7 +50,7 @@ const ScheduleEnrollmentModal = ({ isOpen, onClose, schedule }) => {
 
     const fetchAllStudents = async () => {
         try {
-            const res = await api.get('/students?limit=500');
+            const res = await api.get('/students?limit=1000');
             if (res.data.success) {
                 setAllStudents(res.data.data || []);
             }
@@ -148,13 +148,15 @@ const ScheduleEnrollmentModal = ({ isOpen, onClose, schedule }) => {
     );
 
     // Filter available students for search dropdown
-    const enrolledIds = new Set(enrolledStudents.map(s => s.student_id));
+    const enrolledIds = new Set(enrolledStudents.map(s => s.student_id || s.id));
     const availableStudents = allStudents.filter(s =>
         !enrolledIds.has(s.id) &&
         (studentSearchTerm === '' ||
             s.student_code?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
             s.full_name?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-            s.academic_class_code?.toLowerCase().includes(studentSearchTerm.toLowerCase()))
+            s.academic_class_code?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+            s.class_code?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+            s.class_name?.toLowerCase().includes(studentSearchTerm.toLowerCase()))
     );
 
     const getEnrollmentTypeBadge = (type) => {
@@ -253,21 +255,28 @@ const ScheduleEnrollmentModal = ({ isOpen, onClose, schedule }) => {
 
                     {/* Box 2: Add Outside / Retake Student */}
                     <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                        <div className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <div className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                             <UserPlus size={15} className="text-indigo-600" />
                             <span>Thêm Sinh Viên Học Lại / Học Ghép (Ngoài Lớp)</span>
                         </div>
-                        <form onSubmit={handleAddSingleStudent} className="space-y-2.5">
+                        <form onSubmit={handleAddSingleStudent} className="space-y-2">
+                            <input
+                                type="text"
+                                placeholder="Gõ MSSV hoặc Tên để tìm..."
+                                value={studentSearchTerm}
+                                onChange={(e) => setStudentSearchTerm(e.target.value)}
+                                className="w-full px-2.5 py-1 border border-indigo-200 rounded-lg text-xs text-gray-900 font-medium bg-indigo-50/40 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                            />
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <select
                                     value={selectedStudentId}
                                     onChange={(e) => setSelectedStudentId(e.target.value)}
                                     className="sm:col-span-2 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-900 font-medium bg-white focus:ring-2 focus:ring-indigo-500 truncate"
                                 >
-                                    <option value="">-- Chọn Sinh Viên --</option>
+                                    <option value="">-- Chọn Sinh Viên ({availableStudents.length} SV) --</option>
                                     {availableStudents.slice(0, 150).map(st => (
                                         <option key={st.id} value={st.id}>
-                                            {st.student_code} - {st.full_name} ({st.academic_class_code || st.class_name || 'Không có lớp'})
+                                            {st.student_code} - {st.full_name} ({st.academic_class_code || st.class_code || st.class_name || 'Không có lớp'})
                                         </option>
                                     ))}
                                 </select>
@@ -293,6 +302,7 @@ const ScheduleEnrollmentModal = ({ isOpen, onClose, schedule }) => {
                         </form>
                     </div>
                 </div>
+
 
                 {/* Filter & Search Enrolled */}
                 <div className="p-4 bg-white border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">

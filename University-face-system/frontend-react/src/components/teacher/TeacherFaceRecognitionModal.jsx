@@ -6,6 +6,30 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
+const isFaceInsideOval = (box, imageSize = [640, 480], ovalConfig = { cx: 320, cy: 235, rx: 140, ry: 190 }) => {
+    if (!box || !Array.isArray(box) || box.length < 4) return false;
+    const [imgW, imgH] = imageSize && imageSize[0] ? imageSize : [640, 480];
+    let x, y, w, h;
+    if (box[2] > box[0] && box[3] > box[1] && box[2] > 50 && box[3] > 50 && box[0] < 500 && box[1] < 500) {
+        x = box[0];
+        y = box[1];
+        w = box[2] - box[0];
+        h = box[3] - box[1];
+    } else {
+        x = box[0];
+        y = box[1];
+        w = box[2];
+        h = box[3];
+    }
+    const scaleX = 640 / (imgW || 640);
+    const scaleY = 480 / (imgH || 480);
+    const faceCenterX = (x + w / 2) * scaleX;
+    const faceCenterY = (y + h / 2) * scaleY;
+    const { cx, cy, rx, ry } = ovalConfig;
+    const normalizedDist = Math.pow((faceCenterX - cx) / rx, 2) + Math.pow((faceCenterY - cy) / ry, 2);
+    return normalizedDist <= 0.95;
+};
+
 const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examScheduleId = null, sessionTitle = '' }) => {
     const webcamRef = useRef(null);
     const offscreenCanvasRef = useRef(null);
@@ -17,6 +41,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
     const [isScanning, setIsScanning] = useState(true);
     const [box, setBox] = useState(null);
     const [imageSize, setImageSize] = useState([640, 480]);
+    const [qualityReason, setQualityReason] = useState(null);
     const [guidanceMessage, setGuidanceMessage] = useState('🎯 Vui lòng đưa khuôn mặt vào giữa khung tròn');
     
     // Recognition Results
@@ -91,7 +116,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
 
         isProcessingRef.current = true;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
             const res = await api.post('/attendance/auto-verify', {
@@ -104,20 +129,44 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
             clearTimeout(timeoutId);
 
             if (res.data.success) {
-                if (res.data.message) {
-                    setGuidanceMessage(res.data.message);
-                }
-                if (res.data.box) {
-                    setBox(res.data.box);
-                    if (res.data.image_size) setImageSize(res.data.image_size);
-                } else {
-                    setBox(null);
-                }
+                const isInside = res.data.box && isFaceInsideOval(res.data.box, res.data.image_size || imageSize);
+                const isOutside = res.data.quality_reason === 'outside_oval_frame' || (res.data.box && !isInside);
+                const isTooDark = res.data.quality_reason && res.data.quality_reason.includes('too_dark');
+                const isClosedEye = res.data.eye_state === 'closed' || res.data.is_eye_open === false;
 
-                if (cooldownRef.current) {
+                const curReason = res.data.quality_reason || (isOutside ? 'outside_oval_frame' : null);
+                setQualityReason(curReason);
+
+                const now = Date.now();
+                const isBlinkValid = blinkRef.current.hasSeenClosed && (now - blinkRef.current.lastClosedTime < 10000);
+
+                if (isOutside) {
+                    setGuidanceMessage('🎯 Vui lòng di chuyển khuôn mặt vào trong vòng tròn hướng dẫn');
+                    setBox(null);
                     voteBufferRef.current = [];
                     setVoteProgress(0);
-                } else if (res.data.match) {
+                } else if (isTooDark) {
+                    setGuidanceMessage('💡 Ánh sáng không đủ! Vui lòng di chuyển đến nơi sáng hơn hoặc bật thêm đèn');
+                    setBox(null);
+                    voteBufferRef.current = [];
+                    setVoteProgress(0);
+                } else {
+                    if (res.data.box && isInside) {
+                        setBox(res.data.box);
+                        if (res.data.image_size) setImageSize(res.data.image_size);
+                        setGuidanceMessage('🎯 Vui lòng giữ khuôn mặt trong vòng tròn hướng dẫn');
+                    } else {
+                        setBox(null);
+                        if (res.data.message) {
+                            setGuidanceMessage(res.data.message);
+                        }
+                    }
+                }
+
+                if (cooldownRef.current || isOutside || isTooDark) {
+                    voteBufferRef.current = [];
+                    setVoteProgress(0);
+                } else if (res.data.match && isInside && res.data.is_live !== false) {
                     const buffer = voteBufferRef.current;
                     buffer.push({
                         student_id: res.data.student?.id,
@@ -190,7 +239,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
 
     useEffect(() => {
         if (!isOpen || !isScanning) return;
-        const interval = setInterval(processCameraFrame, 600);
+        const interval = setInterval(processCameraFrame, 200);
         return () => clearInterval(interval);
     }, [isOpen, isScanning, processCameraFrame]);
 
@@ -250,15 +299,33 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
 
                             {/* Circular Mask Overlay */}
                             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                                <svg className="w-full h-full" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice">
+                                <svg className="w-full h-full" viewBox="0 0 640 480" preserveAspectRatio="none">
                                     <defs>
                                         <mask id="teacherModalCircleMask">
                                             <rect width="640" height="480" fill="white" />
-                                            <circle cx="320" cy="240" r="160" fill="black" />
+                                            <ellipse cx="320" cy="235" rx="140" ry="190" fill="black" />
                                         </mask>
                                     </defs>
                                     <rect width="640" height="480" fill="rgba(15, 23, 42, 0.65)" mask="url(#teacherModalCircleMask)" />
-                                    <circle cx="320" cy="240" r="160" fill="none" stroke="#6366F1" strokeWidth="3" strokeDasharray="8 6" className="animate-pulse" />
+                                    <ellipse
+                                        cx="320"
+                                        cy="235"
+                                        rx="140"
+                                        ry="190"
+                                        fill="none"
+                                        stroke={
+                                            box
+                                                ? (attendanceType === 'check_in' ? '#10B981' : '#6366F1')
+                                                : (qualityReason && qualityReason.includes('too_dark'))
+                                                ? '#F59E0B'
+                                                : qualityReason === 'outside_oval_frame'
+                                                ? '#EF4444'
+                                                : '#6366F1'
+                                        }
+                                        strokeWidth={box ? '4' : '3'}
+                                        strokeDasharray={box ? 'none' : '8 6'}
+                                        className="transition-all duration-300 animate-pulse"
+                                    />
                                 </svg>
                             </div>
 
@@ -269,16 +336,41 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
                                     style={{
                                         left: `${(box[0] / imageSize[0]) * 100}%`,
                                         top: `${(box[1] / imageSize[1]) * 100}%`,
-                                        width: `${((box[2] - box[0]) / imageSize[0]) * 100}%`,
-                                        height: `${((box[3] - box[1]) / imageSize[1]) * 100}%`,
+                                        width: `${((box[2] > box[0] && box[2] > 50 && box[0] < 500 ? (box[2] - box[0]) : box[2]) / imageSize[0]) * 100}%`,
+                                        height: `${((box[3] > box[1] && box[3] > 50 && box[1] < 500 ? (box[3] - box[1]) : box[3]) / imageSize[1]) * 100}%`,
                                     }}
                                 />
                             )}
 
                             {/* Guidance Message Banner */}
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-md text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg border border-white/10 flex items-center gap-2 max-w-[90%] truncate">
+                            <div className={`absolute top-4 left-1/2 -translate-x-1/2 text-xs font-semibold px-4 py-2 rounded-full shadow-lg backdrop-blur-md border flex items-center gap-2 max-w-[90%] truncate transition-all duration-300 ${
+                                qualityReason && qualityReason.includes('too_dark')
+                                    ? 'bg-amber-900/90 text-amber-200 border-amber-500/50 shadow-amber-900/50 animate-pulse'
+                                    : qualityReason === 'outside_oval_frame'
+                                    ? 'bg-red-900/90 text-red-200 border-red-500/50 shadow-red-900/50'
+                                    : 'bg-slate-900/80 text-white border-white/10'
+                            }`}>
                                 <span>{guidanceMessage}</span>
                             </div>
+
+                            {/* Liveness Blink Status Indicator Badge */}
+                            {box && (
+                                <div className="absolute top-14 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-md shadow-md transition-all duration-300 z-10">
+                                    {blinkStatus === 'BLINK_DETECTED' ? (
+                                        <span className="bg-amber-500/90 text-white px-3 py-1 rounded-full border border-amber-300 text-[11px] font-bold flex items-center gap-1 animate-pulse">
+                                            😉 Đã phát hiện chớp mắt!
+                                        </span>
+                                    ) : blinkStatus === 'VERIFIED' ? (
+                                        <span className="bg-emerald-500/90 text-white px-3 py-1 rounded-full border border-emerald-300 text-[11px] font-bold flex items-center gap-1">
+                                            ✅ Xác thực người thật (Liveness OK)
+                                        </span>
+                                    ) : (
+                                        <span className="bg-sky-600/90 text-white px-3 py-1 rounded-full border border-sky-300 text-[11px] font-bold flex items-center gap-1">
+                                            👁️ Hãy chớp mắt để hoàn tất
+                                        </span>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Multi-frame voting progress bar */}
                             {voteProgress > 0 && (

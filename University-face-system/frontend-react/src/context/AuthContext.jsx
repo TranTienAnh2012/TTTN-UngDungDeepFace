@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
                     const response = await api.get('/auth/me');
                     setUser(response.data.data);
                 } catch (error) {
-                    console.error("Lỗi khi lấy thông tin người dùng", error);
+                    console.warn("Phiên đăng nhập hết hạn hoặc không hợp lệ:", error?.response?.data?.message || error.message);
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('refresh_token');
                     sessionStorage.removeItem('access_token');

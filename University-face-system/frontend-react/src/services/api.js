@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+const getBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL.endsWith('/api') 
+            ? import.meta.env.VITE_API_URL 
+            : `${import.meta.env.VITE_API_URL}/api`;
+    }
+    return '/api';
+};
+
+const API_BASE_URL = getBaseUrl();
+
 const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -27,8 +38,12 @@ api.interceptors.response.use(
         
         // Nếu lỗi 401 và chưa thử refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
-            // Bỏ qua interceptor cho các endpoint liên quan đến auth (login, face-login,...)
-            if (originalRequest.url?.includes('/auth/')) {
+            // Bỏ qua interceptor cho các endpoint đăng nhập/refresh (signin, face-login, refresh-token)
+            const isAuthAuthEndpoint = originalRequest.url?.includes('/auth/signin') || 
+                                       originalRequest.url?.includes('/auth/login') || 
+                                       originalRequest.url?.includes('/auth/refresh-token') || 
+                                       originalRequest.url?.includes('/auth/face-login');
+            if (isAuthAuthEndpoint) {
                 return Promise.reject(error);
             }
 
@@ -41,7 +56,7 @@ api.interceptors.response.use(
                 }
                 
                 // Gọi API refresh token
-                const response = await axios.post('http://localhost:5000/api/auth/refresh-token', {
+                const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
                     refreshToken: refreshToken
                 });
                 

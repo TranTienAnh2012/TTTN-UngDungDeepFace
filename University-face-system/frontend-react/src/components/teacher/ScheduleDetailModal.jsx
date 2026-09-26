@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-    X, Calendar as CalendarIcon, Clock, MapPin, BookOpen, Users, User,
-    GraduationCap, Building2, Search, CheckCircle, AlertCircle,
-    Play, Camera, ShieldCheck, CheckCircle2, UserCheck, RefreshCw,
-    ExternalLink, ChevronLeft, ChevronRight, Layers, Award, Sparkles, Check
+import { 
+    X, Calendar as CalendarIcon, Clock, MapPin, BookOpen, Users, User, 
+    GraduationCap, Building2, Search, CheckCircle, AlertCircle, 
+    Play, Camera, ShieldCheck, CheckCircle2, UserCheck, RefreshCw, ExternalLink, Download,
+    ChevronLeft, ChevronRight, Layers, Award, Sparkles, Check 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -65,12 +65,19 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
         }
     };
 
+    const handleExportExcel = () => {
+        if (!schedule?.id) return;
+        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+        const targetUrl = `${apiBase}/api/attendance/export/${schedule.id}?type=class`;
+        window.open(targetUrl, '_blank');
+    };
+
     if (!isOpen || !schedule) return null;
 
     const formatTimeOnly = (dateString) => {
         if (!dateString) return null;
         const d = new Date(dateString);
-        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
 
     const formatDateOnly = (dateString) => {
@@ -108,7 +115,7 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
             return (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <CheckCircle2 size={12} className="text-emerald-600" />
-                    Đầy đủ ({s.check_in_time ? formatTimeOnly(s.check_in_time) : '07:15'} - {s.check_out_time ? formatTimeOnly(s.check_out_time) : '09:10'})
+                    Đủ đầu & cuối giờ ({s.check_in_time ? formatTimeOnly(s.check_in_time) : '07:15'} – {s.check_out_time ? formatTimeOnly(s.check_out_time) : '09:10'})
                 </span>
             );
         }
@@ -195,13 +202,23 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
                         </p>
                     </div>
 
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
-                        title="Đóng"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportExcel}
+                            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                            title="Xuất Excel danh sách điểm danh"
+                        >
+                            <Download size={14} />
+                            <span>Xuất Excel</span>
+                        </button>
+                        <button 
+                            onClick={onClose}
+                            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+                            title="Đóng"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Info Cards Grid */}
@@ -614,38 +631,48 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
                         Đóng
                     </button>
 
-                    {schedule.status !== 'Ended' && (
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={() => {
-                                const now = new Date();
-                                const start = schedule.start_time ? new Date(schedule.start_time) : null;
-                                const end = schedule.end_time ? new Date(schedule.end_time) : null;
-
-                                if (start) {
-                                    const windowStart = new Date(start.getTime() - 60 * 60 * 1000);
-                                    const windowEnd = new Date(end ? end.getTime() + 60 * 60 * 1000 : start.getTime() + 3 * 60 * 60 * 1000);
-
-                                    if (now < windowStart) {
-                                        const timeStr = windowStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                                        alert(`Chưa tới thời gian điểm danh!\nHệ thống chỉ mở điểm danh trước ca học 1 tiếng (bắt đầu mở từ ${timeStr}).`);
-                                        return;
-                                    }
-
-                                    if (now > windowEnd) {
-                                        alert(`Đã quá thời hạn điểm danh cho ca học này (hệ thống đóng điểm danh sau ca học 1 tiếng).`);
-                                        return;
-                                    }
-                                }
-
-                                onClose();
-                                navigate(`/teacher/face-recognition?schedule_id=${schedule.id}`);
-                            }}
-                            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all flex items-center gap-2 active:scale-95"
+                            onClick={handleExportExcel}
+                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-100 transition-all flex items-center gap-2 active:scale-95"
                         >
-                            <Play size={15} />
-                            <span>Mở Camera Điểm Danh Ca Này</span>
+                            <Download size={15} />
+                            <span>Xuất File Excel</span>
                         </button>
-                    )}
+
+                        {schedule.status !== 'Ended' && (
+                            <button
+                                onClick={() => {
+                                    const now = new Date();
+                                    const start = schedule.start_time ? new Date(schedule.start_time) : null;
+                                    const end = schedule.end_time ? new Date(schedule.end_time) : null;
+
+                                    if (start) {
+                                        const windowStart = new Date(start.getTime() - 60 * 60 * 1000);
+                                        const windowEnd = new Date(end ? end.getTime() + 60 * 60 * 1000 : start.getTime() + 3 * 60 * 60 * 1000);
+
+                                        if (now < windowStart) {
+                                            const timeStr = windowStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                                            alert(`Chưa tới thời gian điểm danh!\nHệ thống chỉ mở điểm danh trước ca học 1 tiếng (bắt đầu mở từ ${timeStr}).`);
+                                            return;
+                                        }
+
+                                        if (now > windowEnd) {
+                                            alert(`Đã quá thời hạn điểm danh cho ca học này (hệ thống đóng điểm danh sau ca học 1 tiếng).`);
+                                            return;
+                                        }
+                                    }
+
+                                    onClose();
+                                    navigate(`/teacher/face-recognition?schedule_id=${schedule.id}`);
+                                }}
+                                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all flex items-center gap-2 active:scale-95"
+                            >
+                                <Play size={15} />
+                                <span>Mở Camera Điểm Danh Ca Này</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
             </div>

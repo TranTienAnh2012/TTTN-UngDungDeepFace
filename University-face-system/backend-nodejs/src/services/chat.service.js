@@ -72,7 +72,7 @@ function extractDateOffset(query) {
     if (q.includes('hom qua')) {
         return { offset: -1, label: 'hôm qua' };
     }
-    if (q.includes('tuan nay')) {
+    if (q.includes('tuan nay') || q.includes('tuan hom nay') || q.includes('tuan')) {
         return { offset: null, isWeek: true, label: 'tuần này' };
     }
     if (q.includes('hom nay') || q.includes('bay gio')) {
@@ -185,11 +185,18 @@ async function getOnDemandDbContext(query) {
 
     // 3. Live Class Schedules Query (strictly for actual schedule questions, avoiding false match on "chi tiết")
     const dateMeta = extractDateOffset(query);
-    const hasDetailWordOnly = q.includes('chi tiet') && !dateMeta && !q.includes('lich hoc');
+    const hasDetailWordOnly = q.includes('chi tiet') && !dateMeta && !q.includes('lich hoc') && !q.includes('lich day') && !q.includes('giang day');
     const isScheduleQuery = !hasDetailWordOnly && (
         dateMeta || 
         q.includes('lich hoc') || 
         q.includes('ca hoc') ||
+        q.includes('lich day') ||
+        q.includes('giang day') ||
+        q.includes('ca day') ||
+        q.includes('ca nao') ||
+        q.includes('co ca') ||
+        q.includes('co tiet') ||
+        q.includes('tuan') ||
         (q.includes('tiet') && !q.includes('chi tiet'))
     );
 
@@ -198,8 +205,9 @@ async function getOnDemandDbContext(query) {
             let dateCondition = 'DATE(cs.start_time) = CURDATE() OR (NOW() BETWEEN cs.start_time AND cs.end_time)';
             let label = dateMeta ? dateMeta.label : 'hôm nay';
 
-            if (dateMeta && dateMeta.isWeek) {
+            if ((dateMeta && dateMeta.isWeek) || q.includes('tuan')) {
                 dateCondition = 'YEARWEEK(cs.start_time, 1) = YEARWEEK(CURDATE(), 1)';
+                label = 'tuần này';
             } else if (dateMeta && dateMeta.offset !== null) {
                 if (dateMeta.offset >= 0) {
                     dateCondition = `DATE(cs.start_time) = DATE_ADD(CURDATE(), INTERVAL ${dateMeta.offset} DAY)`;
@@ -209,53 +217,58 @@ async function getOnDemandDbContext(query) {
             }
 
             const [rows] = await pool.query(`
-                SELECT cs.id, cs.room_name, cs.teacher_name,
+                SELECT cs.id, cs.room_name,
                        DATE_FORMAT(cs.start_time, '%H:%i') as start_hm,
                        DATE_FORMAT(cs.end_time, '%H:%i') as end_hm,
                        DATE_FORMAT(cs.start_time, '%d/%m/%Y') as date_str,
+                       DAYNAME(cs.start_time) as day_name,
                        c.course_code, c.course_name
                 FROM class_schedules cs
                 JOIN courses c ON cs.course_id = c.id
                 WHERE ${dateCondition}
                 ORDER BY cs.start_time ASC
-                LIMIT 5
+                LIMIT 10
             `);
 
-            const [dateRows] = await pool.query(
-                dateMeta && dateMeta.offset !== null
-                    ? `SELECT DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL ? DAY), '%d/%m/%Y') as target_date`
-                    : `SELECT DATE_FORMAT(CURDATE(), '%d/%m/%Y') as target_date`,
-                [dateMeta ? dateMeta.offset || 0 : 0]
-            );
-            const targetDateStr = dateRows[0]?.target_date || '';
-
-            if (rows.length === 0) {
-                let answer = `Dạ vào ${label} (${targetDateStr}), hệ thống hiện **chưa có tiết học nào** được xếp lịch.`;
-
+            let scheduleRows = rows;
+            if (scheduleRows.length === 0) {
                 const [allRows] = await pool.query(`
-                    SELECT cs.id, cs.room_name, cs.teacher_name,
+                    SELECT cs.id, cs.room_name,
                            DATE_FORMAT(cs.start_time, '%H:%i') as start_hm,
                            DATE_FORMAT(cs.end_time, '%H:%i') as end_hm,
                            DATE_FORMAT(cs.start_time, '%d/%m/%Y') as date_str,
+                           DAYNAME(cs.start_time) as day_name,
                            c.course_code, c.course_name
                     FROM class_schedules cs
                     JOIN courses c ON cs.course_id = c.id
-                    ORDER BY cs.start_time ASC
-                    LIMIT 3
+                    ORDER BY cs.start_time DESC
+                    LIMIT 5
                 `);
-
-                if (allRows.length > 0) {
-                    answer += `\n\n📌 **Lịch học gần nhất trong CSDL:**\n` +
-                        allRows.map(r => `• Môn **${r.course_name} (${r.course_code})** - Ngày ${r.date_str} (${r.start_hm} - ${r.end_hm} tại **${r.room_name}**) - GV: ${r.teacher_name || 'Chưa phân công'}`).join('\n');
-                }
-
-                return { contextString: `DULIEU_CSDL: Không có tiết học ngày ${label} (${targetDateStr}).`, dynamicAnswer: answer };
+                scheduleRows = allRows;
             }
 
-            const items = rows.map((r, idx) => `${idx + 1}. Môn **${r.course_name} (${r.course_code})**\n   • Thời gian: ${r.start_hm} - ${r.end_hm}\n   • Phòng / Lớp: **${r.room_name || 'Phòng Lab'}**\n   • Giảng viên: ${r.teacher_name || 'Chưa phân công'}`);
+            if (scheduleRows.length === 0) {
+                const answer = `📅 Dạ hiện tại hệ thống chưa có dữ liệu lịch giảng dạy nào trong cơ sở dữ liệu.`;
+                return { contextString: 'DULIEU_CSDL: Chưa có lịch học.', dynamicAnswer: answer };
+            }
+
+            const dayViMap = {
+                'Monday': 'Thứ Hai',
+                'Tuesday': 'Thứ Ba',
+                'Wednesday': 'Thứ Tư',
+                'Thursday': 'Thứ Năm',
+                'Friday': 'Thứ Sáu',
+                'Saturday': 'Thứ Bảy',
+                'Sunday': 'Chủ Nhật'
+            };
+
+            const items = scheduleRows.map((r, idx) => {
+                const dayVi = dayViMap[r.day_name] || r.date_str;
+                return `${idx + 1}. Môn **${r.course_name} (${r.course_code})**\n   • Thời gian: ${dayVi}, ${r.date_str} (${r.start_hm} - ${r.end_hm})\n   • Phòng học: **${r.room_name || 'Phòng Lab'}**`;
+            });
             
-            const answer = `Dạ vào **${label} (${rows[0].date_str})**, hệ thống có **${rows.length} tiết học**:\n\n` + items.join('\n\n') + '\n\n👉 Bạn có thể bấm nút "Mở Camera Điểm Danh Ngay" trên màn hình để điểm danh AI.';
-            return { contextString: `DULIEU_CSDL: ${rows.map(r => `${r.course_code} - ${r.course_name} tại ${r.room_name}`).join('; ')}`, dynamicAnswer: answer };
+            const answer = `📅 **Danh sách lịch giảng dạy ${label} (${scheduleRows.length} ca):**\n\n` + items.join('\n\n') + '\n\n👉 Bạn có thể bấm nút "Mở Camera Điểm Danh Ngay" trên màn hình để điểm danh AI.';
+            return { contextString: `DULIEU_CSDL: ${scheduleRows.map(r => `${r.course_code} - ${r.course_name} tại ${r.room_name}`).join('; ')}`, dynamicAnswer: answer };
         } catch (err) {
             console.error('Lỗi RAG query schedules:', err.message);
         }
@@ -369,14 +382,8 @@ function getLocalStaticAnswer(query) {
                '4. Lưu ý: MSSV và Email không được trùng lặp.';
     }
 
-    // 11. General fallback summary
-    return '🤖 **Trợ lý AI hệ thống điểm danh luôn sẵn sàng giải đáp các thắc mắc:**\n' +
-           '• 📷 **Quy trình điểm danh vào ca**: Kích hoạt camera AI 1:N, Check-in/Check-out.\n' +
-           '• 📸 **Đăng ký khuôn mặt**: Quy trình 3 bước chuẩn AI (Thẳng, Trái, Phải).\n' +
-           '• ⏰ **Xử lý tình huống**: Quá giờ điểm danh, sinh viên đi muộn, lỗi camera/scan mặt, mất mạng.\n' +
-           '• 📅 **Lịch học & Ca giảng dạy**: Tra cứu hôm nay, ngày mai, tuần này.\n' +
-           '• 📝 **Lịch thi & Điều kiện dự thi**: Sơ đồ chỗ ngồi, quy định cấm thi (>20% vắng).\n' +
-           '• 🔐 **Phân quyền**: Quy định Admin vs Giảng viên.\n\nBạn cần hỗ trợ thông tin nào cụ thể?';
+    // 11. General fallback summary -> Return null so RAG or chat fallback handles general prompts
+    return null;
 }
 
 const _modelCache = {};
@@ -556,7 +563,7 @@ async function chat(messages) {
     // Check if query is instructional/procedural FAQ
     const staticAnswer = getLocalStaticAnswer(userQuery);
 
-    const { contextString } = await getOnDemandDbContext(userQuery);
+    const { contextString, dynamicAnswer } = await getOnDemandDbContext(userQuery);
 
     const fullInstruction = contextString 
         ? `${SYSTEM_PROMPT}\nTHONG TIN DULIEU CSDL THUCTHOI (AP DUNG CUA NGUOI DUNG): ${contextString}`
@@ -590,8 +597,14 @@ async function chat(messages) {
     // Simulate natural thinking delay (1.0s) for smoother experience
     await new Promise(r => setTimeout(r, 1000));
 
-    // 3. Fallback to Local RAG Engine & Static Guidance
-    return staticAnswer || '🤖 **Trợ lý AI luôn sẵn sàng hỗ trợ bạn.** Bạn có thể hỏi về quy trình đăng ký khuôn mặt, điểm danh 1:N, lịch học, lịch thi hoặc phân quyền hệ thống.';
+    // 3. Fallback to Local RAG Engine & Dynamic CSDL Guidance
+    return dynamicAnswer || staticAnswer || '🤖 **Trợ lý AI hệ thống điểm danh luôn sẵn sàng giải đáp các thắc mắc:**\n' +
+           '• 📷 **Quy trình điểm danh vào ca**: Kích hoạt camera AI 1:N, Check-in/Check-out.\n' +
+           '• 📸 **Đăng ký khuôn mặt**: Quy trình 3 bước chuẩn AI (Thẳng, Trái, Phải).\n' +
+           '• ⏰ **Xử lý tình huống**: Quá giờ điểm danh, sinh viên đi muộn, lỗi camera/scan mặt, mất mạng.\n' +
+           '• 📅 **Lịch học & Ca giảng dạy**: Tra cứu hôm nay, ngày mai, tuần này.\n' +
+           '• 📝 **Lịch thi & Điều kiện dự thi**: Sơ đồ chỗ ngồi, quy định cấm thi (>20% vắng).\n' +
+           '• 🔐 **Phân quyền**: Quy định Admin vs Giảng viên.\n\nBạn cần hỗ trợ thông tin nào cụ thể?';
 }
 
 // Helper to stream text smoothly with word pacing
@@ -611,7 +624,7 @@ async function chatStream(messages, onChunk) {
     const userQuery = lastMsg?.content || '';
 
     const staticAnswer = getLocalStaticAnswer(userQuery);
-    const { contextString } = await getOnDemandDbContext(userQuery);
+    const { contextString, dynamicAnswer } = await getOnDemandDbContext(userQuery);
 
     const fullInstruction = contextString 
         ? `${SYSTEM_PROMPT}\nTHONG TIN DULIEU CSDL THUCTHOI (AP DUNG CUA NGUOI DUNG): ${contextString}`
@@ -655,8 +668,14 @@ async function chatStream(messages, onChunk) {
         }
     }
 
-    // 3. Fallback to Local RAG Engine & Static Guidance with smooth word-by-word streaming
-    const finalAnswer = staticAnswer || '🤖 **Trợ lý AI luôn sẵn sàng hỗ trợ bạn.** Bạn có thể hỏi về quy trình đăng ký khuôn mặt, điểm danh 1:N, lịch học, lịch thi hoặc phân quyền hệ thống.';
+    // 3. Fallback to Local RAG Engine & Dynamic CSDL Guidance with smooth word-by-word streaming
+    const finalAnswer = dynamicAnswer || staticAnswer || '🤖 **Trợ lý AI hệ thống điểm danh luôn sẵn sàng giải đáp các thắc mắc:**\n' +
+           '• 📷 **Quy trình điểm danh vào ca**: Kích hoạt camera AI 1:N, Check-in/Check-out.\n' +
+           '• 📸 **Đăng ký khuôn mặt**: Quy trình 3 bước chuẩn AI (Thẳng, Trái, Phải).\n' +
+           '• ⏰ **Xử lý tình huống**: Quá giờ điểm danh, sinh viên đi muộn, lỗi camera/scan mặt, mất mạng.\n' +
+           '• 📅 **Lịch học & Ca giảng dạy**: Tra cứu hôm nay, ngày mai, tuần này.\n' +
+           '• 📝 **Lịch thi & Điều kiện dự thi**: Sơ đồ chỗ ngồi, quy định cấm thi (>20% vắng).\n' +
+           '• 🔐 **Phân quyền**: Quy định Admin vs Giảng viên.\n\nBạn cần hỗ trợ thông tin nào cụ thể?';
     await streamTextSmoothly(finalAnswer, onChunk, 18);
     return finalAnswer;
 }

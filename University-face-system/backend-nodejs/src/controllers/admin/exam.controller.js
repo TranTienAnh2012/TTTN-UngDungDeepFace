@@ -3,34 +3,42 @@ const pool = require('../../config/db');
 exports.getAllExamSchedules = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+        const limit = parseInt(req.query.limit) || 100;
         const search = req.query.search || '';
         const offset = (page - 1) * limit;
 
         let query = `
-            SELECT es.*, c.course_code, c.course_name 
+            SELECT es.*, c.course_code, c.course_name, cl.class_code as academic_class_code,
+                COALESCE(
+                    NULLIF((SELECT COUNT(*) FROM exam_eligibility ee WHERE ee.exam_schedule_id = es.id), 0),
+                    NULLIF((SELECT COUNT(*) FROM students s WHERE es.class_id IS NOT NULL AND (s.class_id = es.class_id)), 0),
+                    (SELECT COUNT(*) FROM students)
+                ) AS total_candidates,
+                (SELECT COUNT(*) FROM exam_attendance ea WHERE ea.exam_schedule_id = es.id) AS checked_in_count
             FROM exam_schedules es 
             LEFT JOIN courses c ON es.course_id = c.id
+            LEFT JOIN classes cl ON es.class_id = cl.id
         `;
         let countQuery = `
             SELECT COUNT(*) as total 
             FROM exam_schedules es 
             LEFT JOIN courses c ON es.course_id = c.id
+            LEFT JOIN classes cl ON es.class_id = cl.id
         `;
         const queryParams = [];
 
         if (search) {
-            const searchCondition = ' WHERE es.exam_room LIKE ? OR c.course_code LIKE ? OR c.course_name LIKE ?';
+            const searchCondition = ' WHERE es.exam_room LIKE ? OR c.course_code LIKE ? OR c.course_name LIKE ? OR cl.class_code LIKE ?';
             query += searchCondition;
             countQuery += searchCondition;
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         query += ' ORDER BY es.exam_time DESC LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
         const [rows] = await pool.query(query, queryParams);
-        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : []);
         const total = countResult[0].total;
 
         res.json({
@@ -277,13 +285,50 @@ exports.getExamEligibility = async (req, res) => {
         }
 
         const query = `
-            SELECT ee.*, s.student_code, s.full_name, s.class_name 
+            SELECT ee.*, 
+                   s.student_code, s.full_name, s.class_name,
+                   cl.class_code as student_official_class,
+                   f.faculty_name,
+                   (s.face_embedding IS NOT NULL) as face_registered,
+                   ea.id as attendance_id,
+                   ea.check_in_time, ea.check_in_confidence, ea.check_in_status,
+                   ea.check_out_time, ea.check_out_confidence, ea.check_out_status,
+                   ea.status as attendance_status, ea.confidence_score, ea.notes
             FROM exam_eligibility ee
             JOIN students s ON ee.student_id = s.id
+            LEFT JOIN classes cl ON s.class_id = cl.id
+            LEFT JOIN faculties f ON s.faculty_id = f.id
+            LEFT JOIN exam_attendance ea ON ea.student_id = s.id AND ea.exam_schedule_id = ee.exam_schedule_id
             WHERE ee.exam_schedule_id = ?
+            ORDER BY s.student_code ASC
         `;
         
-        const [rows] = await pool.query(query, [schedule_id]);
+        let [rows] = await pool.query(query, [schedule_id]);
+
+        if (rows.length === 0) {
+            const [scheds] = await pool.query('SELECT class_id FROM exam_schedules WHERE id = ?', [schedule_id]);
+            const classId = scheds.length > 0 ? scheds[0].class_id : null;
+            const classFilter = classId ? 'WHERE s.class_id = ?' : '';
+            const queryParams = classId ? [schedule_id, classId] : [schedule_id];
+
+            [rows] = await pool.query(`
+                SELECT s.id as student_id, s.student_code, s.full_name, s.email, s.date_of_birth,
+                       s.class_id, cl.class_code as student_official_class, cl.class_name,
+                       f.faculty_name,
+                       (s.face_embedding IS NOT NULL) as face_registered,
+                       'regular' as student_type,
+                       ea.id as attendance_id,
+                       ea.check_in_time, ea.check_in_confidence, ea.check_in_status,
+                       ea.check_out_time, ea.check_out_confidence, ea.check_out_status,
+                       ea.status as attendance_status, ea.confidence_score, ea.notes
+                FROM students s
+                LEFT JOIN classes cl ON s.class_id = cl.id
+                LEFT JOIN faculties f ON s.faculty_id = f.id
+                LEFT JOIN exam_attendance ea ON ea.student_id = s.id AND ea.exam_schedule_id = ?
+                ${classFilter}
+                ORDER BY s.student_code ASC
+            `, queryParams);
+        }
 
         res.json({
             success: true,

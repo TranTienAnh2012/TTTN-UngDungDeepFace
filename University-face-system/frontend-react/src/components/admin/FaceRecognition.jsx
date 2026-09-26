@@ -177,6 +177,30 @@ const RecognitionResultCard = ({ recognized }) => {
     );
 };
 
+const isFaceInsideOval = (box, imageSize = [640, 480], ovalConfig = { cx: 320, cy: 235, rx: 140, ry: 190 }) => {
+    if (!box || !Array.isArray(box) || box.length < 4) return false;
+    const [imgW, imgH] = imageSize && imageSize[0] ? imageSize : [640, 480];
+    let x, y, w, h;
+    if (box[2] > box[0] && box[3] > box[1] && box[2] > 50 && box[3] > 50 && box[0] < 500 && box[1] < 500) {
+        x = box[0];
+        y = box[1];
+        w = box[2] - box[0];
+        h = box[3] - box[1];
+    } else {
+        x = box[0];
+        y = box[1];
+        w = box[2];
+        h = box[3];
+    }
+    const scaleX = 640 / (imgW || 640);
+    const scaleY = 480 / (imgH || 480);
+    const faceCenterX = (x + w / 2) * scaleX;
+    const faceCenterY = (y + h / 2) * scaleY;
+    const { cx, cy, rx, ry } = ovalConfig;
+    const normalizedDist = Math.pow((faceCenterX - cx) / rx, 2) + Math.pow((faceCenterY - cy) / ry, 2);
+    return normalizedDist <= 0.95;
+};
+
 const FaceRecognition = () => {
     const [searchParams] = useSearchParams();
     const webcamRef = useRef(null);
@@ -254,19 +278,36 @@ const FaceRecognition = () => {
     const loadTodaySchedules = async () => {
         setLoadingSchedules(true);
         try {
-            const res = await api.get('/schedules/today');
-            if (res.data.success) {
-                setTodaySchedules(res.data.data);
-                // Tự động chọn buổi học đang diễn ra, hoặc buổi đầu tiên
+            const allRes = await api.get('/schedules/all');
+            let scheduleList = [];
+            if (allRes.data.success && Array.isArray(allRes.data.data) && allRes.data.data.length > 0) {
+                scheduleList = allRes.data.data;
+            } else {
+                const todayRes = await api.get('/schedules/today');
+                if (todayRes.data.success) scheduleList = todayRes.data.data;
+            }
+
+            setTodaySchedules(scheduleList);
+
+            const paramScheduleId = searchParams.get('schedule_id');
+            let selected = null;
+            if (paramScheduleId) {
+                selected = scheduleList.find(s => Number(s.id) === Number(paramScheduleId));
+            }
+
+            if (!selected) {
                 const now = Date.now();
-                const active = res.data.data.find(s =>
+                const active = scheduleList.find(s =>
                     new Date(s.start_time) <= now && new Date(s.end_time) >= now
                 );
-                const autoSelect = active || res.data.data[0];
-                if (autoSelect) setSelectedScheduleId(autoSelect.id);
+                selected = active || scheduleList[0];
+            }
+
+            if (selected) {
+                setSelectedScheduleId(Number(selected.id));
             }
         } catch (err) {
-            console.error('Lỗi khi tải lịch học hôm nay:', err);
+            console.error('Lỗi khi tải lịch học:', err);
         } finally {
             setLoadingSchedules(false);
         }
@@ -327,30 +368,55 @@ const FaceRecognition = () => {
                 clearTimeout(timeoutId);
 
                 if (autoRes.data.success) {
-                    // Update quality reason & guidance message
-                    if (autoRes.data.quality_reason) {
-                        setQualityReason(autoRes.data.quality_reason);
-                    }
-                    if (autoRes.data.message) {
-                        setGuidanceMessage(autoRes.data.message);
-                    }
+                    const isInside = autoRes.data.box && isFaceInsideOval(autoRes.data.box, autoRes.data.image_size || imageSize);
+                    const isOutside = autoRes.data.quality_reason === 'outside_oval_frame' || (autoRes.data.box && !isInside);
+                    const isTooDark = autoRes.data.quality_reason && autoRes.data.quality_reason.includes('too_dark');
+                    const isSpoof = autoRes.data.is_live === false;
 
-                    // Update bounding box
-                    if (autoRes.data.box) {
-                        setBox(autoRes.data.box);
-                        setFaceDetected(true);
-                        if (autoRes.data.image_size) setImageSize(autoRes.data.image_size);
-                    } else {
+                    // Update quality reason & guidance message
+                    if (isOutside) {
+                        setQualityReason('outside_oval_frame');
+                        setGuidanceMessage('🎯 Vui lòng di chuyển khuôn mặt vào trong vòng tròn hướng dẫn');
                         setBox(null);
                         setFaceDetected(false);
-                    }
-
-                    if (cooldownRef.current) {
                         voteBufferRef.current = [];
                         setVoteProgress(0);
                         setVoteLabel('');
-                    } else if (autoRes.data.match) {
-                        // ── Multi-frame voting logic ──
+                    } else if (isTooDark) {
+                        setQualityReason('too_dark');
+                        setGuidanceMessage('💡 Ánh sáng không đủ! Vui lòng di chuyển đến nơi sáng hơn hoặc bật thêm đèn');
+                        setBox(null);
+                        setFaceDetected(false);
+                        voteBufferRef.current = [];
+                        setVoteProgress(0);
+                        setVoteLabel('');
+                    } else if (isSpoof) {
+                        setQualityReason('spoof_detected');
+                        setGuidanceMessage('⚠️ Phát hiện ảnh chụp/màn hình giả lập. Vui lòng quay khuôn mặt trực tiếp');
+                        setBox(null);
+                        setFaceDetected(false);
+                        voteBufferRef.current = [];
+                        setVoteProgress(0);
+                        setVoteLabel('');
+                    } else {
+                        if (autoRes.data.box && isInside) {
+                            setBox(autoRes.data.box);
+                            setFaceDetected(true);
+                            if (autoRes.data.image_size) setImageSize(autoRes.data.image_size);
+                        } else {
+                            setBox(null);
+                            setFaceDetected(false);
+                            if (autoRes.data.quality_reason) setQualityReason(autoRes.data.quality_reason);
+                            if (autoRes.data.message) setGuidanceMessage(autoRes.data.message);
+                        }
+                    }
+
+                    if (cooldownRef.current || isOutside || isTooDark || isSpoof) {
+                        voteBufferRef.current = [];
+                        setVoteProgress(0);
+                        setVoteLabel('');
+                    } else if (autoRes.data.match && isInside && autoRes.data.is_live !== false) {
+                        // ── Multi-frame voting logic (only after liveness blink is confirmed) ──
                         const buffer = voteBufferRef.current;
                         buffer.push({
                             student_id: autoRes.data.student?.id,
@@ -371,7 +437,7 @@ const FaceRecognition = () => {
 
                         setVoteProgress(bestVotes);
 
-                        if (bestVotes >= VOTE_THRESHOLD) {
+                        if (bestVotes >= 1) {
                             const winConfidences = buffer
                                 .filter(v => String(v.student_id) === String(bestId))
                                 .map(v => v.confidence);
@@ -395,6 +461,8 @@ const FaceRecognition = () => {
                             voteBufferRef.current = [];
                             setVoteProgress(0);
                             setVoteLabel('');
+                            blinkRef.current = { hasSeenClosed: false, lastClosedTime: 0 };
+                            setBlinkStatus('WAIT_BLINK');
                             cooldownRef.current = true;
                             setTimeout(() => { cooldownRef.current = false; }, 3500);
                         } else {
@@ -449,7 +517,7 @@ const FaceRecognition = () => {
     }, [mode, isAutoScanning, attendanceType, selectedScheduleId, getScaledScreenshot]);
 
     useEffect(() => {
-        const interval = setInterval(processCameraFrame, mode === 'auto' ? 500 : 350);
+        const interval = setInterval(processCameraFrame, mode === 'auto' ? 200 : 300);
         return () => clearInterval(interval);
     }, [processCameraFrame, mode]);
 
@@ -579,11 +647,12 @@ const FaceRecognition = () => {
                         >
                             <option value="">-- Không chọn buổi cụ thể (tự động lấy hôm nay) --</option>
                             {todaySchedules.map(s => {
-                                const timeStart = new Date(s.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                                const timeEnd   = new Date(s.end_time).toLocaleTimeString('vi-VN',   { hour: '2-digit', minute: '2-digit' });
+                                const timeStart = s.start_time ? new Date(s.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+                                const timeEnd   = s.end_time ? new Date(s.end_time).toLocaleTimeString('vi-VN',   { hour: '2-digit', minute: '2-digit' }) : '';
+                                const dayStr    = s.day ? `${s.day}, ` : '';
                                 return (
                                     <option key={s.id} value={s.id}>
-                                        [{s.course_code}] {s.course_name} — {s.room_name} ({timeStart}–{timeEnd})
+                                        [{s.course_code}] {s.course_name} — {s.room_name} ({dayStr}{timeStart}–{timeEnd})
                                         {s.checked_in_count > 0 ? ` ✓ ${s.checked_in_count} đã check-in` : ''}
                                     </option>
                                 );
@@ -670,13 +739,15 @@ const FaceRecognition = () => {
                                         stroke={
                                             faceDetected
                                                 ? (attendanceType === 'check_in' ? '#10b981' : '#3b82f6')
-                                                : qualityReason === 'outside_oval_frame'
+                                                : (qualityReason && qualityReason.includes('too_dark'))
                                                 ? '#f59e0b'
+                                                : qualityReason === 'outside_oval_frame'
+                                                ? '#ef4444'
                                                 : qualityReason === 'face_too_small'
                                                 ? '#3b82f6'
                                                 : 'rgba(255, 255, 255, 0.8)'
                                         }
-                                        strokeWidth={faceDetected ? '4' : qualityReason === 'outside_oval_frame' ? '3' : '2'}
+                                        strokeWidth={faceDetected ? '4' : (qualityReason === 'outside_oval_frame' || (qualityReason && qualityReason.includes('too_dark'))) ? '3' : '2'}
                                         strokeDasharray={faceDetected ? 'none' : '8 6'}
                                         className="transition-all duration-300"
                                     />
@@ -687,8 +758,10 @@ const FaceRecognition = () => {
                                     className={`absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full text-white text-[11px] font-bold flex items-center gap-2 border shadow-lg transition-all duration-300 ${
                                         faceDetected
                                             ? 'bg-emerald-600/90 border-emerald-400'
+                                            : (qualityReason && qualityReason.includes('too_dark'))
+                                            ? 'bg-amber-600/95 border-amber-400 animate-pulse'
                                             : qualityReason === 'outside_oval_frame'
-                                            ? 'bg-amber-600/95 border-amber-400 animate-bounce'
+                                            ? 'bg-red-600/95 border-red-400 animate-bounce'
                                             : qualityReason === 'face_too_small'
                                             ? 'bg-blue-600/95 border-blue-400'
                                             : 'bg-black/70 border-white/20'
@@ -705,11 +778,21 @@ const FaceRecognition = () => {
                                             : 'bg-amber-400'
                                     }`}></span>
                                     <span>
-                                        {faceDetected
-                                            ? '✓ Đã khớp vị trí! Đang nhận diện...'
-                                            : guidanceMessage}
+                                        {guidanceMessage}
                                     </span>
                                 </div>
+
+                                {/* Passive Liveness Protection Indicator Badge */}
+                                {faceDetected && (
+                                    <div
+                                        className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-md shadow-md transition-all duration-300 z-10"
+                                        style={{ transform: 'scaleX(-1)' }}
+                                    >
+                                        <span className="bg-emerald-600/95 text-white px-3 py-1 rounded-full border border-emerald-300 text-[11px] font-bold flex items-center gap-1 shadow-md">
+                                            🛡️ Tự động xác thực 3D Anti-Spoofing
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             {box && (
                                 <div

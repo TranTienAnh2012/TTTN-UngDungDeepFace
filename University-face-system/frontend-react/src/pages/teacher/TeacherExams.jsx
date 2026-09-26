@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Building2, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, Play, Plus, Search } from 'lucide-react';
+import { Building2, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, Play, Plus, Search, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import api from '../../services/api';
+import SessionAttendanceModal from '../admin/AttendanceReport/SessionAttendanceModal';
 
 const TeacherExams = () => {
     const navigate = useNavigate();
     const [exams, setExams] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedExam, setSelectedExam] = useState(null);
 
     React.useEffect(() => {
         fetchExams();
@@ -111,11 +113,25 @@ const TeacherExams = () => {
                                 >
                                     <ShieldCheck size={16} /> Điểm danh phòng thi
                                 </button>
+                                <button
+                                    onClick={() => setSelectedExam(exam)}
+                                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                                    title="Xem chi tiết danh sách thí sinh & xuất báo cáo Excel"
+                                >
+                                    <Users size={16} /> Chi tiết &amp; Excel
+                                </button>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            <SessionAttendanceModal
+                isOpen={!!selectedExam}
+                onClose={() => setSelectedExam(null)}
+                session={selectedExam}
+                sessionType="exam"
+            />
         </div>
     );
 };

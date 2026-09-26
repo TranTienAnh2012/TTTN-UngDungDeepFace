@@ -172,6 +172,13 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
         URL.revokeObjectURL(url);
     };
 
+    const handleExportExcel = () => {
+        if (!session?.id) return;
+        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+        const typeParam = isExam ? '?type=exam' : '?type=class';
+        const targetUrl = `${apiBase}/api/attendance/export/${session.id}${typeParam}`;
+        window.open(targetUrl, '_blank');
+    };
     // Calendar generation helpers
     const year = calDate.getFullYear();
     const month = calDate.getMonth();
@@ -234,7 +241,15 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <button 
+                        <button
+                            onClick={handleExportExcel}
+                            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                            title="Xuất Excel danh sách điểm danh với thời gian Check-in / Check-out"
+                        >
+                            <Download size={14} />
+                            <span>Xuất Excel (.xlsx)</span>
+                        </button>
+                        <button
                             onClick={handleExportCSV}
                             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-colors"
                         >

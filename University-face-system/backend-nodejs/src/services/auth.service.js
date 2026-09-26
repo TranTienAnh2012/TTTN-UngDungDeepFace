@@ -3,7 +3,13 @@ const axios = require("axios");
 const db = require("../config/db");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require("../utils/jwt");
 const { generateRandomToken, generateOTP, hashToken } = require("../utils/otp");
-const { sendVerificationEmail, sendPasswordResetEmail } = require("./email.service");
+const { 
+    sendVerificationEmail, 
+    sendPasswordResetEmail, 
+    sendAdminApprovalRequestEmail, 
+    sendTeacherApprovedEmail, 
+    sendTeacherRejectedEmail 
+} = require("./email.service");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
@@ -18,31 +24,38 @@ const signup = async ({ full_name, email, password, role = 'teacher' }) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const verifyToken = generateRandomToken(32);
+    const approvalToken = generateRandomToken(32);
     
     const expiresInMinutes = Number(process.env.EMAIL_VERIFY_EXPIRES_MINUTES) || 15;
     const expiresDate = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
     const username = email.split('@')[0] + '_' + Math.floor(Math.random() * 1000);
-    // Insert new user (default role: 'teacher')
+    const isApproved = role === 'admin' ? 1 : 0;
+    const approvalTokenHash = isApproved ? null : hashToken(approvalToken);
+
+    // Insert new user
     const [result] = await db.execute(
         `INSERT INTO administrators 
-         (username, full_name, email, password, role, is_email_verified, email_verify_token, email_verify_expires) 
-         VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-        [username, full_name, email, passwordHash, role, hashToken(verifyToken), expiresDate]
+         (username, full_name, email, password, role, is_email_verified, email_verify_token, email_verify_expires, is_approved, approval_token) 
+         VALUES (?, ?, ?, ?, ?, 1, NULL, NULL, ?, ?)`,
+        [username, full_name, email, passwordHash, role, isApproved, approvalTokenHash]
     );
 
     const newUserId = result.insertId;
 
-    try {
-        await sendVerificationEmail(email, full_name, verifyToken);
-    } catch (error) {
-        console.error("Lỗi khi gửi email xác thực:", error.message);
+    if (role === 'teacher') {
+        try {
+            await sendAdminApprovalRequestEmail({ id: newUserId, username, full_name, email }, approvalToken);
+        } catch (error) {
+            console.error("Lỗi khi gửi email duyệt tài khoản tới Admin:", error.message);
+        }
     }
 
     return {
         id: newUserId,
         full_name,
         email,
+        is_approved: isApproved
     };
 };
 
@@ -95,8 +108,8 @@ const signin = async ({ email, password }) => {
         throw new Error("Email hoặc mật khẩu không đúng");
     }
 
-    if (!user.is_email_verified) {
-        throw new Error("Vui lòng xác thực email trước khi đăng nhập");
+    if (user.role === 'teacher' && !user.is_approved) {
+        throw new Error("Tài khoản Giảng viên của bạn đang chờ Admin duyệt. Vui lòng kiểm tra email hoặc liên hệ Admin.");
     }
 
     const accessToken = generateAccessToken(user);
@@ -323,6 +336,62 @@ const registerAdminFace = async (adminId, imageStraight, imageLeft, imageRight) 
     return true;
 };
 
+const approveTeacher = async (token) => {
+    const tokenHash = hashToken(token);
+
+    const [users] = await db.execute(
+        "SELECT id, full_name, email, is_approved FROM administrators WHERE approval_token = ?",
+        [tokenHash]
+    );
+
+    if (users.length === 0) {
+        throw new Error("Token phê duyệt không hợp lệ hoặc tài khoản đã được xử lý trước đó.");
+    }
+
+    const user = users[0];
+    if (user.is_approved === 1) {
+        return { message: `Tài khoản ${user.full_name} đã được phê duyệt từ trước.`, user };
+    }
+
+    await db.execute(
+        "UPDATE administrators SET is_approved = 1, is_email_verified = 1, approval_token = NULL WHERE id = ?",
+        [user.id]
+    );
+
+    try {
+        await sendTeacherApprovedEmail(user.email, user.full_name);
+    } catch (e) {
+        console.error("Lỗi gửi email thông báo duyệt cho Giảng viên:", e.message);
+    }
+
+    return { message: `Đã phê duyệt tài khoản Giảng viên ${user.full_name} thành công.`, user };
+};
+
+const rejectTeacher = async (token) => {
+    const tokenHash = hashToken(token);
+
+    const [users] = await db.execute(
+        "SELECT id, full_name, email FROM administrators WHERE approval_token = ?",
+        [tokenHash]
+    );
+
+    if (users.length === 0) {
+        throw new Error("Token từ chối không hợp lệ hoặc tài khoản đã được xử lý.");
+    }
+
+    const user = users[0];
+
+    await db.execute("DELETE FROM administrators WHERE id = ?", [user.id]);
+
+    try {
+        await sendTeacherRejectedEmail(user.email, user.full_name);
+    } catch (e) {
+        console.error("Lỗi gửi email từ chối cho Giảng viên:", e.message);
+    }
+
+    return { message: `Đã từ chối và xóa tài khoản Giảng viên ${user.full_name}.`, user };
+};
+
 module.exports = {
     signup,
     verifyEmail,
@@ -335,4 +404,6 @@ module.exports = {
     verifyForgotPassword,
     resetPassword,
     getMe,
+    approveTeacher,
+    rejectTeacher,
 };
