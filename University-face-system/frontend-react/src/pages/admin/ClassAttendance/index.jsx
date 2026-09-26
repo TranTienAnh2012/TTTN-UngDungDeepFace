@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, UserCheck, Trash2, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { Search, UserCheck, Trash2, ChevronLeft, ChevronRight, CheckCircle2, Clock, AlertCircle, LogIn, LogOut, XCircle } from 'lucide-react';
 import api from '../../../services/api';
 
 const ClassAttendance = () => {
@@ -35,6 +35,89 @@ const ClassAttendance = () => {
         }
     };
 
+    const renderAttendanceStatus = (item) => {
+        const now = new Date();
+        const startTime = item.start_time ? new Date(item.start_time) : null;
+        const endTime = item.end_time ? new Date(item.end_time) : null;
+        const checkInTime = item.check_in_time ? new Date(item.check_in_time) : null;
+        const checkOutTime = item.check_out_time ? new Date(item.check_out_time) : null;
+
+        // Check if check-in was late (> 15 mins after class start time)
+        let isLate = item.check_in_status === 'Late' || item.status === 'Late';
+        if (!isLate && checkInTime && startTime) {
+            const diffMins = (checkInTime.getTime() - startTime.getTime()) / (1000 * 60);
+            if (diffMins > 15) {
+                isLate = true;
+            }
+        }
+
+        // 1. Both Check-in & Check-out present, or Completed
+        if ((checkInTime && checkOutTime) || item.status === 'Completed') {
+            if (isLate) {
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                        <Clock size={13} className="text-amber-600" /> Đi muộn (&gt;15p) · Đủ đầu & cuối giờ
+                    </span>
+                );
+            }
+            return (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                    <CheckCircle2 size={13} className="text-emerald-600" /> Đầy đủ (Đầu & Cuối giờ)
+                </span>
+            );
+        }
+
+        // 2. Check-in only (no checkout)
+        if (checkInTime && !checkOutTime) {
+            const isSessionEnded = (endTime && now > endTime) || (startTime && (now.getTime() - startTime.getTime() > 4 * 60 * 60 * 1000));
+
+            if (isLate) {
+                if (isSessionEnded) {
+                    return (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200 shadow-2xs">
+                            <AlertCircle size={13} className="text-orange-600" /> Đi muộn (&gt;15p) & Thiếu check-out
+                        </span>
+                    );
+                }
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                        <Clock size={13} className="text-amber-600" /> Đi muộn (&gt;15p)
+                    </span>
+                );
+            }
+
+            if (isSessionEnded) {
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200 shadow-2xs">
+                        <AlertCircle size={13} className="text-orange-600" /> Chưa điểm danh cuối giờ (Thiếu Check-out)
+                    </span>
+                );
+            }
+
+            return (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                    <LogIn size={13} className="text-blue-600" /> Đã vào lớp (Đầu giờ)
+                </span>
+            );
+        }
+
+        // 3. Checkout only without check-in
+        if (!checkInTime && checkOutTime) {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs">
+                    <LogOut size={13} className="text-indigo-600" /> Chỉ check-out cuối giờ
+                </span>
+            );
+        }
+
+        // 4. Absent / Unattended
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 shadow-2xs">
+                <XCircle size={13} className="text-rose-600" /> Vắng mặt
+            </span>
+        );
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-4">
@@ -55,7 +138,7 @@ const ClassAttendance = () => {
                                 <th className="p-4 font-semibold">Sinh Viên</th>
                                 <th className="p-4 font-semibold">Môn / Phòng</th>
                                 <th className="p-4 font-semibold">Thời Gian Check-in</th>
-                                <th className="p-4 font-semibold">Độ Chính Xác AI</th>
+                                <th className="p-4 font-semibold">Trạng Thái Điểm Danh</th>
                                 <th className="p-4 font-semibold text-right">Thao tác</th>
                             </tr>
                         </thead>
@@ -80,12 +163,10 @@ const ClassAttendance = () => {
                                             <div className="text-sm">{item.room_name}</div>
                                         </td>
                                         <td className="p-4 text-gray-600 text-sm font-medium">
-                                            {new Date(item.check_in_time).toLocaleString('vi-VN')}
+                                            {item.check_in_time ? new Date(item.check_in_time).toLocaleString('vi-VN') : 'Chưa check-in'}
                                         </td>
                                         <td className="p-4 text-sm">
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                                                <CheckCircle size={14} /> {(item.confidence_score * 100).toFixed(1)}%
-                                            </span>
+                                            {renderAttendanceStatus(item)}
                                         </td>
                                         <td className="p-4 text-right">
                                             <button onClick={() => handleDelete(item.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">

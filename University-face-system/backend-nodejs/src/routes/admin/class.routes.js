@@ -12,7 +12,6 @@ router.use(roleMiddleware('admin', 'manager', 'teacher'));
 router.get('/schedules/:id/students', teacherScheduleController.getScheduleStudents);
 router.get('/schedules', classController.getAllClassSchedules);
 router.get('/schedules/:id', classController.getClassScheduleById);
-
 // --- Admin Write Class Schedules ---
 router.post('/schedules', classController.createClassSchedule);
 router.put('/schedules/:id', classController.updateClassSchedule);

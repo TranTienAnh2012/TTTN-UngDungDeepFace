@@ -179,7 +179,6 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
         const targetUrl = `${apiBase}/api/attendance/export/${session.id}${typeParam}`;
         window.open(targetUrl, '_blank');
     };
-
     // Calendar generation helpers
     const year = calDate.getFullYear();
     const month = calDate.getMonth();

@@ -19,6 +19,8 @@ async function ensureTableColumns(connection) {
                 { name: 'password_reset_token_hash', def: "VARCHAR(255) NULL" },
                 { name: 'password_reset_expires', def: "DATETIME NULL" },
                 { name: 'last_login_at', def: "DATETIME NULL" },
+                { name: 'is_approved', def: "TINYINT(1) DEFAULT 1" },
+                { name: 'approval_token', def: "VARCHAR(255) NULL" },
                 { name: 'updated_at', def: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" }
             ]
         },
