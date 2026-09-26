@@ -249,3 +249,77 @@ exports.getScheduleStudents = async (req, res) => {
     }
 };
 
+// GET /schedules/ical-feed.ics
+exports.getICalFeed = async (req, res) => {
+    try {
+        const isExam = req.query.type === 'exam';
+        let rows = [];
+        let calName = 'Lich Giang Day Dai Hoc';
+
+        if (isExam) {
+            calName = 'Lich Thi Cuoi Ky Dai Hoc';
+            [rows] = await pool.query(`
+                SELECT 
+                    es.id, es.exam_room as room_name,
+                    es.exam_time as start_time, es.exam_end_time as end_time,
+                    c.course_code, c.course_name,
+                    cl.class_code, cl.class_name
+                FROM exam_schedules es
+                JOIN courses c ON es.course_id = c.id
+                LEFT JOIN classes cl ON es.class_id = cl.id
+                ORDER BY es.exam_time ASC
+            `);
+        } else {
+            [rows] = await pool.query(`
+                SELECT 
+                    cs.id, cs.room_name,
+                    cs.start_time, cs.end_time,
+                    c.course_code, c.course_name,
+                    cl.class_code, cl.class_name
+                FROM class_schedules cs
+                JOIN courses c ON cs.course_id = c.id
+                LEFT JOIN classes cl ON cs.class_id = cl.id
+                ORDER BY cs.start_time ASC
+            `);
+        }
+
+        let icsLines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//University Face System//NONSGML v1.0//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            `X-WR-CALNAME:${calName}`
+        ];
+
+        rows.forEach((s) => {
+            if (!s.start_time) return;
+            const startIso = new Date(s.start_time).toISOString().replace(/-|:|\.\d\d\d/g, "");
+            const endIso = new Date(s.end_time || (new Date(s.start_time).getTime() + 2 * 3600 * 1000)).toISOString().replace(/-|:|\.\d\d\d/g, "");
+            const prefix = isExam ? '[LICH THI] ' : '';
+            const title = `${prefix}[${s.course_code || ''}] ${s.course_name || 'Lich hoc'}`;
+            const room = s.room_name || 'Phong học';
+            const desc = `Lop: ${s.class_code || s.class_name || 'Tat ca'} - Diem danh AI`;
+
+            icsLines.push('BEGIN:VEVENT');
+            icsLines.push(`UID:${isExam ? 'exam' : 'schedule'}-${s.id}@university.edu`);
+            icsLines.push(`DTSTAMP:${startIso}`);
+            icsLines.push(`DTSTART:${startIso}`);
+            icsLines.push(`DTEND:${endIso}`);
+            icsLines.push(`SUMMARY:${title}`);
+            icsLines.push(`LOCATION:${room}`);
+            icsLines.push(`DESCRIPTION:${desc}`);
+            icsLines.push('END:VEVENT');
+        });
+
+        icsLines.push('END:VCALENDAR');
+
+        res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+        res.setHeader('Content-Disposition', `inline; filename="${isExam ? 'exam-feed.ics' : 'ical-feed.ics'}"`);
+        return res.status(200).send(icsLines.join('\r\n'));
+    } catch (err) {
+        console.error('Lỗi xuất iCal feed:', err);
+        return res.status(500).send('Error generating iCal feed');
+    }
+};
+

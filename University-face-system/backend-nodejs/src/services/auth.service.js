@@ -108,7 +108,7 @@ const signin = async ({ email, password }) => {
         throw new Error("Email hoặc mật khẩu không đúng");
     }
 
-    if (user.role === 'teacher' && !user.is_approved) {
+    if (user.role === 'teacher' && user.is_approved === 0) {
         throw new Error("Tài khoản Giảng viên của bạn đang chờ Admin duyệt. Vui lòng kiểm tra email hoặc liên hệ Admin.");
     }
 

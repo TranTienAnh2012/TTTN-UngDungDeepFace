@@ -1,36 +1,51 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit2, Trash2, ClipboardList, ChevronLeft, ChevronRight, UserPlus, Users, Armchair } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, ClipboardList, ChevronLeft, ChevronRight, UserPlus, Users, Armchair, Calendar, LayoutGrid, List } from 'lucide-react';
 import api from '../../../services/api';
 import CreateExamSchedule from './CreateExamSchedule';
 import EditExamSchedule from './EditExamSchedule';
 import DeleteExamSchedule from './DeleteExamSchedule';
 import EligibilityModal from './EligibilityModal';
+import GoogleCalendarSyncModal from '../../../components/teacher/GoogleCalendarSyncModal';
+import GoogleCalendarTimeline from '../../../components/common/GoogleCalendarTimeline';
 
 const ExamSchedules = () => {
     const [schedules, setSchedules] = useState([]);
+    const [allSchedules, setAllSchedules] = useState([]);
     const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 1, total: 0 });
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const [viewMode, setViewMode] = useState('timeline'); // 'timeline' | 'table'
     
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEligibilityOpen, setIsEligibilityOpen] = useState(false);
     const [selectedSchedule, setSelectedSchedule] = useState(null);
+    const [isGCalModalOpen, setIsGCalModalOpen] = useState(false);
 
     const fetchSchedules = useCallback(async (page = pagination.page, searchTerm = search) => {
         setLoading(true);
         try {
-            const res = await api.get(`/exams/schedules?page=${page}&limit=${pagination.limit}&search=${searchTerm}`);
+            const [res, allRes] = await Promise.all([
+                api.get(`/exams/schedules?page=${page}&limit=${pagination.limit}&search=${searchTerm}`),
+                api.get(`/exams/schedules?limit=500`).catch(() => null)
+            ]);
+
             if (res.data.success) {
                 setSchedules(res.data.data);
                 setPagination(res.data.pagination);
+            }
+
+            if (allRes && allRes.data?.success) {
+                setAllSchedules(allRes.data.data || []);
+            } else if (res.data.success) {
+                setAllSchedules(res.data.data || []);
             }
         } catch (error) {
             console.error("Lỗi khi tải lịch thi", error);
         }
         setLoading(false);
-    }, [pagination.limit]);
+    }, [pagination.limit, search]);
 
     useEffect(() => {
         fetchSchedules();
@@ -71,20 +86,65 @@ const ExamSchedules = () => {
                         <div className="p-2 bg-orange-100 text-orange-700 rounded-lg">
                             <ClipboardList size={24} />
                         </div>
-                        Lịch Thi
+                        Lịch Thi Cuối Kỳ
                     </h1>
                     <p className="text-gray-500 mt-1">Quản lý lịch thi, sơ đồ phòng và điều kiện dự thi</p>
                 </div>
-                <button 
-                    onClick={() => setIsCreateOpen(true)}
-                    className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2 self-start sm:self-auto"
-                >
-                    <Plus size={18} />
-                    <span>Thêm Lịch Thi</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+                    {/* View Switcher */}
+                    <div className="bg-gray-100 p-1 rounded-2xl flex items-center gap-1 border border-gray-200 text-xs font-bold">
+                        <button
+                            onClick={() => setViewMode('timeline')}
+                            className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                                viewMode === 'timeline' ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                        >
+                            <LayoutGrid size={14} /> Google Calendar Timeline
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                                viewMode === 'table' ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                        >
+                            <List size={14} /> Bảng Danh Sách
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={() => setIsGCalModalOpen(true)}
+                        className="bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-md flex items-center gap-2 text-xs"
+                        title="Đồng bộ lịch thi với Google Calendar"
+                    >
+                        <Calendar size={16} />
+                        <span>Đồng Bộ Google Calendar</span>
+                    </button>
+                    <button 
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2 text-xs"
+                    >
+                        <Plus size={16} />
+                        <span>Thêm Lịch Thi</span>
+                    </button>
+                </div>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            {/* VIEW 1: Google Calendar Timeline View */}
+            {viewMode === 'timeline' && (
+                <GoogleCalendarTimeline
+                    schedules={allSchedules.length > 0 ? allSchedules : schedules}
+                    type="exam"
+                    isAdmin={true}
+                    onEditSchedule={(s) => { setSelectedSchedule(s); setIsEditOpen(true); }}
+                    onDeleteSchedule={(s) => { setSelectedSchedule(s); setIsDeleteOpen(true); }}
+                    onManageStudents={(s) => { setSelectedSchedule(s); setIsEligibilityOpen(true); }}
+                    title="Lịch Thi Cuối Kỳ Google Calendar Timeline"
+                />
+            )}
+
+            {/* VIEW 2: Table List View */}
+            {viewMode === 'table' && (
+                <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <form onSubmit={handleSearch} className="relative w-full max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -175,6 +235,15 @@ const ExamSchedules = () => {
                                             </td>
                                             <td className="p-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    <a
+                                                        href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`[LỊCH THI] [${item.course_code || ''}] ${item.course_name || 'Môn thi'}`)}&details=${encodeURIComponent(`Phòng thi: ${item.room_full_name || item.exam_room || ''}\nLớp: ${item.class_name || ''}`)}&location=${encodeURIComponent(item.room_full_name || item.exam_room || '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                        title="Thêm ca thi này vào Google Calendar"
+                                                    >
+                                                        <Calendar size={16} />
+                                                    </a>
                                                     <button onClick={() => { setSelectedSchedule(item); setIsEligibilityOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Danh sách dự thi">
                                                         <Users size={16} />
                                                     </button>
@@ -198,11 +267,20 @@ const ExamSchedules = () => {
                     <span className="text-sm text-gray-500">Trang {pagination.page} / {pagination.totalPages}</span>
                 </div>
             </div>
+            )}
 
             <CreateExamSchedule isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onCreated={() => fetchSchedules(1)} />
             <EditExamSchedule isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} onUpdated={() => fetchSchedules()} schedule={selectedSchedule} />
             <DeleteExamSchedule isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onDeleted={() => fetchSchedules(1)} schedule={selectedSchedule} />
             <EligibilityModal isOpen={isEligibilityOpen} onClose={() => setIsEligibilityOpen(false)} schedule={selectedSchedule} />
+
+            <GoogleCalendarSyncModal
+                isOpen={isGCalModalOpen}
+                onClose={() => setIsGCalModalOpen(false)}
+                schedules={schedules}
+                type="exam"
+                customTitle="Đồng Bộ Lịch Thi Admin"
+            />
         </div>
     );
 };

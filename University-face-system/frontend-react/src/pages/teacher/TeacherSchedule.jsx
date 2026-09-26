@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, BookOpen, Users, Plus, CheckCircle, Play, ChevronLeft, ChevronRight, Search, Info, LayoutGrid, List } from 'lucide-react';
+import { Calendar, Clock, MapPin, BookOpen, Users, Plus, CheckCircle, Play, ChevronLeft, ChevronRight, Search, Info, LayoutGrid, List, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ScheduleDetailModal from '../../components/teacher/ScheduleDetailModal';
 import WeeklyTimetableGrid from '../../components/teacher/WeeklyTimetableGrid';
+import GoogleCalendarSyncModal from '../../components/teacher/GoogleCalendarSyncModal';
 
 const TeacherSchedule = () => {
     const navigate = useNavigate();
@@ -12,6 +13,7 @@ const TeacherSchedule = () => {
     const [filterCourse, setFilterCourse] = useState('all');
     const [selectedSchedule, setSelectedSchedule] = useState(null);
     const [viewMode, setViewMode] = useState('both'); // 'both', 'grid', 'cards'
+    const [isGCalModalOpen, setIsGCalModalOpen] = useState(false);
 
     useEffect(() => {
         fetchSchedules();
@@ -117,8 +119,17 @@ const TeacherSchedule = () => {
                     </div>
 
                     <button
+                        onClick={() => setIsGCalModalOpen(true)}
+                        className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2 text-xs active:scale-95"
+                        title="Đồng bộ thời khóa biểu với Google Calendar"
+                    >
+                        <Calendar size={16} />
+                        <span>Đồng Bộ Google Calendar</span>
+                    </button>
+
+                    <button
                         onClick={() => navigate('/teacher/face-recognition')}
-                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2"
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center gap-2 text-xs"
                     >
                         <Play size={16} />
                         <span>Mở Camera Điểm Danh Ngay</span>
@@ -224,6 +235,13 @@ const TeacherSchedule = () => {
                 isOpen={!!selectedSchedule}
                 onClose={() => setSelectedSchedule(null)}
                 schedule={selectedSchedule}
+            />
+
+            {/* Google Calendar Sync Modal */}
+            <GoogleCalendarSyncModal
+                isOpen={isGCalModalOpen}
+                onClose={() => setIsGCalModalOpen(false)}
+                schedules={displaySchedules}
             />
         </div>
     );

@@ -182,7 +182,7 @@ const EligibilityModal = ({ isOpen, onClose, schedule }) => {
                             {schedule.course_name} ({schedule.course_code}) • Phòng: <span className="font-bold text-white">{schedule.exam_room}</span> • Sơ đồ: {schedule.seating_rows}x{schedule.seating_cols} ghế
                         </p>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="w-9 h-9 flex items-center justify-center rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                     >
@@ -223,7 +223,7 @@ const EligibilityModal = ({ isOpen, onClose, schedule }) => {
                                     onChange={(e) => setSelectedClassId(e.target.value)}
                                     className="sm:col-span-2 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-900 font-medium bg-white focus:ring-2 focus:ring-indigo-500 truncate"
                                 >
-                                    <option value="">-- Chọn Lớp Sinh Viên --</option>
+                                    <option value="">-- Chọn Lớp --</option>
                                     {academicClasses.map(c => (
                                         <option key={c.id} value={c.id}>
                                             {c.class_code} - {c.class_name} ({c.student_count ?? c.total_students ?? 0} SV)
@@ -260,9 +260,9 @@ const EligibilityModal = ({ isOpen, onClose, schedule }) => {
                         </div>
                         <form onSubmit={handleAddSingle} className="space-y-2.5">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <select 
-                                    className="sm:col-span-2 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-900 font-medium bg-white focus:ring-2 focus:ring-purple-500 truncate" 
-                                    value={selectedStudentId} 
+                                <select
+                                    className="sm:col-span-2 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-900 font-medium bg-white focus:ring-2 focus:ring-purple-500 truncate"
+                                    value={selectedStudentId}
                                     onChange={e => setSelectedStudentId(e.target.value)}
                                 >
                                     <option value="" className="text-gray-500">-- Chọn sinh viên --</option>
@@ -408,7 +408,7 @@ const EligibilityModal = ({ isOpen, onClose, schedule }) => {
                                             {s.notes || <span className="text-gray-300 italic">—</span>}
                                         </td>
                                         <td className="p-3 px-4 text-right">
-                                            <button 
+                                            <button
                                                 onClick={() => handleDelete(s.id, s.full_name)}
                                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="Xóa khỏi danh sách thi"
