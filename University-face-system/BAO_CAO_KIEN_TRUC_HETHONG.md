@@ -85,12 +85,18 @@ graph TD
 | Công nghệ / Thư viện | Tên chính xác | Vai trò & Nhiệm vụ kỹ thuật chi tiết trong hệ thống |
 | :--- | :--- | :--- |
 | **Runtime Environment** | `Python 3.10+` | Môi trường ngôn ngữ tối ưu cho các tác vụ khoa học máy tính, xử lý ma trận và tính toán học máy/AI. |
-| **Async Framework** | `FastAPI & Uvicorn` | Framework Web tốc độ cao xây dựng trên ASGI, xử lý yêu cầu nhận diện ảnh bất đồng bộ với thời gian phản hồi hàng millisecond. |
-| **Image Processing** | `OpenCV (opencv-python)` | Giải mã ảnh Base64 thành ma trận Numpy BGR/RGB, kiểm tra độ mờ Laplacian, kiểm tra độ sáng trung bình và vẽ Bounding Box lên ảnh. |
-| **Face Detection** | `MTCNN` | Mạng Nơ-ron tích chập đa tác vụ phát hiện khuôn mặt và 5 điểm mốc sinh học (`mắt trái`, `mắt phải`, `mũi`, `mép miệng trái`, `mép miệng phải`). |
-| **Face Recognition** | `DeepFace (ArcFace)` | Mô hình trích xuất vector đặc trưng khuôn mặt 512 chiều ($\text{Float64}$) sử dụng thuật toán Additive Angular Margin Loss đạt độ chính xác >99.8%. |
-| **Vector Calculation** | `NumPy` | Xử lý ma trận đại số tuyến tính siêu tốc. Load toàn bộ vector sinh viên thành Ma trận $N \times 512$ và thực hiện nhân ma trận tính Cosine Similarity trong $<15\text{ms}$. |
-| **DB Connector** | `PyMySQL` | Kết nối trực tiếp từ Python đến MySQL để tải danh sách vector sinh viên lưu dưới dạng Binary BLOB vào bộ nhớ RAM khi khởi động server. |
+| **Async Framework** | `FastAPI` | Framework Web tốc độ cao xây dựng trên ASGI, xử lý yêu cầu nhận diện ảnh bất đồng bộ với thời gian phản hồi hàng millisecond. |
+| **ASGI / WSGI Server** | `Uvicorn & Gunicorn` | Trình quản lý tiến trình Server ASGI (Uvicorn) và Process Manager (Gunicorn) để chạy dịch vụ AI hiệu năng cao, hỗ trợ đa tiến trình trên Production. |
+| **Face Detection** | `MTCNN (mtcnn)` | Mạng Nơ-ron tích chập đa tác vụ (Multi-task Cascaded Convolutional Networks) phát hiện khuôn mặt và 5 điểm mốc sinh học (`mắt trái`, `mắt phải`, `mũi`, `mép miệng trái`, `mép miệng phải`). |
+| **Face Recognition Engine**| `DeepFace (Model ArcFace)` | Framework AI trích xuất vector đặc trưng khuôn mặt 512 chiều ($\text{Float64}$) sử dụng mô hình ArcFace (Additive Angular Margin Loss) đạt độ chính xác >99.8%. |
+| **Deep Learning Engine** | `TensorFlow & tf-keras` | Thư viện tính toán học sâu làm nền tảng (backbone runtime) để tải và thực thi các lớp mạng Nơ-ron của ArcFace/DeepFace. |
+| **Computer Vision** | `OpenCV (opencv-python & opencv-contrib-python)` | Giải mã ảnh Base64 thành ma trận Numpy BGR/RGB, kiểm tra độ mờ Laplacian, kiểm tra độ sáng trung bình, cắt xới (crop) và vẽ Bounding Box lên ảnh. |
+| **Vector Matrix Calculation**| `NumPy (numpy)` | Xử lý ma trận đại số tuyến tính siêu tốc. Load toàn bộ vector sinh viên thành Ma trận $N \times 512$ và thực hiện nhân ma trận tính Cosine Similarity trong $<15\text{ms}$. |
+| **Database Connector** | `mysql-connector-python` | Driver kết nối trực tiếp từ Python đến MySQL để tải danh sách vector sinh viên lưu dưới dạng Binary BLOB vào bộ nhớ RAM khi khởi động server. |
+| **Data Validation** | `Pydantic` | Kiểm tra, chuẩn hóa và xác thực cấu trúc dữ liệu JSON đầu vào/đầu ra cho các Endpoint API FastAPI (`VerifyRequest`, `IdentifyRequest`, `Register3StepRequest`). |
+| **Environment Manager** | `python-dotenv` | Quản lý và nạp các biến cấu hình hệ thống từ file `.env` (ngưỡng nhận diện `MATCH_THRESHOLD`, `MATCH_MARGIN`, cấu hình DB Host/User/Pass, Port). |
+| **Data Encoding & Nén** | `lz4`, `base64`, `json` | Thư viện nén chuỗi vector đặc trưng hiệu năng cao (lz4), giải mã chuỗi ảnh Base64 từ Webcam client và mã hóa/giải mã định dạng dữ liệu JSON. |
+
 
 ### 2.4. Cơ sở Dữ liệu (Database Layer)
 
