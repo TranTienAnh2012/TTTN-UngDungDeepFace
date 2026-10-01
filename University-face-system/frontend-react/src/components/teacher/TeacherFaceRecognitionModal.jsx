@@ -293,6 +293,7 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
                                 ref={webcamRef}
                                 audio={false}
                                 screenshotFormat="image/jpeg"
+                                mirrored={true}
                                 videoConstraints={{ width: 640, height: 480, facingMode: "user" }}
                                 className="w-full h-full object-cover"
                             />
@@ -334,10 +335,10 @@ const TeacherFaceRecognitionModal = ({ isOpen, onClose, scheduleId = null, examS
                                 <div
                                     className="absolute border-2 border-emerald-400 bg-emerald-400/10 rounded-xl transition-all pointer-events-none shadow-[0_0_15px_rgba(52,211,153,0.5)]"
                                     style={{
-                                        left: `${(box[0] / imageSize[0]) * 100}%`,
+                                        left: `${((imageSize[0] - box[0] - (box[2] > box[0] && box[2] > 50 && box[0] < 500 ? (box[2] - box[0]) : box[2])) / imageSize[0]) * 100}%`,
                                         top: `${(box[1] / imageSize[1]) * 100}%`,
                                         width: `${((box[2] > box[0] && box[2] > 50 && box[0] < 500 ? (box[2] - box[0]) : box[2]) / imageSize[0]) * 100}%`,
-                                        height: `${((box[3] > box[1] && box[3] > 50 && box[1] < 500 ? (box[3] - box[1]) : box[3]) / imageSize[1]) * 100}%`,
+                                        height: `${((box[3] > box[1] && box[3] > 50 && box[0] < 500 ? (box[3] - box[1]) : box[3]) / imageSize[1]) * 100}%`,
                                     }}
                                 />
                             )}

@@ -33,7 +33,7 @@ const DeleteClass = ({ isOpen, onClose, onSuccess, academicClass }) => {
                         <div className="p-2 bg-white/20 rounded-xl">
                             <AlertTriangle size={20} />
                         </div>
-                        <h2 className="text-lg font-bold">Xác Nhận Xóa Lớp Sinh Viên</h2>
+                        <h2 className="text-lg font-bold">Xác Nhận Xóa Lớp</h2>
                     </div>
                     <button onClick={onClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
                         <X size={20} />
@@ -49,7 +49,7 @@ const DeleteClass = ({ isOpen, onClose, onSuccess, academicClass }) => {
                     )}
 
                     <p className="text-gray-700 text-sm leading-relaxed">
-                        Bạn có chắc chắn muốn xóa lớp sinh viên{' '}
+                        Bạn có chắc chắn muốn xóa lớp {' '}
                         <strong className="text-gray-900 font-bold">{academicClass.class_name} ({academicClass.class_code})</strong>?
                     </p>
 

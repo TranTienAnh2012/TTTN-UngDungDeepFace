@@ -3,13 +3,13 @@ import { X, UserPlus, Building, Layers, Mail, Calendar, User, Code } from 'lucid
 import api from '../../../services/api';
 
 const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
-    const [formData, setFormData] = useState({ 
-        student_code: '', 
-        full_name: '', 
+    const [formData, setFormData] = useState({
+        student_code: '',
+        full_name: '',
         faculty_id: '',
         class_id: '',
-        class_name: '', 
-        date_of_birth: '', 
+        class_name: '',
+        date_of_birth: '',
         email: '',
         gender: 'male'
     });
@@ -93,13 +93,13 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
             await api.post('/students', formData);
             onStudentCreated();
             onClose();
-            setFormData({ 
-                student_code: '', 
-                full_name: '', 
+            setFormData({
+                student_code: '',
+                full_name: '',
                 faculty_id: '',
                 class_id: '',
-                class_name: '', 
-                date_of_birth: '', 
+                class_name: '',
+                date_of_birth: '',
                 email: '',
                 gender: 'male'
             });
@@ -128,7 +128,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                         <X size={18} />
                     </button>
                 </div>
-                
+
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-5 space-y-4 bg-white overflow-y-auto flex-1">
                     {formError && (
@@ -142,12 +142,12 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                                 Mã Sinh Viên *
                             </label>
-                            <input 
-                                type="text" 
-                                required 
+                            <input
+                                type="text"
+                                required
                                 placeholder="VD: SV001, B20DCCN001..."
-                                value={formData.student_code} 
-                                onChange={e => setFormData({...formData, student_code: e.target.value.toUpperCase()})}
+                                value={formData.student_code}
+                                onChange={e => setFormData({ ...formData, student_code: e.target.value.toUpperCase() })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-bold focus:ring-2 focus:ring-primary-500 shadow-sm uppercase"
                             />
                         </div>
@@ -157,7 +157,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                             </label>
                             <select
                                 value={formData.gender}
-                                onChange={e => setFormData({...formData, gender: e.target.value})}
+                                onChange={e => setFormData({ ...formData, gender: e.target.value })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                             >
                                 <option value="male">Nam</option>
@@ -171,12 +171,12 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                             Họ và Tên Sinh Viên *
                         </label>
-                        <input 
-                            type="text" 
-                            required 
+                        <input
+                            type="text"
+                            required
                             placeholder="Nhập họ tên sinh viên đầy đủ..."
-                            value={formData.full_name} 
-                            onChange={e => setFormData({...formData, full_name: e.target.value})}
+                            value={formData.full_name}
+                            onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                             className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                         />
                     </div>
@@ -205,7 +205,7 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
                             <Layers size={14} className="text-gray-400" />
-                            Lớp Sinh Viên Chính Quy
+                            Lớp Chính Quy
                         </label>
                         <select
                             value={formData.class_id}
@@ -226,10 +226,10 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                                 Ngày Sinh
                             </label>
-                            <input 
+                            <input
                                 type="date"
-                                value={formData.date_of_birth} 
-                                onChange={e => setFormData({...formData, date_of_birth: e.target.value})}
+                                value={formData.date_of_birth}
+                                onChange={e => setFormData({ ...formData, date_of_birth: e.target.value })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                             />
                         </div>
@@ -237,11 +237,11 @@ const CreateStudent = ({ isOpen, onClose, onStudentCreated }) => {
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                                 Email Sinh Viên
                             </label>
-                            <input 
-                                type="email" 
+                            <input
+                                type="email"
                                 placeholder="sinhvien@university.edu.vn"
-                                value={formData.email || ''} 
-                                onChange={e => setFormData({...formData, email: e.target.value})}
+                                value={formData.email || ''}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                             />
                         </div>

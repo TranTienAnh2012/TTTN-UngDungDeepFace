@@ -198,7 +198,7 @@ const isFaceInsideOval = (box, imageSize = [640, 480], ovalConfig = { cx: 320, c
     const faceCenterY = (y + h / 2) * scaleY;
     const { cx, cy, rx, ry } = ovalConfig;
     const normalizedDist = Math.pow((faceCenterX - cx) / rx, 2) + Math.pow((faceCenterY - cy) / ry, 2);
-    return normalizedDist <= 0.95;
+    return normalizedDist <= 1.30;
 };
 
 const FaceRecognition = () => {
@@ -701,15 +701,12 @@ const FaceRecognition = () => {
                     </div>
 
                     <div className="p-4 flex-1 flex flex-col justify-center">
-                        <div
-                            className="relative w-full bg-gray-900 rounded-xl overflow-hidden shadow-inner"
-                            style={{ transform: 'scaleX(-1)' }}
-                        >
+                        <div className="relative w-full bg-gray-900 rounded-xl overflow-hidden shadow-inner">
                             <Webcam
                                 audio={false}
                                 ref={webcamRef}
                                 screenshotFormat="image/jpeg"
-                                mirrored={false}
+                                mirrored={true}
                                 videoConstraints={{
                                     facingMode: "user",
                                     width: { ideal: 640 },
@@ -766,7 +763,6 @@ const FaceRecognition = () => {
                                             ? 'bg-blue-600/95 border-blue-400'
                                             : 'bg-black/70 border-white/20'
                                     }`}
-                                    style={{ transform: 'scaleX(-1)' }}
                                 >
                                     <span className={`w-2.5 h-2.5 rounded-full ${
                                         faceDetected
@@ -784,10 +780,7 @@ const FaceRecognition = () => {
 
                                 {/* Passive Liveness Protection Indicator Badge */}
                                 {faceDetected && (
-                                    <div
-                                        className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-md shadow-md transition-all duration-300 z-10"
-                                        style={{ transform: 'scaleX(-1)' }}
-                                    >
+                                    <div className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-md shadow-md transition-all duration-300 z-10">
                                         <span className="bg-emerald-600/95 text-white px-3 py-1 rounded-full border border-emerald-300 text-[11px] font-bold flex items-center gap-1 shadow-md">
                                             🛡️ Tự động xác thực 3D Anti-Spoofing
                                         </span>
@@ -798,7 +791,7 @@ const FaceRecognition = () => {
                                 <div
                                     className="absolute pointer-events-none transition-all duration-150"
                                     style={{
-                                        left: `${(box[0] / imageSize[0]) * 100}%`,
+                                        left: `${((imageSize[0] - box[0] - box[2]) / imageSize[0]) * 100}%`,
                                         top: `${(box[1] / imageSize[1]) * 100}%`,
                                         width: `${(box[2] / imageSize[0]) * 100}%`,
                                         height: `${(box[3] / imageSize[1]) * 100}%`,
@@ -821,7 +814,7 @@ const FaceRecognition = () => {
 
                             {/* Status Overlay Indicator */}
                             {isProcessing && (
-                                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-2" style={{ transform: 'scaleX(-1)' }}>
+                                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-2">
                                     <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                     Đang đối soát AI ({attendanceType === 'check_in' ? 'Đầu giờ' : 'Cuối giờ'})...
                                 </div>
@@ -829,18 +822,18 @@ const FaceRecognition = () => {
 
                             {/* Vote Progress Indicator */}
                             {voteLabel && !cooldownRef.current && (
-                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3" style={{ transform: 'scaleX(-1)' }}>
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3">
                                     <span>{voteLabel}</span>
                                     <div className="flex gap-1">
                                         {Array.from({ length: VOTE_THRESHOLD }).map((_, i) => (
-                                            <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i < voteProgress ? 'bg-emerald-400 scale-110' : 'bg-white/30'}`} />
+                                             <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i < voteProgress ? 'bg-emerald-400 scale-110' : 'bg-white/30'}`} />
                                         ))}
                                     </div>
                                 </div>
                             )}
 
                             {/* Mode indicator badge */}
-                            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-bold text-white flex items-center gap-1.5" style={{ transform: 'scaleX(-1)' }}>
+                            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-bold text-white flex items-center gap-1.5">
                                 {attendanceType === 'check_in' ? (
                                     <>
                                         <span className="w-2 h-2 rounded-full bg-emerald-400" />

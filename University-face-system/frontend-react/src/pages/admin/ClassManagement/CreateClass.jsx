@@ -75,7 +75,7 @@ const CreateClass = ({ isOpen, onClose, onSuccess }) => {
                         <div className="p-2 bg-white/20 rounded-xl">
                             <Layers size={20} />
                         </div>
-                        <h2 className="text-lg font-bold">Thêm Lớp Sinh Viên Mới</h2>
+                        <h2 className="text-lg font-bold">Thêm Lớp Mới</h2>
                     </div>
                     <button onClick={onClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
                         <X size={20} />

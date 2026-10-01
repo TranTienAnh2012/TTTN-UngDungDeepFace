@@ -146,25 +146,6 @@ async function ensureTableColumns(connection) {
                 { name: 'student_type', def: "ENUM('regular', 'retake') DEFAULT 'regular'" },
                 { name: 'notes', def: "VARCHAR(100) NULL" }
             ]
-        },
-        {
-            table: 'exam_attendance',
-            cols: [
-                { name: 'check_in_time', def: "DATETIME NULL" },
-                { name: 'check_in_confidence', def: "FLOAT NULL" },
-                { name: 'check_in_status', def: "VARCHAR(50) DEFAULT 'Present'" },
-                { name: 'check_out_time', def: "DATETIME NULL" },
-                { name: 'check_out_confidence', def: "FLOAT NULL" },
-                { name: 'check_out_status', def: "VARCHAR(50) NULL" },
-                { name: 'status', def: "VARCHAR(50) DEFAULT 'Checked-in'" },
-                { name: 'confidence_score', def: "FLOAT NULL" },
-                { name: 'is_verified', def: "TINYINT(1) DEFAULT 1" },
-                { name: 'seat_row', def: "INT NULL" },
-                { name: 'seat_col', def: "INT NULL" },
-                { name: 'notes', def: "TEXT NULL" },
-                { name: 'created_at', def: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" },
-                { name: 'updated_at', def: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" }
-            ]
         }
     ];
 
@@ -222,7 +203,7 @@ async function seedInitialData(connection) {
     try {
         const [classes] = await connection.query('SELECT COUNT(*) as total FROM classes');
         if (classes[0].total === 0) {
-            console.log('[*] Đang nạp dữ liệu mẫu các Lớp sinh viên chính quy...');
+            console.log('[*] Đang nạp dữ liệu mẫu các Lớp chính quy...');
             const cnttId = facultyMap['CNTT'] || null;
             const dtvtId = facultyMap['DTVT'] || null;
             const qtkdId = facultyMap['QTKD'] || null;
@@ -240,7 +221,7 @@ async function seedInitialData(connection) {
                 );
                 classMap[c.code] = res.insertId;
             }
-            console.log('[+] Đã nạp thành công 4 lớp sinh viên mẫu.');
+            console.log('[+] Đã nạp thành công 4 lớp mẫu.');
         } else {
             const [rows] = await connection.query('SELECT id, class_code FROM classes');
             rows.forEach(r => { classMap[r.class_code] = r.id; });
@@ -352,7 +333,7 @@ async function initializeDatabase() {
         if (sqlPath) {
             console.log(`[*] Dang thuc thi file khoi tao: ${sqlPath}`);
             const sqlContent = fs.readFileSync(sqlPath, 'utf8');
-            
+
             // Execute SQL script
             await connection.query(sqlContent);
             console.log('[+] Da nap schema cac bang trong database thanh cong!');
@@ -365,7 +346,7 @@ async function initializeDatabase() {
 
         // Seed initial data & realistic data
         await seedInitialData(connection);
-        
+
         try {
             const seedRealisticData = require('./seed_realistic_data');
             await seedRealisticData();

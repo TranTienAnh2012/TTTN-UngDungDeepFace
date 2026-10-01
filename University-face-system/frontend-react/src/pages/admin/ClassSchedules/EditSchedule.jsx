@@ -11,15 +11,15 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
     const [selectedShiftId, setSelectedShiftId] = useState('');
 
-    const [formData, setFormData] = useState({ 
-        course_id: '', 
+    const [formData, setFormData] = useState({
+        course_id: '',
         room_id: '',
         class_id: '',
         shift_id: '',
-        room_name: '', 
+        room_name: '',
         teacher_name: '',
-        start_time: '', 
-        end_time: '' 
+        start_time: '',
+        end_time: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -37,15 +37,15 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                 return new Date(date.getTime() - offset).toISOString().slice(0, 16);
             };
 
-            setFormData({ 
-                course_id: schedule.course_id, 
+            setFormData({
+                course_id: schedule.course_id,
                 room_id: schedule.room_id || '',
                 class_id: schedule.class_id || '',
                 shift_id: schedule.shift_id || '',
-                room_name: schedule.room_name || '', 
+                room_name: schedule.room_name || '',
                 teacher_name: schedule.teacher_name || '',
-                start_time: formatDT(schedule.start_time), 
-                end_time: formatDT(schedule.end_time) 
+                start_time: formatDT(schedule.start_time),
+                end_time: formatDT(schedule.end_time)
             });
 
             if (schedule.start_time) {
@@ -133,7 +133,7 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                         </h3>
                         <p className="text-xs text-gray-500 mt-0.5">Cập nhật môn học, phòng học hoặc ca học</p>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                     >
@@ -146,11 +146,11 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                     {/* Course Selection */}
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Môn Học *</label>
-                        <select 
-                            required 
-                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm" 
-                            value={formData.course_id} 
-                            onChange={e => setFormData({...formData, course_id: e.target.value})}
+                        <select
+                            required
+                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
+                            value={formData.course_id}
+                            onChange={e => setFormData({ ...formData, course_id: e.target.value })}
                         >
                             <option value="" className="text-gray-500">-- Chọn môn --</option>
                             {courses.map(c => <option key={c.id} value={c.id} className="text-gray-900">{c.course_code} - {c.course_name}</option>)}
@@ -160,11 +160,11 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                     {/* Academic Class Selection */}
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
-                            Lớp Sinh Viên Chính Quy (Tùy chọn)
+                            Lớp Chính Quy (Tùy chọn)
                         </label>
                         <select
                             value={formData.class_id}
-                            onChange={e => setFormData({...formData, class_id: e.target.value})}
+                            onChange={e => setFormData({ ...formData, class_id: e.target.value })}
                             className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                         >
                             <option value="" className="text-gray-500">-- Không gắn lớp cụ thể (Hoặc chọn lớp) --</option>
@@ -197,13 +197,13 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
 
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Tên Phòng Hiển Thị *</label>
-                        <input 
-                            type="text" 
-                            required 
-                            placeholder="Ví dụ: Phòng 302 - Tòa C" 
-                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm" 
-                            value={formData.room_name} 
-                            onChange={e => setFormData({...formData, room_name: e.target.value})} 
+                        <input
+                            type="text"
+                            required
+                            placeholder="Ví dụ: Phòng 302 - Tòa C"
+                            className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
+                            value={formData.room_name}
+                            onChange={e => setFormData({ ...formData, room_name: e.target.value })}
                         />
                     </div>
 
@@ -229,11 +229,10 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                                         key={s.id}
                                         type="button"
                                         onClick={() => handleShiftChange(s.id)}
-                                        className={`p-2 rounded-xl text-left border transition-all text-xs flex flex-col justify-between ${
-                                            isSelected
+                                        className={`p-2 rounded-xl text-left border transition-all text-xs flex flex-col justify-between ${isSelected
                                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm font-bold'
                                                 : 'bg-white text-gray-800 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 font-medium'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="font-bold leading-tight">{s.shift_name}</div>
                                         <div className={`text-[11px] mt-1 ${isSelected ? 'text-indigo-100' : 'text-gray-500'}`}>
@@ -249,44 +248,44 @@ const EditSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Bắt đầu *</label>
-                            <input 
-                                type="datetime-local" 
-                                required 
-                                className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-semibold focus:ring-2 focus:ring-primary-500 shadow-sm" 
-                                value={formData.start_time} 
+                            <input
+                                type="datetime-local"
+                                required
+                                className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-semibold focus:ring-2 focus:ring-primary-500 shadow-sm"
+                                value={formData.start_time}
                                 onChange={e => {
-                                    setFormData({...formData, start_time: e.target.value});
+                                    setFormData({ ...formData, start_time: e.target.value });
                                     setSelectedShiftId('');
-                                }} 
+                                }}
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Kết thúc *</label>
-                            <input 
-                                type="datetime-local" 
-                                required 
-                                className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-semibold focus:ring-2 focus:ring-primary-500 shadow-sm" 
-                                value={formData.end_time} 
+                            <input
+                                type="datetime-local"
+                                required
+                                className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-semibold focus:ring-2 focus:ring-primary-500 shadow-sm"
+                                value={formData.end_time}
                                 onChange={e => {
-                                    setFormData({...formData, end_time: e.target.value});
+                                    setFormData({ ...formData, end_time: e.target.value });
                                     setSelectedShiftId('');
-                                }} 
+                                }}
                             />
                         </div>
                     </div>
 
                     {/* Footer buttons */}
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button 
-                            type="button" 
-                            onClick={onClose} 
+                        <button
+                            type="button"
+                            onClick={onClose}
                             className="px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
                         >
                             Hủy
                         </button>
-                        <button 
-                            type="submit" 
-                            disabled={isSubmitting} 
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
                             className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl shadow-md shadow-primary-200 transition-all disabled:opacity-70"
                         >
                             {isSubmitting ? 'Đang lưu...' : 'Lưu Thay Đổi'}

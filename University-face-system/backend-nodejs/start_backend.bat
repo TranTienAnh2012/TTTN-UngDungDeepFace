@@ -11,7 +11,7 @@ if not exist node_modules (
     echo [*] Dang cai dat thu vien cho Backend...
     call npm install
 )
-call npm start
+call npm run dev
 if %errorlevel% neq 0 (
     echo.
     echo [X] Backend Node.js da dung lai voi ma loi: %errorlevel%

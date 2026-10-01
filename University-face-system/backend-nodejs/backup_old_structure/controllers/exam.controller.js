@@ -95,7 +95,7 @@ exports.getExamScheduleById = async (req, res) => {
             WHERE es.id = ?
         `;
         const [rows] = await pool.query(query, [id]);
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy lịch thi' });
         }
@@ -110,7 +110,7 @@ exports.getExamScheduleById = async (req, res) => {
 exports.createExamSchedule = async (req, res) => {
     try {
         let { course_id, room_id, class_id, exam_room, exam_time, duration_minutes, seating_rows, seating_cols, disabled_seats, auto_enroll_class } = req.body;
-        
+
         if (!course_id || !exam_time) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc: Môn thi, Giờ thi' });
         }
@@ -203,9 +203,9 @@ exports.createExamSchedule = async (req, res) => {
                 }
             }
         }
-        
-        res.status(201).json({ 
-            success: true, 
+
+        res.status(201).json({
+            success: true,
             message: 'Tạo lịch thi thành công',
             data: { id: examScheduleId, course_id, room_id, class_id, exam_room, exam_time, exam_end_time, duration_minutes: duration }
         });
@@ -279,13 +279,13 @@ exports.updateExamSchedule = async (req, res) => {
 exports.deleteExamSchedule = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Check dependencies
         const [eligibility] = await pool.query('SELECT id FROM exam_eligibility WHERE exam_schedule_id = ? LIMIT 1', [id]);
         if (eligibility.length > 0) {
             return res.status(400).json({ success: false, message: 'Không thể xóa lịch thi vì đã có danh sách sinh viên dự thi' });
         }
-        
+
         const [attendance] = await pool.query('SELECT id FROM exam_attendance WHERE exam_schedule_id = ? LIMIT 1', [id]);
         if (attendance.length > 0) {
             return res.status(400).json({ success: false, message: 'Không thể xóa lịch thi vì đã có dữ liệu điểm danh thi' });
@@ -308,7 +308,7 @@ exports.deleteExamSchedule = async (req, res) => {
 exports.getExamEligibility = async (req, res) => {
     try {
         const schedule_id = req.query.schedule_id;
-        
+
         if (!schedule_id) {
             return res.status(400).json({ success: false, message: 'Thiếu schedule_id' });
         }
@@ -328,7 +328,7 @@ exports.getExamEligibility = async (req, res) => {
             WHERE ee.exam_schedule_id = ?
             ORDER BY ee.seat_row ASC, ee.seat_col ASC, s.student_code ASC
         `;
-        
+
         let [rows] = await pool.query(query, [schedule_id]);
 
         // If no explicit eligibility records yet, fallback to class_id if assigned
@@ -369,14 +369,14 @@ exports.getExamEligibility = async (req, res) => {
 exports.addExamEligibility = async (req, res) => {
     try {
         const { exam_schedule_id, student_id, is_eligible, seat_row, seat_col, student_type, notes } = req.body;
-        
+
         if (!exam_schedule_id || !student_id) {
             return res.status(400).json({ success: false, message: 'Thiếu exam_schedule_id hoặc student_id' });
         }
 
         // Check if already exists
         const [existing] = await pool.query(
-            'SELECT id FROM exam_eligibility WHERE exam_schedule_id = ? AND student_id = ?', 
+            'SELECT id FROM exam_eligibility WHERE exam_schedule_id = ? AND student_id = ?',
             [exam_schedule_id, student_id]
         );
 
@@ -387,16 +387,16 @@ exports.addExamEligibility = async (req, res) => {
         const [result] = await pool.query(
             'INSERT INTO exam_eligibility (exam_schedule_id, student_id, is_eligible, seat_row, seat_col, student_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
-                exam_schedule_id, 
-                student_id, 
-                is_eligible !== undefined ? is_eligible : 1, 
-                seat_row !== undefined ? seat_row : null, 
+                exam_schedule_id,
+                student_id,
+                is_eligible !== undefined ? is_eligible : 1,
+                seat_row !== undefined ? seat_row : null,
                 seat_col !== undefined ? seat_col : null,
                 student_type || 'regular',
                 notes || null
             ]
         );
-        
+
         res.status(201).json({ success: true, message: 'Đã thêm sinh viên vào danh sách dự thi' });
     } catch (error) {
         console.error('Error in addExamEligibility:', error);
@@ -410,7 +410,7 @@ exports.bulkEnrollClassForExam = async (req, res) => {
         const { class_id, student_type, notes } = req.body;
 
         if (!class_id) {
-            return res.status(400).json({ success: false, message: 'Vui lòng chọn lớp sinh viên' });
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn lớp' });
         }
 
         // Get schedule info for seating layout
@@ -498,7 +498,7 @@ exports.removeExamEligibility = async (req, res) => {
     try {
         const { id } = req.params;
         const [result] = await pool.query('DELETE FROM exam_eligibility WHERE id = ?', [id]);
-        
+
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu' });
         }
@@ -577,7 +577,7 @@ exports.deleteExamAttendance = async (req, res) => {
     try {
         const { id } = req.params;
         const [result] = await pool.query('DELETE FROM exam_attendance WHERE id = ?', [id]);
-        
+
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu điểm danh thi' });
         }

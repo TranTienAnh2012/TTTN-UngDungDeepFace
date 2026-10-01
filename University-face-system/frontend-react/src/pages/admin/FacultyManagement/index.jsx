@@ -52,7 +52,7 @@ const FacultyManagement = () => {
                         Quản Lý Khoa & Viện Đào Tạo
                     </h1>
                     <p className="text-gray-500 mt-1 text-sm font-medium">
-                        Quản lý danh sách các Khoa/Viện chuyên môn, phân loại lớp sinh viên và phân quyền
+                        Quản lý danh sách các Khoa/Viện chuyên môn, phân loại lớp và phân quyền
                     </p>
                 </div>
                 <button

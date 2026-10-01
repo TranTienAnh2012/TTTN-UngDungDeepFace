@@ -18,7 +18,7 @@ const Sidebar = () => {
             title: 'Quản Lý Đào Tạo',
             items: [
                 { path: '/admin/faculties', icon: Building, label: 'Khoa & Viện' },
-                { path: '/admin/classes', icon: Layers, label: 'Lớp Sinh Viên' },
+                { path: '/admin/classes', icon: Layers, label: 'Lớp' },
                 { path: '/admin/courses', icon: BookOpen, label: 'Môn Học' },
                 { path: '/admin/rooms', icon: Building2, label: 'Phòng & Sơ Đồ' },
                 { path: '/admin/students', icon: GraduationCap, label: 'Sinh Viên' },
@@ -27,9 +27,9 @@ const Sidebar = () => {
         {
             title: 'Lớp Học Phần',
             items: [
-                { path: '/admin/class-schedules',    icon: Calendar,  label: 'Lịch Học' },
-                { path: '/admin/class-attendance',   icon: UserCheck, label: 'Điểm Danh Lớp' },
-                { path: '/admin/attendance-report',  icon: BarChart2, label: 'Báo Cáo Điểm Danh' },
+                { path: '/admin/class-schedules', icon: Calendar, label: 'Lịch Học' },
+                { path: '/admin/class-attendance', icon: UserCheck, label: 'Điểm Danh Lớp' },
+                { path: '/admin/attendance-report', icon: BarChart2, label: 'Báo Cáo Điểm Danh' },
             ]
         },
         {
@@ -58,7 +58,7 @@ const Sidebar = () => {
                 </div>
                 <h2 className="text-xl font-bold text-gray-800 tracking-tight">FaceSystem</h2>
             </div>
-            
+
             <nav className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar">
                 {menuGroups.map((group, idx) => (
                     <div key={idx} className="space-y-1">
@@ -71,10 +71,9 @@ const Sidebar = () => {
                                     to={item.path}
                                     end={item.path === '/admin'}
                                     className={({ isActive }) =>
-                                        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group font-medium ${
-                                            isActive
-                                                ? 'bg-primary-50 text-primary-700'
-                                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group font-medium ${isActive
+                                            ? 'bg-primary-50 text-primary-700'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                         }`
                                     }
                                 >
@@ -90,7 +89,7 @@ const Sidebar = () => {
                     </div>
                 ))}
             </nav>
-            
+
             <div className="p-4 border-t border-gray-100 bg-gray-50/50 mt-auto">
                 <button
                     onClick={logout}

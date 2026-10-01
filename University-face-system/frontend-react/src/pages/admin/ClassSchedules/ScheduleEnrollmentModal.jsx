@@ -224,7 +224,7 @@ const ScheduleEnrollmentModal = ({ isOpen, onClose, schedule }) => {
                                     onChange={(e) => setSelectedClassId(e.target.value)}
                                     className="sm:col-span-2 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-900 font-medium bg-white focus:ring-2 focus:ring-emerald-500 truncate"
                                 >
-                                    <option value="">-- Chọn Lớp Sinh Viên --</option>
+                                    <option value="">-- Chọn Lớp --</option>
                                     {academicClasses.map(c => (
                                         <option key={c.id} value={c.id}>
                                             {c.class_code} - {c.class_name} ({c.student_count ?? c.total_students ?? 0} SV)

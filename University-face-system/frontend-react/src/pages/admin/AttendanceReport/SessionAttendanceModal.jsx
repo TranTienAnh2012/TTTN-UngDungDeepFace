@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    X, Calendar as CalendarIcon, Clock, MapPin, BookOpen, Users, User, 
-    GraduationCap, Building2, Search, CheckCircle2, XCircle, 
-    AlertCircle, Download, ShieldCheck, RefreshCw, Layers, Check, 
+import {
+    X, Calendar as CalendarIcon, Clock, MapPin, BookOpen, Users, User,
+    GraduationCap, Building2, Search, CheckCircle2, XCircle,
+    AlertCircle, Download, ShieldCheck, RefreshCw, Layers, Check,
     AlertTriangle, ChevronLeft, ChevronRight, Sparkles, Play
 } from 'lucide-react';
 import api from '../../../services/api';
@@ -12,12 +12,12 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
     const [courseSessions, setCourseSessions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
-    
+
     // Main View Tab: 'roster' (Danh sách sinh viên) | 'calendar' (Lịch & Tiến trình học)
     const [viewMode, setViewMode] = useState('roster');
-    
+
     // Roster filter tab: 'all' | 'attended' | 'absent'
-    const [activeTab, setActiveTab] = useState('all'); 
+    const [activeTab, setActiveTab] = useState('all');
     const [error, setError] = useState('');
 
     // Calendar state
@@ -91,7 +91,7 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
     // Calculate status for each student
     const isExam = sessionType === 'exam';
     const processedStudents = students.map(s => {
-        const hasAttended = isExam 
+        const hasAttended = isExam
             ? Boolean(s.check_in_time || s.attendance_id || (s.attendance_status && s.attendance_status !== 'Absent') || s.is_verified)
             : Boolean(s.check_in_time || s.check_out_time || (s.attendance_status && s.attendance_status !== 'Absent'));
 
@@ -104,17 +104,17 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
     });
 
     const attendedList = processedStudents.filter(s => s.hasAttended);
-    const absentList   = processedStudents.filter(s => !s.hasAttended);
+    const absentList = processedStudents.filter(s => !s.hasAttended);
 
     const attendedCount = attendedList.length;
-    const absentCount   = absentList.length;
-    const totalCount    = processedStudents.length;
+    const absentCount = absentList.length;
+    const totalCount = processedStudents.length;
     const attendanceRate = totalCount > 0 ? Math.round((attendedCount / totalCount) * 100) : 0;
 
     // Filter displayed list by active tab and search query
     let displayedStudents = processedStudents;
     if (activeTab === 'attended') displayedStudents = attendedList;
-    if (activeTab === 'absent')   displayedStudents = absentList;
+    if (activeTab === 'absent') displayedStudents = absentList;
 
     if (search.trim()) {
         const q = search.toLowerCase();
@@ -133,7 +133,7 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
             : ['STT', 'MSSV', 'Họ và Tên', 'Lớp Chính Quy', 'Khoa', 'Loại SV', 'Check-in', 'Check-out', 'Trạng Thái', 'Độ Khớp Face'];
 
         const lines = [headers.join(',')];
-        
+
         displayedStudents.forEach((s, idx) => {
             if (isExam) {
                 const seatStr = (s.seat_row !== null && s.seat_col !== null) ? `Hàng ${s.seat_row + 1} Cột ${s.seat_col + 1}` : 'Tự do';
@@ -167,7 +167,7 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
         const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url;
-        a.download = `${title}_${session.course_code || 'MON'}_${new Date().toISOString().slice(0,10)}.csv`;
+        a.download = `${title}_${session.course_code || 'MON'}_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -216,7 +216,7 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh]">
-                
+
                 {/* Header Section */}
                 <div className="px-6 py-4 bg-[#175b9f] text-white flex items-start justify-between flex-shrink-0">
                     <div className="space-y-1">
@@ -256,7 +256,7 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                             <Download size={14} />
                             <span>Xuất CSV</span>
                         </button>
-                        <button 
+                        <button
                             onClick={onClose}
                             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
                             title="Đóng"
@@ -271,11 +271,10 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setViewMode('roster')}
-                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-xs font-bold transition-all ${
-                                viewMode === 'roster'
+                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-xs font-bold transition-all ${viewMode === 'roster'
                                     ? 'border-indigo-600 text-indigo-600'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                            }`}
+                                }`}
                         >
                             <Users size={15} />
                             <span>Danh Sách Thí Sinh / Sinh Viên ({totalCount})</span>
@@ -283,11 +282,10 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
 
                         <button
                             onClick={() => setViewMode('calendar')}
-                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-xs font-bold transition-all ${
-                                viewMode === 'calendar'
+                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-xs font-bold transition-all ${viewMode === 'calendar'
                                     ? 'border-indigo-600 text-indigo-600'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                            }`}
+                                }`}
                         >
                             <CalendarIcon size={15} />
                             <span>Lịch &amp; Tiến Trình Học Phần</span>
@@ -310,30 +308,26 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                             {/* Tab: ĐÃ ĐIỂM DANH */}
                             <button
                                 onClick={() => setActiveTab('attended')}
-                                className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex items-center justify-between ${
-                                    activeTab === 'attended'
+                                className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex items-center justify-between ${activeTab === 'attended'
                                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200'
                                         : 'bg-white text-slate-800 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50/30 shadow-xs'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                                        activeTab === 'attended' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
-                                    }`}>
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${activeTab === 'attended' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
+                                        }`}>
                                         <CheckCircle2 size={20} />
                                     </div>
                                     <div>
-                                        <p className={`text-[10px] uppercase font-extrabold tracking-wider ${
-                                            activeTab === 'attended' ? 'text-emerald-100' : 'text-emerald-700'
-                                        }`}>
+                                        <p className={`text-[10px] uppercase font-extrabold tracking-wider ${activeTab === 'attended' ? 'text-emerald-100' : 'text-emerald-700'
+                                            }`}>
                                             Đã Điểm Danh
                                         </p>
                                         <p className="text-lg font-black">{attendedCount} <span className="text-xs font-normal opacity-80">sinh viên</span></p>
                                     </div>
                                 </div>
-                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                                    activeTab === 'attended' ? 'bg-white text-emerald-700' : 'bg-emerald-100 text-emerald-800'
-                                }`}>
+                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${activeTab === 'attended' ? 'bg-white text-emerald-700' : 'bg-emerald-100 text-emerald-800'
+                                    }`}>
                                     {attendanceRate}%
                                 </span>
                             </button>
@@ -341,30 +335,26 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                             {/* Tab: CHƯA ĐIỂM DANH */}
                             <button
                                 onClick={() => setActiveTab('absent')}
-                                className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex items-center justify-between ${
-                                    activeTab === 'absent'
+                                className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex items-center justify-between ${activeTab === 'absent'
                                         ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-200'
                                         : 'bg-white text-slate-800 border-rose-200 hover:border-rose-400 hover:bg-rose-50/30 shadow-xs'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                                        activeTab === 'absent' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
-                                    }`}>
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${activeTab === 'absent' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                                        }`}>
                                         <XCircle size={20} />
                                     </div>
                                     <div>
-                                        <p className={`text-[10px] uppercase font-extrabold tracking-wider ${
-                                            activeTab === 'absent' ? 'text-rose-100' : 'text-rose-700'
-                                        }`}>
+                                        <p className={`text-[10px] uppercase font-extrabold tracking-wider ${activeTab === 'absent' ? 'text-rose-100' : 'text-rose-700'
+                                            }`}>
                                             Chưa Điểm Danh (Vắng)
                                         </p>
                                         <p className="text-lg font-black">{absentCount} <span className="text-xs font-normal opacity-80">sinh viên</span></p>
                                     </div>
                                 </div>
-                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                                    activeTab === 'absent' ? 'bg-white text-rose-700' : 'bg-rose-100 text-rose-800'
-                                }`}>
+                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${activeTab === 'absent' ? 'bg-white text-rose-700' : 'bg-rose-100 text-rose-800'
+                                    }`}>
                                     {totalCount > 0 ? 100 - attendanceRate : 0}%
                                 </span>
                             </button>
@@ -372,30 +362,26 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                             {/* Tab: TẤT CẢ */}
                             <button
                                 onClick={() => setActiveTab('all')}
-                                className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex items-center justify-between ${
-                                    activeTab === 'all'
+                                className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex items-center justify-between ${activeTab === 'all'
                                         ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-300'
                                         : 'bg-white text-slate-800 border-slate-200 hover:border-slate-400 hover:bg-slate-50 shadow-xs'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                                        activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                                    }`}>
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                                        }`}>
                                         <Users size={20} />
                                     </div>
                                     <div>
-                                        <p className={`text-[10px] uppercase font-extrabold tracking-wider ${
-                                            activeTab === 'all' ? 'text-slate-300' : 'text-slate-500'
-                                        }`}>
+                                        <p className={`text-[10px] uppercase font-extrabold tracking-wider ${activeTab === 'all' ? 'text-slate-300' : 'text-slate-500'
+                                            }`}>
                                             Tổng Sĩ Số Ca
                                         </p>
                                         <p className="text-lg font-black">{totalCount} <span className="text-xs font-normal opacity-80">sinh viên</span></p>
                                     </div>
                                 </div>
-                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                                    activeTab === 'all' ? 'bg-white text-slate-900' : 'bg-slate-100 text-slate-700'
-                                }`}>
+                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${activeTab === 'all' ? 'bg-white text-slate-900' : 'bg-slate-100 text-slate-700'
+                                    }`}>
                                     100%
                                 </span>
                             </button>
@@ -438,7 +424,7 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                                             <th className="py-3 px-3">STT</th>
                                             <th className="py-3 px-3">MSSV</th>
                                             <th className="py-3 px-3">Họ và Tên</th>
-                                            <th className="py-3 px-3">Lớp Sinh Viên</th>
+                                            <th className="py-3 px-3">Lớp</th>
                                             <th className="py-3 px-3">Khoa</th>
                                             {isExam ? (
                                                 <th className="py-3 px-3 text-center">Vị Trí Ghế</th>
@@ -510,8 +496,8 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                                                     {st.hasAttended ? (
                                                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                                             <CheckCircle2 size={12} className="text-emerald-700" />
-                                                            {isExam 
-                                                                ? 'Đã vào phòng thi' 
+                                                            {isExam
+                                                                ? 'Đã vào phòng thi'
                                                                 : (st.check_in_time && st.check_out_time ? 'Hoàn thành' : 'Đã check-in')}
                                                         </span>
                                                     ) : (
@@ -694,17 +680,15 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                                         return (
                                             <div
                                                 key={cs.id || idx}
-                                                className={`p-4 rounded-2xl border transition-all ${
-                                                    isThisSchedule
+                                                className={`p-4 rounded-2xl border transition-all ${isThisSchedule
                                                         ? 'bg-indigo-50/70 border-indigo-300 shadow-xs'
                                                         : 'bg-white border-slate-200 hover:border-slate-300'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center justify-between gap-2">
                                                     <div className="flex items-center gap-2">
-                                                        <span className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black ${
-                                                            isThisSchedule ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700'
-                                                        }`}>
+                                                        <span className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black ${isThisSchedule ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700'
+                                                            }`}>
                                                             {idx + 1}
                                                         </span>
                                                         <div>
@@ -730,10 +714,9 @@ const SessionAttendanceModal = ({ isOpen, onClose, session, sessionType = 'class
                                                         </div>
                                                     </div>
 
-                                                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
-                                                        isToday ? 'bg-emerald-100 text-emerald-800' :
-                                                        isPast ? 'bg-slate-100 text-slate-600' : 'bg-blue-100 text-blue-800'
-                                                    }`}>
+                                                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${isToday ? 'bg-emerald-100 text-emerald-800' :
+                                                            isPast ? 'bg-slate-100 text-slate-600' : 'bg-blue-100 text-blue-800'
+                                                        }`}>
                                                         {isToday ? 'Hôm Nay' : isPast ? 'Đã Kết Thúc' : 'Sắp Tới'}
                                                     </span>
                                                 </div>

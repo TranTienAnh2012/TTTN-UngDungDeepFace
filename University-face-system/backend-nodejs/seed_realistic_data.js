@@ -31,7 +31,7 @@ async function seedRealisticData() {
             { code: 'DTVT', name: 'Khoa Điện Tử Viễn Thông', desc: 'Kỹ thuật viễn thông, Mạng máy tính, IoT & Vi mạch' },
             { code: 'QTKD', name: 'Khoa Quản Trị Kinh Doanh', desc: 'Quản trị kinh doanh số, Marketing số, Thương mại điện tử' },
             { code: 'KTDN', name: 'Khoa Kinh Tế & Kế Toán', desc: 'Kế toán doanh nghiệp, Tài chính số, Kiểm toán' },
-            { code: 'NN',   name: 'Khoa Ngoại Ngữ', desc: 'Tiếng Anh thương mại, Tiếng Nhật công nghệ' }
+            { code: 'NN', name: 'Khoa Ngoại Ngữ', desc: 'Tiếng Anh thương mại, Tiếng Nhật công nghệ' }
         ];
 
         for (const f of facultiesData) {
@@ -47,7 +47,7 @@ async function seedRealisticData() {
         const fMap = {};
         faculties.forEach(f => { fMap[f.faculty_code] = f.id; });
 
-        console.log('[2/8] Chuẩn hóa danh mục Lớp sinh viên chính quy...');
+        console.log('[2/8] Chuẩn hóa danh mục Lớp chính quy...');
         const classesData = [
             { code: 'CNTT1-K15', name: 'Công Nghệ Thông Tin 1 - Khóa 15', fid: fMap['CNTT'], year: '2022-2026' },
             { code: 'CNTT2-K15', name: 'Công Nghệ Thông Tin 2 - Khóa 15', fid: fMap['CNTT'], year: '2022-2026' },
@@ -334,7 +334,7 @@ async function seedRealisticData() {
         // Đảm bảo check_in_time cho phép NULL (đối với sinh viên vắng mặt)
         try {
             await conn.query('ALTER TABLE class_attendance MODIFY COLUMN check_in_time DATETIME NULL');
-        } catch (e) {}
+        } catch (e) { }
 
         // Xóa các bảng dữ liệu cũ liên quan để đồng bộ sạch
         await conn.query('DELETE FROM class_attendance');
@@ -512,7 +512,7 @@ async function seedRealisticData() {
         const [examAttendanceCount] = await conn.query('SELECT COUNT(*) as c FROM exam_attendance');
 
         console.log(`- Khoa / Viện:       ${facultiesCount[0].c}`);
-        console.log(`- Lớp sinh viên:     ${classesCount[0].c}`);
+        console.log(`- Lớp:     ${classesCount[0].c}`);
         console.log(`- Phòng học / thi:   ${roomsCount[0].c}`);
         console.log(`- Ca học chuẩn:      ${shiftsCount[0].c}`);
         console.log(`- Môn học:           ${coursesCount[0].c}`);

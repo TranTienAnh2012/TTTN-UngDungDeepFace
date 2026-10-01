@@ -3,16 +3,16 @@ import { X, UserCheck, Building, Layers, Mail, Calendar, User, Code } from 'luci
 import api from '../../../services/api';
 
 const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
-    const [formData, setFormData] = useState({ 
-        student_code: '', 
-        full_name: '', 
+    const [formData, setFormData] = useState({
+        student_code: '',
+        full_name: '',
         faculty_id: '',
         class_id: '',
-        class_name: '', 
-        date_of_birth: '', 
+        class_name: '',
+        date_of_birth: '',
         email: '',
         gender: 'male',
-        status: 'Active' 
+        status: 'Active'
     });
 
     const [faculties, setFaculties] = useState([]);
@@ -139,7 +139,7 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                         <X size={18} />
                     </button>
                 </div>
-                
+
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-5 space-y-4 bg-white overflow-y-auto flex-1">
                     {formError && (
@@ -153,11 +153,11 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                                 Mã Sinh Viên *
                             </label>
-                            <input 
-                                type="text" 
-                                required 
-                                value={formData.student_code} 
-                                onChange={e => setFormData({...formData, student_code: e.target.value.toUpperCase()})}
+                            <input
+                                type="text"
+                                required
+                                value={formData.student_code}
+                                onChange={e => setFormData({ ...formData, student_code: e.target.value.toUpperCase() })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-bold focus:ring-2 focus:ring-primary-500 shadow-sm uppercase"
                             />
                         </div>
@@ -167,7 +167,7 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                             </label>
                             <select
                                 value={formData.status}
-                                onChange={e => setFormData({...formData, status: e.target.value})}
+                                onChange={e => setFormData({ ...formData, status: e.target.value })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                             >
                                 <option value="Active">Đang học (Active)</option>
@@ -181,11 +181,11 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                             Họ và Tên Sinh Viên *
                         </label>
-                        <input 
-                            type="text" 
-                            required 
-                            value={formData.full_name} 
-                            onChange={e => setFormData({...formData, full_name: e.target.value})}
+                        <input
+                            type="text"
+                            required
+                            value={formData.full_name}
+                            onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                             className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                         />
                     </div>
@@ -214,7 +214,7 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
                             <Layers size={14} className="text-gray-400" />
-                            Lớp Sinh Viên Chính Quy
+                            Lớp Chính Quy
                         </label>
                         <select
                             value={formData.class_id}
@@ -235,10 +235,10 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                                 Ngày Sinh
                             </label>
-                            <input 
+                            <input
                                 type="date"
-                                value={formData.date_of_birth} 
-                                onChange={e => setFormData({...formData, date_of_birth: e.target.value})}
+                                value={formData.date_of_birth}
+                                onChange={e => setFormData({ ...formData, date_of_birth: e.target.value })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                             />
                         </div>
@@ -246,10 +246,10 @@ const EditStudent = ({ isOpen, onClose, onStudentUpdated, student }) => {
                             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
                                 Email Sinh Viên
                             </label>
-                            <input 
-                                type="email" 
-                                value={formData.email || ''} 
-                                onChange={e => setFormData({...formData, email: e.target.value})}
+                            <input
+                                type="email"
+                                value={formData.email || ''}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
                                 className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 shadow-sm"
                             />
                         </div>

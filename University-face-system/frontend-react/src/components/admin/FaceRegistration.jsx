@@ -775,13 +775,12 @@ const FaceRegistration = ({ onComplete }) => {
                             <div
                                 ref={containerRef}
                                 className="relative w-full max-w-md bg-gray-900 rounded-xl overflow-hidden shadow-inner"
-                                style={{ transform: 'scaleX(-1)' }}
                             >
                                 <Webcam
                                     audio={false}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
-                                    mirrored={false}
+                                    mirrored={true}
                                     videoConstraints={{
                                         facingMode: "user",
                                         width: { ideal: 640 },
@@ -795,7 +794,7 @@ const FaceRegistration = ({ onComplete }) => {
                                     <div
                                         className="absolute pointer-events-none"
                                         style={{
-                                            left: `${(box[0] / imageSize[0]) * 100}%`,
+                                            left: `${((imageSize[0] - box[0] - box[2]) / imageSize[0]) * 100}%`,
                                             top: `${(box[1] / imageSize[1]) * 100}%`,
                                             width: `${(box[2] / imageSize[0]) * 100}%`,
                                             height: `${(box[3] / imageSize[1]) * 100}%`,
@@ -810,23 +809,23 @@ const FaceRegistration = ({ onComplete }) => {
 
                                 {/* Inverse text overlays */}
                                 {box && step === 'straight' && pose !== 'straight' && (
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center" style={{ transform: 'scaleX(-1)' }}>
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                         <p className="text-white font-bold text-lg px-4 py-2 bg-red-500/80 rounded-lg">Hãy nhìn thẳng!</p>
                                     </div>
                                 )}
                                 {box && step === 'left' && pose !== 'left' && (
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center" style={{ transform: 'scaleX(-1)' }}>
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                         <p className="text-white font-bold text-lg px-4 py-2 bg-red-500/80 rounded-lg">Quay đầu sang trái ←</p>
                                     </div>
                                 )}
                                 {box && step === 'right' && pose !== 'right' && (
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center" style={{ transform: 'scaleX(-1)' }}>
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                         <p className="text-white font-bold text-lg px-4 py-2 bg-red-500/80 rounded-lg">Quay đầu sang phải →</p>
                                     </div>
                                 )}
 
                                 {step === 'registering' && (
-                                    <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center" style={{ transform: 'scaleX(-1)' }}>
+                                    <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center">
                                         <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin mb-4"></div>
                                         <p className="text-white font-medium">Đang trích xuất vector khuôn mặt AI...</p>
                                     </div>

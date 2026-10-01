@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    X, Calendar as CalendarIcon, Clock, MapPin, BookOpen, Users, User, 
-    GraduationCap, Building2, Search, CheckCircle, AlertCircle, 
+import {
+    X, Calendar as CalendarIcon, Clock, MapPin, BookOpen, Users, User,
+    GraduationCap, Building2, Search, CheckCircle, AlertCircle,
     Play, Camera, ShieldCheck, CheckCircle2, UserCheck, RefreshCw, ExternalLink, Download,
-    ChevronLeft, ChevronRight, Layers, Award, Sparkles, Check 
+    ChevronLeft, ChevronRight, Layers, Award, Sparkles, Check
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -211,7 +211,7 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
                             <Download size={14} />
                             <span>Xuất Excel</span>
                         </button>
-                        <button 
+                        <button
                             onClick={onClose}
                             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
                             title="Đóng"
@@ -242,7 +242,7 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }) => {
                             <GraduationCap size={16} />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lớp Sinh Viên</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lớp</p>
                             <p className="text-xs font-bold text-slate-800 truncate" title={schedule.official_class_name || schedule.official_class_code || 'Chưa gắn lớp'}>
                                 {schedule.official_class_code || schedule.group || 'Chưa gắn lớp'}
                             </p>
