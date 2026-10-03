@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Tốt Nghiệp: Hệ Thống Điểm Danh & Quản Lý Thi Bằng Khuôn Mặt (DeepFace AI)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0f1d;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.82);
+            --border-card: rgba(99, 102, 241, 0.25);
+            --accent-indigo: #6366f1;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            /* Cho phép chọn và copy text thoải mái sang PowerPoint */
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(99, 102, 241, 0.14) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.06) 0%, transparent 60%);
+        }
+
+        /* Top Progress Bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4, #10b981);
+            width: 0%;
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+        }
+
+        /* Top Bar */
+        .header-bar {
+            height: 54px;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(10, 15, 29, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 90;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .brand-badge {
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .slide-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--accent-cyan);
+            font-weight: 600;
+            background: rgba(6, 182, 212, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(6, 182, 212, 0.25);
+        }
+        .btn-icon {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12.5px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-icon:hover {
+            background: rgba(99, 102, 241, 0.25);
+            color: #fff;
+            border-color: var(--accent-indigo);
+            transform: translateY(-1px);
+        }
+        .btn-copy {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.35);
+        }
+        .btn-copy:hover {
+            background: rgba(16, 185, 129, 0.3);
+            color: #fff;
+            border-color: #10b981;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 64px;
+            right: 32px;
+            background: #10b981;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.25s ease;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Slide Stage */
+        .presentation-stage {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 40px;
+        }
+
+        .slide {
+            position: absolute;
+            width: min(94vw, 1340px);
+            height: min(86vh, 780px);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.97) translateY(20px);
+            transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            backdrop-filter: blur(16px);
+            border-radius: 26px;
+            padding: 36px 44px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1) translateY(0);
+            z-index: 10;
+        }
+
+        /* Slide Header */
+        .slide-header {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .slide-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-indigo);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin-bottom: 10px;
+        }
+        .slide-title {
+            font-size: 30px;
+            font-weight: 800;
+            line-height: 1.25;
+            background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .slide-subtitle {
+            font-size: 14.5px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            font-weight: 400;
+        }
+
+        .slide-body {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+        .slide-body::-webkit-scrollbar {
+            width: 4px;
+        }
+        .slide-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        /* Grids & Cards */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            height: 100%;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.25s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .glass-card.highlight {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.09) 0%, rgba(139, 92, 246, 0.04) 100%);
+        }
+        .glass-card.highlight-emerald {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: linear-gradient(145deg, rgba(16, 185, 129, 0.09) 0%, rgba(6, 182, 212, 0.04) 100%);
+        }
+
+        .card-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 14px;
+        }
+        .icon-indigo { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+        .icon-cyan { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+        .icon-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .icon-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .icon-rose { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+
+        .card-title {
+            font-size: 16.5px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .card-desc {
+            font-size: 13.5px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            width: fit-content;
+        }
+        .badge-cyan { background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); }
+        .badge-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-rose { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+        .badge-indigo { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+
+        /* Metrics */
+        .metric-box {
+            text-align: center;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+        }
+        .metric-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 30px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .metric-lbl {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Architecture Diagram Flow */
+        .arch-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 22px;
+            background: rgba(15, 23, 42, 0.65);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-top: 12px;
+        }
+        .arch-node {
+            flex: 1;
+            padding: 16px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        .arch-node.active-node {
+            border-color: var(--accent-indigo);
+            background: rgba(99, 102, 241, 0.12);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+        .arch-arrow {
+            font-size: 20px;
+            color: var(--accent-cyan);
+            font-weight: bold;
+        }
+
+        /* Table Custom */
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .table-custom th {
+            text-align: left;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+            color: #cbd5e1;
+            font-weight: 700;
+        }
+        .table-custom td {
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+        .table-custom tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: #fff;
+        }
+
+        /* Slide Footer */
+        .slide-footer {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .slide-footer-author {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Speaker Notes Modal */
+        .speaker-notes-modal {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            width: 500px;
+            max-height: 280px;
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid var(--accent-indigo);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.75);
+            z-index: 200;
+            display: none;
+            overflow-y: auto;
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+        .speaker-notes-modal.show {
+            display: block;
+            animation: fadeInNotes 0.2s ease;
+        }
+        .notes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 6px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+        @keyframes fadeInNotes {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Bottom Navigation Bar */
+        .nav-bar {
+            height: 58px;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(10, 15, 29, 0.9);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: var(--accent-indigo);
+            border-color: var(--accent-indigo);
+            transform: translateY(-1px);
+        }
+        .nav-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .nav-hints {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 14px;
+        }
+        .kbd {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+        }
+
+        @media print {
+            body { overflow: visible !important; height: auto !important; }
+            .slide { position: relative !important; opacity: 1 !important; visibility: visible !important; transform: none !important; page-break-after: always !important; height: 100vh !important; }
+            .header-bar, .nav-bar, .speaker-notes-modal, .progress-bar-container, .toast { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Progress Bar -->
+    <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span>✅</span> <span id="toastMsg">Đã copy nội dung slide vào clipboard! Bạn có thể dán (Ctrl+V) sang PowerPoint.</span>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="header-bar">
+        <div class="header-brand">
+            <span class="brand-badge">BÁO CÁO TỐT NGHIỆP</span>
+            <span>HỆ THỐNG ĐIỂM DANH & QUẢN LÝ THI BẰNG KHUÔN MẶT AI</span>
+        </div>
+        <div class="header-controls">
+            <span class="slide-counter" id="slideCounter">SLIDE 01 / 16</span>
+            <button class="btn-icon btn-copy" id="copySlideBtn" title="Copy toàn bộ nội dung slide hiện tại để dán sang PowerPoint">
+                📋 Copy Text Cho PowerPoint
+            </button>
+            <button class="btn-icon" id="toggleNotesBtn" title="Xem ghi chú thuyết trình (Phím S)">
+                🎙️ Lời Thoại (S)
+            </button>
+            <button class="btn-icon" id="toggleFullscreenBtn" title="Toàn màn hình (Phím F)">
+                ⛶ Toàn Màn Hình (F)
+            </button>
+        </div>
+    </header>
+
+    <!-- Slide Stage -->
+    <main class="presentation-stage">
+
+        <!-- ================= SLIDE 1 ================= -->
+        <section class="slide active" data-notes="Kính chào quý thầy cô trong Hội đồng chấm khóa luận tốt nghiệp! Em là Lục Văn Sơn, sinh viên lớp K23CNT3. Hôm nay em xin phép được trình bày đề tài: 'Xây dựng Hệ thống Điểm danh và Quản lý Khảo thí bằng Nhận diện Khuôn mặt dựa trên Deep Learning & Chống gian lận 3D'. Đề tài tập trung giải quyết bài toán tự động hóa kiểm diện quy mô trường học, chống gian lận và tối ưu trải nghiệm người dùng với kiến trúc Microservices hiện đại.">
+            <div class="slide-header">
+                <span class="slide-tag">KHOÁ LUẬN TỐT NGHIỆP • K23CNT3</span>
+                <h1 class="slide-title" style="font-size: 36px; line-height: 1.2;">
+                    HỆ THỐNG ĐIỂM DANH & QUẢN LÝ KHẢO THÍ<br/>
+                    BẰNG NHẬN DIỆN KHUÔN MẶT THÔNG MINH
+                </h1>
+                <p class="slide-subtitle" style="font-size: 16px;">Ứng Dụng Deep Learning (ArcFace + MTCNN), Chống Giả Mạo 3D Liveness & Kiến Trúc Microservices</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-2" style="align-items: center;">
+                    <div class="glass-card highlight" style="padding: 28px;">
+                        <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 14px;">🎓 THÔNG TIN TÁC GIẢ ĐỀ TÀI</h3>
+                        <div style="display: flex; flex-direction: column; gap: 11px; font-size: 14px;">
+                            <div><span style="color: var(--text-muted);">Sinh viên thực hiện:</span> <strong style="color: #fff; font-size: 16px;">Lục Văn Sơn</strong></div>
+                            <div><span style="color: var(--text-muted);">Mã số sinh viên:</span> <strong style="color: var(--accent-cyan); font-family: 'JetBrains Mono';">2310900087</strong></div>
+                            <div><span style="color: var(--text-muted);">Lớp chuyên ngành:</span> <strong style="color: #fff;">K23CNT3</strong></div>
+                            <div><span style="color: var(--text-muted);">Khoa đào tạo:</span> <strong style="color: #fff;">Công nghệ Thông tin & Khoa học Máy tính</strong></div>
+                            <div><span style="color: var(--text-muted);">Vai trò đề tài:</span> <span class="badge badge-emerald">QA/QC Engineer & Fullstack Backend Supporter</span></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="metric-box" style="display: flex; align-items: center; justify-content: space-around; padding: 18px;">
+                            <div>
+                                <div class="metric-val">&gt; 99.2%</div>
+                                <div class="metric-lbl">ĐỘ CHÍNH XÁC ARCFACE</div>
+                            </div>
+                            <div style="width: 1px; height: 46px; background: rgba(255,255,255,0.1);"></div>
+                            <div>
+                                <div class="metric-val">&lt; 250ms</div>
+                                <div class="metric-lbl">TỐC ĐỘ ĐỐI SOÁT 1:N</div>
+                            </div>
+                            <div style="width: 1px; height: 46px; background: rgba(255,255,255,0.1);"></div>
+                            <div>
+                                <div class="metric-val">100%</div>
+                                <div class="metric-lbl">CHẶN GIAN LẬN ẢNH IN/PHONE</div>
+                            </div>
+                        </div>
+                        <div class="glass-card" style="padding: 16px;">
+                            <div style="font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
+                                💡 <strong>Điểm nhấn đột phá:</strong> Tích hợp nhận diện 1:N tức thời, đối soát sơ đồ ghế thi (Seat Matrix), đồng bộ múi giờ GMT+7 xuyên suốt và Trợ lý AI Hybrid giải đáp học tập thời gian thực.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <div class="slide-footer-author">
+                    <span>Trường Đại Học • Khoa Công Nghệ Thông Tin</span>
+                    <span>Hội Đồng Bảo Vệ Khóa Luận Tốt Nghiệp</span>
+                </div>
+                <span>Tháng 09/2026</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 2 ================= -->
+        <section class="slide" data-notes="Trước hết, em xin trình bày về lý do chọn đề tài và các vấn đề bất cập của phương pháp điểm danh truyền thống. Hiện nay tại các giảng đường đại học, việc điểm danh bằng giấy hoặc đọc tên từng người làm lãng phí từ 10 đến 15 phút mỗi tiết học. Hơn nữa, việc điểm danh hộ bằng thẻ sinh viên hoặc ghi tên hộ xảy ra rất phổ biến. Khi đến kỳ thi, giảng viên phải tự tổng hợp thủ công danh sách vắng thi rất tốn công và dễ sai sót. Đề tài này ra đời để giải quyết triệt để các tồn tại đó.">
+            <div class="slide-header">
+                <span class="slide-tag">01 • ĐẶT VẤN ĐỀ & TÍNH CẤP THIẾT</span>
+                <h2 class="slide-title">THỰC TRẠNG & ĐỘNG LỰC NGHIÊN CỨU</h2>
+                <p class="slide-subtitle">Những nút thắt lớn trong công tác quản lý đào tạo & khảo thí truyền thống</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card">
+                        <div class="card-icon icon-rose">⏱️</div>
+                        <h4 class="card-title">Lãng Phí Thời Gian Giảng Dạy</h4>
+                        <p class="card-desc">Giảng viên mất từ <strong>10 - 15 phút đầu giờ</strong> chỉ để đọc tên kiểm diện trong lớp học 60 - 100 sinh viên, cắt giảm đáng kể thời lượng truyền đạt kiến thức chuyên môn.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-amber">🚫</div>
+                        <h4 class="card-title">Gian Lận & Điểm Danh Hộ</h4>
+                        <p class="card-desc">Thẻ sinh viên từ, mã QR tĩnh hoặc giấy ký tên rất dễ bị làm giả, quẹt thẻ hộ, đăng nhập hộ từ xa hoặc nhờ bạn ký thay mà giảng viên khó lòng bao quát hết.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-indigo">📊</div>
+                        <h4 class="card-title">Thống Kê Khảo Thí Thủ Công</h4>
+                        <p class="card-desc">Việc tổng hợp tỷ lệ chuyên cần để xét điều kiện dự thi (cấm thi khi vắng &gt; 20%) thường phải đối chiếu thủ công trên Excel, tốn nhân lực và tiềm ẩn sai sót giờ giấc.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card highlight" style="margin-top: 18px; padding: 18px;">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <span style="font-size: 30px;">🎯</span>
+                        <div>
+                            <div style="font-weight: 700; font-size: 15px; color: #fff;">Giải pháp đề xuất của Đề tài:</div>
+                            <div style="font-size: 13.5px; color: var(--text-secondary); margin-top: 3px;">
+                                Xây dựng giải pháp điểm danh sinh trắc học khuôn mặt tự động <strong>1:N không chạm</strong>, tích hợp <strong>Passive 3D Anti-Spoofing</strong>, quản lý ca thi gắn với <strong>sơ đồ phòng học số hóa</strong> và <strong>Trợ lý AI tra cứu tức thời</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Tính cấp thiết & Động lực nghiên cứu</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 3 (MỚI: GIỚI THIỆU TỔNG QUAN HỆ THỐNG) ================= -->
+        <section class="slide" data-notes="Tiếp theo, em xin giới thiệu tổng quan về Hệ thống Điểm danh và Quản lý Khảo thí University Face System. Đây là một nền tảng chuyển đổi số toàn diện quy trình kiểm diện và tổ chức thi cử trong trường đại học. Hệ thống phục vụ 3 nhóm đối tượng: Phòng đào tạo quản lý danh mục toàn trường; Giảng viên mở camera điểm danh 2 ca check-in check-out và quản lý lịch thi; Sinh viên đăng ký 3 góc khuôn mặt và tương tác với Trợ lý AI. Điểm đặc biệt nhất là hệ thống vận hành hoàn toàn không chạm (contactless) và không đòi hỏi mua sắm thiết bị phần cứng đắt tiền.">
+            <div class="slide-header">
+                <span class="slide-tag">02 • GIỚI THIỆU HỆ THỐNG</span>
+                <h2 class="slide-title">TỔNG QUAN HỆ THỐNG (UNIVERSITY FACE SYSTEM)</h2>
+                <p class="slide-subtitle">Nền tảng số hóa toàn diện quy trình điểm danh học phần & quản lý phòng thi thông minh</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card highlight">
+                        <div class="card-icon icon-indigo">🏛️</div>
+                        <h4 class="card-title">Phân Hệ Phòng Đào Tạo (Admin)</h4>
+                        <p class="card-desc">
+                            • Quản lý cấu trúc đào tạo: Khoa/Viện, Lớp sinh hoạt chính quy, Môn học, Phòng học, Ca học chuẩn (Shifts).<br/>
+                            • Xếp lịch học, lịch thi, cấu hình sơ đồ ghế phòng thi (Seat Matrix).<br/>
+                            • Giám sát báo cáo chuyên cần toàn trường, tự động lọc danh sách cấm thi.
+                        </p>
+                    </div>
+
+                    <div class="glass-card highlight-emerald">
+                        <div class="card-icon icon-emerald">👩‍🏫</div>
+                        <h4 class="card-title">Phân Hệ Cổng Giảng Viên (Teacher)</h4>
+                        <p class="card-desc">
+                            • Xem lịch giảng dạy theo tuần, mở ca điểm danh AI 1:N tự động.<br/>
+                            • Điểm danh 2 ca: Check-in đầu giờ & Check-out cuối giờ.<br/>
+                            • Chỉnh sửa điểm danh thủ công dự phòng khi cần thiết.<br/>
+                            • Xuất báo cáo chuyên cần ra file Excel (.xlsx) chuẩn GMT+7 chỉ bằng 1 cú nhấp chuột.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-cyan">🎓</div>
+                        <h4 class="card-title">Phân Hệ Sinh Viên & Trợ Lý AI</h4>
+                        <p class="card-desc">
+                            • Đăng ký mẫu khuôn mặt 3 góc chuẩn hóa (Thẳng - Trái - Phải).<br/>
+                            • Điểm danh không chạm: chỉ cần đứng trước camera 0.3s.<br/>
+                            • Tra cứu lịch thi, phòng thi, số tiết vắng qua <strong>Trợ lý AI Hybrid & Drone Mascot</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-top: 18px; padding: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13.5px;">
+                        <span style="color: #cbd5e1;">✨ <strong>Mô hình triển khai:</strong> Hoạt động ngay trên Laptop/PC sẵn có của giảng viên và camera phòng học, không phụ thuộc máy quẹt thẻ chuyên dụng.</span>
+                        <span class="badge badge-emerald">Triển khai Zero-Hardware Cost</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Tổng quan các phân hệ của University Face System</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 4 (MỚI: 6 ĐIỂM ĐỘT PHÁ NỔI BẬT CỦA HỆ THỐNG) ================= -->
+        <section class="slide" data-notes="Đây là slide quan trọng nhất tóm tắt 6 điểm nổi bật vượt trội của hệ thống so với các đề tài hay phần mềm thương mại trên thị trường: 1 là tốc độ nhận diện 1:N siêu nhanh dưới 250ms; 2 là công nghệ chống giả mạo Passive 3D phân tích vân hạt màn hình; 3 là thuật toán 2-Frame Voting triệt tiêu việc bắt nhầm người; 4 là sơ đồ phòng thi số hóa Seat Matrix tự động xếp ghế; 5 là đồng bộ múi giờ chuẩn GMT+7 xuyên suốt CSDL và file Excel; và 6 là Trợ lý AI Hybrid kết hợp Groq Llama 3.3 và Local RAG không tốn token.">
+            <div class="slide-header">
+                <span class="slide-tag">03 • ĐIỂM NỔI BẬT CỦA HỆ THỐNG</span>
+                <h2 class="slide-title">6 ĐIỂM ĐỘT PHÁ NỔI BẬT CỦA HỆ THỐNG</h2>
+                <p class="slide-subtitle">Những cải tiến công nghệ cốt lõi tạo nên sự khác biệt và giá trị thực tiễn cao</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card">
+                        <div class="badge badge-cyan" style="margin-bottom: 8px;">ĐỘT PHÁ 01</div>
+                        <h4 class="card-title">⚡ Nhận Diện 1:N Siêu Tốc &lt; 250ms</h4>
+                        <p class="card-desc">Ứng dụng ma trận ArcFace 512-D và khởi động làm nóng mô hình (Model Warm-up), cho phép đối soát danh sách cả lớp trong tích tắc ngay khi sinh viên bước qua camera.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="badge badge-rose" style="margin-bottom: 8px;">ĐỘT PHÁ 02</div>
+                        <h4 class="card-title">🛡️ Chống Giả Mạo Passive 3D Liveness</h4>
+                        <p class="card-desc">Phân tích vi kết cấu quang học Laplacian Variance (bắt vân hạt màn hình điện thoại) và tỉ lệ hình học 3D, chặn đứng 100% gian lận mà không ép sinh viên làm cử chỉ phiền hà.</p>
+                    </div>
+
+                    <div class="glass-card highlight">
+                        <div class="badge badge-emerald" style="margin-bottom: 8px;">ĐỘT PHÁ 03</div>
+                        <h4 class="card-title">🎯 Thuật Toán 2-Frame Voting Buffer</h4>
+                        <p class="card-desc">Cơ chế trượt cửa sổ 3 frame, yêu cầu 2 frame liên tiếp xác nhận cùng 1 sinh viên mới chốt điểm danh. Triệt tiêu hoàn toàn lỗi chập chờn hay nhận diện nhầm người đi lướt qua phía sau.</p>
+                    </div>
+
+                    <div class="glass-card highlight-emerald">
+                        <div class="badge badge-indigo" style="margin-bottom: 8px;">ĐỘT PHÁ 04</div>
+                        <h4 class="card-title">🪑 Sơ Đồ Ghế Thi Số Hóa (Seat Matrix)</h4>
+                        <p class="card-desc">Tự động gắn vị trí phòng thi theo hàng x cột (Rows x Cols), sáng đèn vị trí thí sinh khi vào phòng; tự động tính tỷ lệ chuyên cần để xét cấm thi theo đúng quy chế đào tạo.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="badge badge-amber" style="margin-bottom: 8px;">ĐỘT PHÁ 05</div>
+                        <h4 class="card-title">🕒 Khóa Cứng Múi Giờ GMT+7 & ExcelJS</h4>
+                        <p class="card-desc">Đồng bộ chuẩn xác múi giờ Việt Nam <code>Asia/Ho_Chi_Minh</code> từ MySQL Docker, Node.js API cho tới file Excel xuất ra, hiển thị chuẩn từng giây không bị lệch 7 tiếng như hệ thống thông thường.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="badge badge-cyan" style="margin-bottom: 8px;">ĐỘT PHÁ 06</div>
+                        <h4 class="card-title">🤖 Trợ Lý Hybrid AI & Drone Mascot</h4>
+                        <p class="card-desc">Động cơ kết hợp Groq Llama-3.3-70B tốc độ cao + Gemini + Local RAG CSDL 0-token cost giải đáp lịch thi/học 24/7; chú Drone Mascot hoạt hình 3D xoay mắt theo chuột sinh động.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>6 Điểm đột phá công nghệ của đề tài</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 5 ================= -->
+        <section class="slide" data-notes="Để đạt được các chỉ tiêu đó, đề tài xác định 4 mục tiêu kỹ thuật định lượng cụ thể: Thứ nhất là tốc độ đối soát 1:N dưới 250 miligiây. Thứ hai là độ chính xác sinh trắc học trên 99.2%. Thứ ba là tỷ lệ chặn gian lận đạt 100%. Và thứ tư là cung cấp Trợ lý AI sẵn sàng 24/7 giải đáp mọi thắc mắc học vụ.">
+            <div class="slide-header">
+                <span class="slide-tag">04 • MỤC TIÊU NGHIÊN CỨU</span>
+                <h2 class="slide-title">MỤC TIÊU & CHỈ TIÊU KỸ THUẬT</h2>
+                <p class="slide-subtitle">Các mục tiêu định lượng được thiết lập và nghiệm thu thành công</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-4">
+                    <div class="glass-card">
+                        <div class="card-icon icon-cyan">⚡</div>
+                        <div class="metric-val" style="font-size: 24px;">&lt; 250ms</div>
+                        <h4 class="card-title" style="margin-top: 8px;">Tốc Độ Đối Soát 1:N</h4>
+                        <p class="card-desc">Xử lý ngay tại camera live, nhận diện và đối soát danh sách lớp trong tích tắc, không gây tắc nghẽn ở cửa lớp.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-emerald">🎯</div>
+                        <div class="metric-val" style="font-size: 24px;">&gt; 99.2%</div>
+                        <h4 class="card-title" style="margin-top: 8px;">Độ Chính Xác Sinh Trắc</h4>
+                        <p class="card-desc">Ứng dụng mạng ArcFace trích xuất vector 512-D, chống nhận diện nhầm ngay cả khi sinh viên đổi kiểu tóc hoặc đeo kính.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-amber">🛡️</div>
+                        <div class="metric-val" style="font-size: 24px;">100%</div>
+                        <h4 class="card-title" style="margin-top: 8px;">Chống Gian Lận (Anti-Spoof)</h4>
+                        <p class="card-desc">Cơ chế Passive Liveness phân tích vi kết cấu vân ảnh (Laplacian) và hình học 3D, chặn đứng việc dùng ảnh in hay điện thoại.</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-indigo">🤖</div>
+                        <div class="metric-val" style="font-size: 24px;">24/7</div>
+                        <h4 class="card-title" style="margin-top: 8px;">Trợ Lý AI Hybrid</h4>
+                        <p class="card-desc">Tích hợp Llama-3.3 qua Groq, Gemini Pro và Local RAG CSDL giải đáp tức thời lịch thi, lịch học, tỷ lệ chuyên cần.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-top: 20px;">
+                    <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">📋 Phạm vi áp dụng thực tế:</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13.5px; color: var(--text-secondary);">
+                        <div>• <strong>Phân hệ Giảng viên:</strong> Mở ca điểm danh, xem lịch dạy cá nhân, sửa điểm danh thủ công, xuất báo cáo Excel GMT+7.</div>
+                        <div>• <strong>Phân hệ Quản trị viên (Admin):</strong> Quản lý Khoa/Lớp, Phòng học, Ca học (Shifts), Lịch thi, sơ đồ ghế và tài khoản.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Mục tiêu & Chỉ tiêu đề tài</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 6 ================= -->
+        <section class="slide" data-notes="Về kiến trúc tổng thể, hệ thống được thiết kế theo mô hình Microservices đóng gói hoàn chỉnh bằng Docker Containers. Hệ thống tách bạch thành 3 khối chính: Thứ nhất là Frontend React 18 phục vụ giao diện thời gian thực. Thứ hai là Node.js Backend quản lý API, xác thực JWT và điều phối cơ sở dữ liệu MySQL 8.0. Và thứ ba là Python AI Service đóng vai trò tính toán thị giác máy tính độc lập. Việc tách rời này giúp xử lý AI nặng không ảnh hưởng đến băng thông website.">
+            <div class="slide-header">
+                <span class="slide-tag">05 • KIẾN TRÚC HỆ THỐNG</span>
+                <h2 class="slide-title">KIẾN TRÚC MICROSERVICES CONTAINERIZED</h2>
+                <p class="slide-subtitle">Thiết kế phân lớp, cô lập tải tính toán và mở rộng linh hoạt qua Docker Mesh</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="arch-diagram">
+                    <div class="arch-node">
+                        <div style="font-size: 24px;">💻</div>
+                        <div style="font-weight: 700; color: #fff; margin: 6px 0;">Frontend Client</div>
+                        <div style="font-size: 12px; color: var(--accent-cyan);">React 18 + Vite</div>
+                        <div class="badge badge-cyan" style="margin-top: 8px;">Cổng 5173</div>
+                    </div>
+
+                    <div class="arch-arrow">➔</div>
+
+                    <div class="arch-node active-node">
+                        <div style="font-size: 24px;">🚀</div>
+                        <div style="font-weight: 700; color: #fff; margin: 6px 0;">Backend API Service</div>
+                        <div style="font-size: 12px; color: #818cf8;">Express.js + MySQL2</div>
+                        <div class="badge badge-emerald" style="margin-top: 8px;">Cổng 5000 (GMT+7)</div>
+                    </div>
+
+                    <div class="arch-arrow">➔</div>
+
+                    <div class="arch-node active-node">
+                        <div style="font-size: 24px;">🧠</div>
+                        <div style="font-weight: 700; color: #fff; margin: 6px 0;">AI Vision Service</div>
+                        <div style="font-size: 12px; color: #a78bfa;">FastAPI + DeepFace</div>
+                        <div class="badge badge-amber" style="margin-top: 8px;">Cổng 8000 (Internal)</div>
+                    </div>
+
+                    <div class="arch-arrow">⇄</div>
+
+                    <div class="arch-node">
+                        <div style="font-size: 24px;">🗄️</div>
+                        <div style="font-weight: 700; color: #fff; margin: 6px 0;">Database Server</div>
+                        <div style="font-size: 12px; color: #34d399;">MySQL 8.0 Engine</div>
+                        <div class="badge badge-cyan" style="margin-top: 8px;">Cổng 3306</div>
+                    </div>
+                </div>
+
+                <div class="grid-3" style="margin-top: 20px;">
+                    <div class="glass-card">
+                        <h4 style="font-weight: 700; color: #fff; font-size: 14px;">1. Tính Độc Lập Cao</h4>
+                        <p class="card-desc" style="font-size: 12.5px; margin-top: 6px;">Python AI Service được cô lập hoàn toàn. Khi nhận diện 1:N tải cao, tiến trình Node.js xử lý người dùng vẫn phản hồi mượt mà trong 20ms.</p>
+                    </div>
+                    <div class="glass-card">
+                        <h4 style="font-weight: 700; color: #fff; font-size: 14px;">2. Bảo Mật Nội Bộ</h4>
+                        <p class="card-desc" style="font-size: 12.5px; margin-top: 6px;">AI Service chỉ lắng nghe trong mạng Bridge Network của Docker, không mở trực tiếp ra Internet, ngăn chặn tấn công giả mạo API.</p>
+                    </div>
+                    <div class="glass-card">
+                        <h4 style="font-weight: 700; color: #fff; font-size: 14px;">3. Triển Khai Nhất Quán</h4>
+                        <p class="card-desc" style="font-size: 12.5px; margin-top: 6px;">Cấu hình qua <code>docker-compose.yml</code> cho phép khởi chạy toàn bộ 4 dịch vụ chỉ bằng một lệnh duy nhất, hoạt động đồng nhất trên mọi máy chủ.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Kiến trúc Microservices</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 7 ================= -->
+        <section class="slide" data-notes="Tiếp theo là phần Lõi Trí tuệ Nhân tạo - trái tim của ứng dụng. Pipeline xử lý khuôn mặt được chia làm 3 tầng: Tầng 1 là mạng MTCNN làm nhiệm vụ định vị khuôn mặt và xác định 5 điểm mốc quan trọng (2 mắt, mũi, 2 khóe miệng). Tầng 2 đưa khuôn mặt chuẩn hóa qua mô hình ArcFace để trích xuất một vector đặc trưng gồm 512 chiều. Và Tầng 3 thực hiện tính khoảng cách Cosine với toàn bộ vector trong cơ sở dữ liệu để tìm ra sinh viên có độ tương đồng cao nhất.">
+            <div class="slide-header">
+                <span class="slide-tag">06 • LÕI TRÍ TUỆ NHÂN TẠO (AI CORE)</span>
+                <h2 class="slide-title">PIPELINE XỬ LÝ ẢNH & NHẬN DIỆN ARCFACE</h2>
+                <p class="slide-subtitle">Quy trình trích xuất Vector đặc trưng 512 chiều và đối soát khoảng cách Cosine</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card">
+                        <div class="badge badge-cyan" style="margin-bottom: 10px;">GIAI ĐOẠN 1</div>
+                        <h4 class="card-title">Phát Hiện & Căn Chỉnh (MTCNN)</h4>
+                        <p class="card-desc">
+                            • Phát hiện Bounding Box khuôn mặt <code>[x, y, w, h]</code>.<br/>
+                            • Trích xuất <strong>5 điểm mốc sinh trắc</strong>: Mắt trái, Mắt phải, Đỉnh mũi, 2 khóe miệng.<br/>
+                            • Căn chỉnh góc nghiêng (Face Alignment) về chuẩn thẳng trước khi trích xuất vector.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="badge badge-emerald" style="margin-bottom: 10px;">GIAI ĐOẠN 2</div>
+                        <h4 class="card-title">Trích Xuất Vector (ArcFace)</h4>
+                        <p class="card-desc">
+                            • Mô hình <strong>Additive Angular Margin Loss (ArcFace)</strong> vượt trội hơn Facenet/VGG.<br/>
+                            • Nén thông tin khuôn mặt thành <strong>Vector 512 chiều</strong>.<br/>
+                            • Lưu trữ dưới dạng Base64 BLOB trong MySQL để truy vấn tốc độ cao.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="badge badge-amber" style="margin-bottom: 10px;">GIAI ĐOẠN 3</div>
+                        <h4 class="card-title">Đối Soát Cosine & Quyết Định</h4>
+                        <p class="card-desc">
+                            • Tính <strong>Cosine Similarity</strong> giữa vector hiện tại và ma trận vector lớp học.<br/>
+                            • Ngưỡng chấp nhận: <code>MATCH_THRESHOLD &gt;= 0.50</code>.<br/>
+                            • Kiểm tra biên độ sai phân: <code>MARGIN_MIN &gt;= 0.02</code> giữa thí sinh top 1 và top 2.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card highlight" style="margin-top: 18px; padding: 18px;">
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a5b4fc;">
+                        // Cơ chế Đăng ký 3 góc khuôn mặt (Registration Pipeline):<br/>
+                        Vector_TrungBinh = Mean(Vector_Thẳng, Vector_NghiêngTrái, Vector_NghiêngPhải)<br/>
+                        → Giúp hệ thống nhận diện sinh viên cực nhạy dù nhìn lệch góc hay cúi đầu viết bài!
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Thuật toán MTCNN & ArcFace 512-D</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 8 ================= -->
+        <section class="slide" data-notes="Một thách thức rất lớn trong các hệ thống điểm danh khuôn mặt là hiện tượng gian lận: sinh viên dùng ảnh thẻ in ra giấy hoặc giơ điện thoại có ảnh chụp của bạn lên trước camera. Để giải quyết, em và nhóm đã triển khai giải pháp Passive 3D Anti-Spoofing. Giải pháp phân tích độ biến thiên ma trận Laplacian để phát hiện hiện tượng ảnh mờ hoặc vân lưới Moiré phát ra từ màn hình điện thoại. Đồng thời kết hợp kiểm tra hình học 3D của 5 điểm mốc để phân biệt ảnh phẳng 2D và khuôn mặt người sống có chiều sâu.">
+            <div class="slide-header">
+                <span class="slide-tag">07 • AN TOÀN SINH TRẮC HỌC</span>
+                <h2 class="slide-title">CƠ CHẾ CHỐNG GIAN LẬN (PASSIVE 3D ANTI-SPOOFING)</h2>
+                <p class="slide-subtitle">Phát hiện và loại bỏ 100% các hành vi giả mạo bằng ảnh in, video phát lại hoặc màn hình điện thoại</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-2">
+                    <div class="glass-card">
+                        <div class="card-icon icon-rose">📱</div>
+                        <h4 class="card-title">1. Phân Tích Vân Kết Cấu (Laplacian Texture)</h4>
+                        <p class="card-desc">
+                            Màn hình smartphone hoặc ảnh in qua máy in kỹ thuật số luôn có đặc tính quang học khác biệt so với da người thật:
+                        </p>
+                        <div style="margin-top: 12px; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="background: rgba(244, 63, 94, 0.1); padding: 8px 12px; border-radius: 8px; border-left: 3px solid var(--accent-rose);">
+                                <strong>Var &lt; 4.0:</strong> Ảnh in bị nhòe, mất chi tiết bề mặt.
+                            </div>
+                            <div style="background: rgba(245, 158, 11, 0.1); padding: 8px 12px; border-radius: 8px; border-left: 3px solid var(--accent-amber);">
+                                <strong>Var &gt; 1800.0:</strong> Nhiễu vân hạt Moiré đặc trưng phát ra từ lưới pixel màn hình LED/OLED.
+                            </div>
+                            <div style="background: rgba(16, 185, 129, 0.1); padding: 8px 12px; border-radius: 8px; border-left: 3px solid var(--accent-emerald);">
+                                <strong>4.0 ≤ Var ≤ 1800.0:</strong> Kết cấu quang học da người sống hợp lệ.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-cyan">👁️</div>
+                        <h4 class="card-title">2. Đối Soát Tỉ Lệ Hình Học 3D (3D Geometry)</h4>
+                        <p class="card-desc">
+                            • Phân tích khoảng cách giữa 2 mắt so với đỉnh mũi theo thời gian thực.<br/>
+                            • Ảnh phẳng 2D khi quay nghiêng sẽ bị co dãn biến dạng phi tự nhiên, trong khi khuôn mặt thật 3D tuân theo phép chiếu hình học khối học không gian.<br/>
+                            • <strong>Ưu điểm Passive:</strong> Người dùng không cần phải chớp mắt hay quay đầu theo yêu cầu, tạo trải nghiệm mượt mà, tự nhiên 100%.
+                        </p>
+                        <div class="glass-card highlight" style="margin-top: 16px; padding: 14px;">
+                            <div style="font-size: 12.5px; color: #cbd5e1;">
+                                🚀 <strong>Model Warm-Up:</strong> Hệ thống tự động nạp tensor giả lập vào RAM ngay khi Docker khởi động, loại bỏ hoàn toàn độ trễ 2-3s ở frame đầu tiên.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Passive 3D Liveness & Texture Analysis</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 9 ================= -->
+        <section class="slide" data-notes="Ở tầng Backend Node.js, em chịu trách nhiệm hỗ trợ xây dựng và kiểm thử các API nghiệp vụ. Điểm đặc biệt của hệ thống là cơ chế Điểm danh 2 ca: Check-in đầu giờ để đánh giá đúng giờ hay đi muộn, và Check-out cuối giờ để tính tổng thời gian tham gia, chốt trạng thái Hoàn thành. Toàn bộ hệ thống cũng được giải quyết triệt để vấn đề lệch múi giờ: khóa chặt múi giờ GMT+7 Asia/Ho_Chi_Minh từ MySQL, Node.js đến file Excel xuất ra.">
+            <div class="slide-header">
+                <span class="slide-tag">08 • TẦNG NGHIỆP VỤ (BACKEND NODE.JS)</span>
+                <h2 class="slide-title">ĐIỀU PHỐI NGHIỆP VỤ & ĐỒNG BỘ MÚI GIỜ GMT+7</h2>
+                <p class="slide-subtitle">Kiến trúc MVC, phân quyền JWT chặt chẽ và luồng điểm danh 2 ca Check-in/Check-out</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card">
+                        <div class="card-icon icon-indigo">🔄</div>
+                        <h4 class="card-title">Điểm Danh 2 Ca Linh Hoạt</h4>
+                        <p class="card-desc">
+                            • <strong>Đầu giờ (Check-in):</strong> Ghi nhận mốc giờ vào, đối soát với giờ ca học để đánh dấu <em>Đúng giờ</em> hoặc <em>Đi muộn</em>.<br/>
+                            • <strong>Cuối giờ (Check-out):</strong> Ghi nhận giờ ra, tự động cập nhật trạng thái <em>Completed</em> khi đủ cả 2 mốc.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-emerald">📊</div>
+                        <h4 class="card-title">Xuất Báo Cáo Excel GMT+7</h4>
+                        <p class="card-desc">
+                            • Sử dụng thư viện <code>ExcelJS</code> kết xuất bảng tính chuẩn hóa.<br/>
+                            • Tự động tính tỷ lệ chuyên cần, phân màu trạng thái trực quan.<br/>
+                            • Khóa cứng <code>timeZone: 'Asia/Ho_Chi_Minh'</code>, mốc giờ trong file trùng khớp 100% với giờ thực tế.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-amber">🛡️</div>
+                        <h4 class="card-title">Phân Quyền & Bảo Mật JWT</h4>
+                        <p class="card-desc">
+                            • Access Token (15 phút) & Refresh Token (7 ngày).<br/>
+                            • Phân quyền Role chặt chẽ: <code>isAdmin</code>, <code>isTeacher</code>.<br/>
+                            • Hỗ trợ Đăng nhập bằng khuôn mặt cho Giảng viên/Admin qua webcam.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-top: 20px; padding: 18px;">
+                    <h4 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 8px;">🗄️ Cấu trúc Dữ liệu Đào tạo & Khảo thí chuẩn hóa (15 bảng CSDL):</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                        Quản lý đầy đủ danh mục: Khoa/Viện (<code>faculties</code>) → Lớp sinh hoạt (<code>classes</code>) → Phòng học & Sơ đồ ghế (<code>rooms</code>) → Ca học chuẩn (<code>study_shifts</code>) → Lịch học/Lịch thi (<code>class_schedules</code>, <code>exam_schedules</code>) → Điều kiện dự thi (<code>exam_eligibility</code>).
+                    </p>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Node.js Backend & Đồng bộ Múi giờ GMT+7</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 10 ================= -->
+        <section class="slide" data-notes="Một tính năng rất được quan tâm trong đợt cập nhật mới nhất là Trợ lý AI Thông minh (Hybrid AI Chatbot). Để giải quyết bài toán AI trả lời thông minh nhưng không tốn kém chi phí token, nhóm đã thiết kế mô hình đa tầng: Tầng 1 sử dụng Groq Cloud với mô hình Llama-3.3-70B cho tốc độ phản hồi cực nhanh dưới 1 giây. Tầng 2 dự phòng qua Google Gemini Flash. Và Tầng 3 là Local RAG truy vấn CSDL trực tiếp không tốn token nào. Chatbox có giao diện Drone Mascot 3D chuyển động tương tác rất sinh động.">
+            <div class="slide-header">
+                <span class="slide-tag">09 • TRÍ TUỆ NHÂN TẠO TƯ VẤN (AI ASSISTANT)</span>
+                <h2 class="slide-title">TRỢ LÝ HYBRID AI CHATBOT & DRONE MASCOT</h2>
+                <p class="slide-subtitle">Kiến trúc kết hợp Groq Llama-3.3, Google Gemini và Local RAG tối ưu chi phí token</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-2">
+                    <div class="glass-card highlight">
+                        <div class="badge badge-indigo" style="margin-bottom: 8px;">CƠ CHẾ HYBRID 3 TẦNG THÔNG MINH</div>
+                        <h4 class="card-title">Động Cơ Đa Tầng Không Gián Đoạn</h4>
+                        <div style="font-size: 13px; display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                            <div style="padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 8px;">
+                                <strong style="color: #818cf8;">1. Groq Cloud (Llama-3.3-70B):</strong> Tốc độ suy luận siêu tốc (&gt; 250 tokens/giây), trả lời tự nhiên, phân tích tình huống sinh viên sắc bén.
+                            </div>
+                            <div style="padding: 10px; background: rgba(6, 182, 212, 0.1); border-radius: 8px;">
+                                <strong style="color: #22d3ee;">2. Google Gemini 1.5 Flash (Dự phòng):</strong> Tự động luân phiên API keys khi Groq đạt giới hạn quota.
+                            </div>
+                            <div style="padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                                <strong style="color: #34d399;">3. Local RAG CSDL (Zero Token Cost):</strong> Truy vấn CSDL trực tiếp cho các câu hỏi về lịch học, lịch thi, số lượng sinh viên, phản hồi ngay lập tức mà không tốn token LLM!
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-cyan">🛸</div>
+                        <h4 class="card-title">Giao Diện Drone Mascot & Pop-out Effect</h4>
+                        <p class="card-desc">
+                            • Tích hợp thư viện <strong>Drone Mascot (Sprite WebP)</strong> với 2 bộ cử chỉ: Định hướng chuột (directions) và Phản hồi cảm xúc (reactions).<br/>
+                            • <strong>Hiệu ứng Pop-out:</strong> Khi mở Chatbox, Drone Mascot bay nổi ra phía trên thanh Header tạo cảm giác trợ lý công nghệ hiện đại.<br/>
+                            • Nút <strong>Phóng to / Thu nhỏ cửa sổ</strong> linh hoạt giúp dễ dàng đọc các bảng báo cáo dài hoặc lịch thi chi tiết.
+                        </p>
+                        <div style="margin-top: 16px; display: flex; gap: 8px;">
+                            <span class="badge badge-cyan">Stream gõ chữ từng từ</span>
+                            <span class="badge badge-emerald">Nhận diện câu hỏi tự nhiên</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Hybrid AI Engine & Drone Mascot UI</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 11 ================= -->
+        <section class="slide" data-notes="Về mặt Giao diện Người dùng, trải nghiệm điểm danh được tối ưu tối đa. Màn hình quét có khung Oval chuẩn hóa để hướng dẫn sinh viên đặt mặt đúng cự ly. Đặc biệt, nhóm đã phát triển thuật toán 2-Frame Voting Buffer: hệ thống yêu cầu 2 khung hình liên tiếp xác nhận đúng cùng 1 người mới chốt điểm danh, triệt tiêu hoàn toàn tình trạng camera bắt nhầm người đi lướt qua phía sau. Phân hệ thi còn có sơ đồ ghế ngồi trực quan (Seat Matrix) hiển thị vị trí từng thí sinh trong phòng.">
+            <div class="slide-header">
+                <span class="slide-tag">10 • TRẢI NGHIỆM NGƯỜI DÙNG (UI/UX)</span>
+                <h2 class="slide-title">THIẾT KẾ GIAO DIỆN & THUẬT TOÁN 2-FRAME VOTING</h2>
+                <p class="slide-subtitle">Loại bỏ hiện tượng nhấp nháy, chập chờn và tối ưu thao tác cho Giảng viên & Thí sinh</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card">
+                        <div class="card-icon icon-indigo">🎯</div>
+                        <h4 class="card-title">Khung Oval Hướng Dẫn</h4>
+                        <p class="card-desc">
+                            Vẽ khung viền Oval hướng dẫn trực quan trên giao diện Live Webcam. Tự động chuyển màu xanh lá và phát âm thanh thông báo khi sinh viên bước vào vùng hợp lệ.
+                        </p>
+                    </div>
+
+                    <div class="glass-card highlight">
+                        <div class="card-icon icon-emerald">🛡️</div>
+                        <h4 class="card-title">Thuật Toán 2-Frame Voting Buffer</h4>
+                        <p class="card-desc">
+                            <code>VOTE_WINDOW = 3, VOTE_THRESHOLD = 2</code><br/>
+                            Yêu cầu ít nhất <strong>2 khung hình liên tiếp</strong> xác nhận cùng 1 mã sinh viên mới chốt điểm danh. Triệt tiêu 100% lỗi nhận diện sai khi có người đi ngang qua hậu cảnh.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-cyan">🪑</div>
+                        <h4 class="card-title">Sơ Đồ Ghế Thi (Seat Matrix)</h4>
+                        <p class="card-desc">
+                            Mô phỏng sơ đồ phòng thi thực tế (Hàng x Cột). Khi thí sinh điểm danh thành công bằng khuôn mặt, hệ thống tự động gắn và sáng vị trí ghế tương ứng trong phòng thi.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-top: 20px; padding: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-weight: 600; font-size: 13.5px; color: #fff;">Giao diện hỗ trợ đầy đủ 2 Portal chuyên biệt:</span>
+                        <div style="display: flex; gap: 10px;">
+                            <span class="badge badge-cyan">Admin Dashboard (/admin)</span>
+                            <span class="badge badge-emerald">Teacher Portal (/teacher)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Giao diện Live Camera & Multi-frame Voting</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 12 ================= -->
+        <section class="slide" data-notes="Sau đây, em xin báo cáo cụ thể về vai trò và những đóng góp của bản thân em - Lục Văn Sơn - trong dự án. Em đảm nhận vai trò Kiểm thử chất lượng phần mềm (QA/QC Engineer), xây dựng kịch bản Testcase, đồng thời tìm hiểu công cụ thiết kế giao diện và hỗ trợ phát triển các API Backend. Em đã xây dựng bộ 35 Testcase bao quát toàn diện các kịch bản thực tế, phát hiện và xử lý triệt để lỗi lệch múi giờ, lỗi mất gói tin camera và tối ưu hóa trải nghiệm Chatbox AI.">
+            <div class="slide-header">
+                <span class="slide-tag">11 • ĐÓNG GÓP CÁ NHÂN</span>
+                <h2 class="slide-title">VAI TRÒ & ĐÓNG GÓP CỦA SINH VIÊN (LỤC VĂN SƠN)</h2>
+                <p class="slide-subtitle">Đảm nhận vai trò Kiểm thử phần mềm (QA/QC), Xây dựng Testcase & Hỗ trợ Backend API</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-3">
+                    <div class="glass-card highlight">
+                        <div class="card-icon icon-rose">🧪</div>
+                        <h4 class="card-title">1. Xây Dựng Bộ Testcase Toàn Diện</h4>
+                        <p class="card-desc">
+                            • Thiết kế <strong>35 Testcases chi tiết</strong> (Functional, Boundary, Security, Performance).<br/>
+                            • Kiểm thử các ca biên: Ánh sáng yếu, đeo kính, ảnh in 2D, nghiêng mặt 45 độ, mạng chập chờn.<br/>
+                            • Đạt tỷ lệ <strong>Pass 100%</strong> sau 4 chu kỳ kiểm thử hồi quy (Regression Testing).
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-indigo">⚙️</div>
+                        <h4 class="card-title">2. Hỗ Trợ Xây Dựng API Backend</h4>
+                        <p class="card-desc">
+                            • Hỗ trợ viết và tinh chỉnh các API Quản lý Khoa/Lớp, Phòng học, Ca học và Điều kiện dự thi.<br/>
+                            • Phát hiện và sửa lỗi lệch múi giờ UTC trong file Excel: Đồng bộ khóa cứng <strong>GMT+7 Asia/Ho_Chi_Minh</strong>.<br/>
+                            • Tích hợp logic truy vấn CSDL động (Local RAG) cho Chatbox.
+                        </p>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-icon icon-cyan">🎨</div>
+                        <h4 class="card-title">3. Tối Ưu Giao Diện & Chatbox AI</h4>
+                        <p class="card-desc">
+                            • Nghiên cứu và hiện thực tính năng <strong>Phóng to / Thu nhỏ (Maximize)</strong> Chatbox panel.<br/>
+                            • Tích hợp cơ chế Stream gõ chữ mượt mà, hiển thị trạng thái 'Đang suy nghĩ' sinh động.<br/>
+                            • Đảm bảo giao diện Responsive chuẩn xác trên các độ phân giải màn hình.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-top: 18px; padding: 16px;">
+                    <div style="font-size: 13.5px; color: #cbd5e1;">
+                        📌 <strong>Kết quả thực tập:</strong> Bản thân em đã nắm vững quy trình kiểm thử phần mềm chuyên nghiệp (QA/QC), thành thạo thao tác Docker Microservices, làm chủ Git Workflow đa nhánh (feature-branching & conflict resolution) và tư duy kiến trúc hệ thống AI thực tế.
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Vai trò & Đóng góp cá nhân</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 13 ================= -->
+        <section class="slide" data-notes="Đây là bảng kết quả kiểm thử thực nghiệm trên hệ thống. Chúng em đã tiến hành thử nghiệm với tập dữ liệu sinh viên thực tế trong nhiều điều kiện khác nhau. Kết quả cho thấy: trong điều kiện bình thường, độ chính xác đạt 99.4% với tốc độ chỉ 215ms. Ở điều kiện ánh sáng yếu hoặc đeo kính, hệ thống vẫn duy trì độ chính xác trên 97%. Đặc biệt, ở kịch bản giả mạo bằng ảnh in và màn hình điện thoại, hệ thống đã phát hiện và chặn đứng chính xác 100%.">
+            <div class="slide-header">
+                <span class="slide-tag">12 • KẾT QUẢ THỰC NGHIỆM</span>
+                <h2 class="slide-title">KẾT QUẢ ĐO ĐẠC & KIỂM THỬ THỰC TẾ</h2>
+                <p class="slide-subtitle">Dữ liệu thực nghiệm qua 300+ lượt quét điểm danh và khảo sát độ nhạy</p>
+            </div>
+
+            <div class="slide-body">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Kịch Bản Thử Nghiệm</th>
+                            <th>Số Lần Thử</th>
+                            <th>Độ Chính Xác</th>
+                            <th>Thời Gian Xử Lý (Avg)</th>
+                            <th>Trạng Thái Test</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Điều kiện chuẩn</strong> (Khoảng cách 0.6 - 1.2m, đủ sáng)</td>
+                            <td>100 lượt</td>
+                            <td><span style="color: #34d399; font-weight: 700;">99.4%</span></td>
+                            <td>215 ms</td>
+                            <td><span class="badge badge-emerald">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Góc nghiêng mặt</strong> (Nghiêng trái/phải 15° - 35°)</td>
+                            <td>60 lượt</td>
+                            <td><span style="color: #34d399; font-weight: 700;">98.2%</span></td>
+                            <td>230 ms</td>
+                            <td><span class="badge badge-emerald">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Thay đổi phụ kiện</strong> (Đeo kính cận, búi tóc)</td>
+                            <td>50 lượt</td>
+                            <td><span style="color: #38bdf8; font-weight: 700;">97.5%</span></td>
+                            <td>240 ms</td>
+                            <td><span class="badge badge-emerald">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ánh sáng yếu / Ngược sáng</strong> (Phòng học tắt bớt đèn)</td>
+                            <td>40 lượt</td>
+                            <td><span style="color: #fbbf24; font-weight: 700;">95.0%</span></td>
+                            <td>265 ms</td>
+                            <td><span class="badge badge-emerald">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Giả mạo bằng ảnh in màu & Smartphone</strong></td>
+                            <td>50 lượt</td>
+                            <td><span style="color: #f43f5e; font-weight: 700;">100% Chặn Đứng</span></td>
+                            <td>180 ms (Reject ngay)</td>
+                            <td><span class="badge badge-emerald">PASS (Anti-Spoof)</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="grid-3" style="margin-top: 20px;">
+                    <div class="metric-box">
+                        <div class="metric-val">220 ms</div>
+                        <div class="metric-lbl">ĐỘ TRỄ TRUNG BÌNH TOÀN TRÌNH</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val">0.00%</div>
+                        <div class="metric-lbl">TỶ LỆ LỌT ẢNH GIAN LẬN (FAR)</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val">100%</div>
+                        <div class="metric-lbl">TÍNH KHẢ DỤNG HỆ THỐNG</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Bảng số liệu Thực nghiệm & Đo đạc</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 14 ================= -->
+        <section class="slide" data-notes="Để làm rõ giá trị thực tiễn của đề tài, em đã lập bảng so sánh giải pháp của nhóm với phương pháp điểm danh truyền thống và các thiết bị máy chấm công vân tay/thẻ từ đắt tiền trên thị trường. Giải pháp của đề tài vượt trội về chi phí khi chỉ cần webcam thông thường, tốc độ nhanh gấp 10 lần, loại bỏ hoàn toàn việc tiếp xúc bề mặt và tích hợp sẵn quy trình quản lý lịch thi, trợ lý AI tư vấn mà các máy chấm công độc lập không thể có được.">
+            <div class="slide-header">
+                <span class="slide-tag">13 • SO SÁNH & ĐÁNH GIÁ</span>
+                <h2 class="slide-title">SO SÁNH VỚI CÁC GIẢI PHÁP HIỆN CÓ</h2>
+                <p class="slide-subtitle">Đánh giá tính hiệu quả kinh tế, tốc độ và khả năng ứng dụng thực tiễn</p>
+            </div>
+
+            <div class="slide-body">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Tiêu Chí So Sánh</th>
+                            <th>Điểm Danh Truyền Thống</th>
+                            <th>Máy Quẹt Thẻ / Vân Tay</th>
+                            <th style="color: var(--accent-cyan);">Hệ Thống Đề Tài (FaceSystem)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Thời gian thực hiện</strong></td>
+                            <td>10 - 15 phút / lớp</td>
+                            <td>3 - 5 giây / người (Chạm)</td>
+                            <td><strong style="color: #34d399;">&lt; 0.3 giây (Không chạm)</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Khả năng chống gian lận</strong></td>
+                            <td>Kém (Ký hộ dễ dàng)</td>
+                            <td>Trung bình (Quẹt thẻ hộ)</td>
+                            <td><strong style="color: #34d399;">Cao (Passive 3D Anti-Spoofing)</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Chi phí phần cứng</strong></td>
+                            <td>Thấp (Giấy/bút)</td>
+                            <td>Rất cao (Máy chuyên dụng)</td>
+                            <td><strong style="color: #34d399;">Rất thấp (Webcam có sẵn/Laptop)</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Quản lý phòng thi & sơ đồ</strong></td>
+                            <td>Không có</td>
+                            <td>Không có</td>
+                            <td><strong style="color: #34d399;">Có (Seat Matrix tương tác trực quan)</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Trợ lý AI hỗ trợ tra cứu</strong></td>
+                            <td>Không có</td>
+                            <td>Không có</td>
+                            <td><strong style="color: #34d399;">Có (Hybrid AI Llama-3.3 + Gemini)</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="glass-card highlight" style="margin-top: 18px; padding: 18px;">
+                    <span style="font-weight: 700; color: #fff;">💡 Khả năng chuyển giao thực tế:</span>
+                    <span style="color: var(--text-secondary); font-size: 13.5px; margin-left: 8px;">
+                        Phần mềm hoàn toàn có thể triển khai ngay tại các trường đại học, cao đẳng hoặc trung tâm đào tạo với chi phí đầu tư ban đầu gần như bằng 0.
+                    </span>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Đánh giá & So sánh Giải pháp</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 15 ================= -->
+        <section class="slide" data-notes="Mặc dù hệ thống đã hoạt động rất ổn định, nhóm em cũng đã vạch ra các hướng phát triển trong tương lai để tiếp tục nâng cấp: Thứ nhất là hỗ trợ điểm danh Multi-face thông qua camera góc rộng RTSP lắp tại cửa lớp. Thứ hai là nghiên cứu mô hình Anti-spoofing phân tích nhịp đập mạch máu rPPG xuyên da để chống mặt nạ silicon 3D tinh vi. Và thứ ba là tích hợp trực tiếp API với cổng thông tin đào tạo của nhà trường.">
+            <div class="slide-header">
+                <span class="slide-tag">14 • KẾT LUẬN & ĐỊNH HƯỚNG TƯƠNG LAI</span>
+                <h2 class="slide-title">KẾT LUẬN & HƯỚNG PHÁT TRIỂN TIẾP THEO</h2>
+                <p class="slide-subtitle">Tổng kết thành tựu đạt được và lộ trình nâng cấp mở rộng của hệ thống</p>
+            </div>
+
+            <div class="slide-body">
+                <div class="grid-2">
+                    <div class="glass-card highlight">
+                        <h4 class="card-title" style="color: var(--accent-cyan);">✅ Các Thành Tựu Đã Hoàn Thành</h4>
+                        <div style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.8; margin-top: 8px;">
+                            ✔ Xây dựng hoàn chỉnh kiến trúc <strong>Microservices Docker</strong> gồm Frontend React, Backend Node.js và Python AI Service.<br/>
+                            ✔ Ứng dụng thành công <strong>ArcFace 512-D</strong> và <strong>Passive 3D Anti-Spoofing</strong> với độ trễ thấp &lt; 250ms.<br/>
+                            ✔ Hoàn thiện quy trình quản trị đào tạo: Lớp, Khoa, Phòng học, Ca thi, Sơ đồ ghế và xuất Excel GMT+7.<br/>
+                            ✔ Đột phá với <strong>Hybrid AI Assistant & Drone Mascot</strong> tương tác thân thiện.
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <h4 class="card-title" style="color: var(--accent-amber);">🚀 Định Hướng Nâng Cấp Tương Lai</h4>
+                        <div style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.8; margin-top: 8px;">
+                            🔹 <strong>Multi-Face Detection qua Camera RTSP:</strong> Điểm danh đồng thời cả nhóm 5-10 sinh viên khi bước qua cửa lớp cùng lúc.<br/>
+                            🔹 <strong>Công nghệ rPPG (Remote Photoplethysmography):</strong> Phân tích biến đổi sắc tố vi mạch máu dưới da để chặn mặt nạ 3D Silicon siêu tinh vi.<br/>
+                            🔹 <strong>Mở rộng Mobile App:</strong> Tích hợp ứng dụng di động cho sinh viên theo dõi chuyên cần và nhận thông báo ca thi.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Khóa luận tốt nghiệp • Lục Văn Sơn (2310900087)</span>
+                <span>Kết luận & Lộ trình phát triển</span>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 16 ================= -->
+        <section class="slide" data-notes="Bài báo cáo khóa luận tốt nghiệp của em đến đây là kết thúc. Em xin chân thành cảm ơn quý thầy cô trong Hội đồng đã lắng nghe. Em rất mong nhận được những nhận xét, góp ý quý báu của quý thầy cô để hoàn thiện đề tài hơn nữa. Em xin sẵn sàng lắng nghe và trả lời các câu hỏi phản biện của thầy cô ạ. Em xin trân trọng cảm ơn!">
+            <div class="slide-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%;">
+                <div style="font-size: 64px; margin-bottom: 20px;">🎓</div>
+                <h1 style="font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #fff, #818cf8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    XIN CHÂN THÀNH CẢM ƠN!
+                </h1>
+                <p style="font-size: 18px; color: var(--text-secondary); margin-top: 12px; max-width: 600px;">
+                    Cảm ơn Quý Thầy Cô trong Hội đồng Chấm Khóa Luận Tốt Nghiệp đã chú ý lắng nghe bài thuyết trình.
+                </p>
+
+                <div class="glass-card highlight" style="margin-top: 36px; padding: 24px 48px; border-radius: 20px;">
+                    <div style="font-size: 15px; color: #cbd5e1;">
+                        Sinh viên thực hiện: <strong style="color: #fff; font-size: 17px;">Lục Văn Sơn</strong> &bull; MSSV: <strong style="color: var(--accent-cyan); font-family: 'JetBrains Mono';">2310900087</strong>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
+                        Lớp: K23CNT3 &bull; Đề tài: Hệ thống Điểm danh & Quản lý Khảo thí bằng Nhận diện Khuôn mặt AI
+                    </div>
+                </div>
+
+                <div style="margin-top: 32px; font-size: 16px; font-weight: 700; color: var(--accent-cyan); display: flex; align-items: center; gap: 8px;">
+                    <span>💬</span> SẴN SÀNG TRẢ LỜI CÂU HỎI PHẢN BIỆN (Q&amp;A)
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Hội đồng Chấm Khóa Luận Tốt Nghiệp • Lục Văn Sơn</span>
+                <span>Phiên Hỏi - Đáp (Q&amp;A)</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Speaker Notes Modal Overlay -->
+    <div class="speaker-notes-modal" id="notesModal">
+        <div class="notes-header">
+            <span>🎙️ LỜI THOẠI THUYẾT TRÌNH (SPEAKER NOTES)</span>
+            <span style="cursor: pointer; font-size: 16px;" id="closeNotesBtn">&times;</span>
+        </div>
+        <div id="notesContent">Nội dung ghi chú thuyết trình sẽ hiển thị tại đây...</div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <footer class="nav-bar">
+        <button class="nav-btn" id="prevBtn">
+            <span>←</span> Trang Trước
+        </button>
+
+        <div class="nav-hints">
+            <span><span class="kbd">←</span> <span class="kbd">→</span> Chuyển slide</span>
+            <span><span class="kbd">S</span> Lời thoại</span>
+            <span><span class="kbd">F</span> Toàn màn hình</span>
+            <span><span class="kbd">Ctrl</span>+<span class="kbd">P</span> In/Lưu PDF</span>
+            <span><span class="kbd">Ctrl</span>+<span class="kbd">C</span> Copy Text thoải mái</span>
+        </div>
+
+        <button class="nav-btn" id="nextBtn">
+            Trang Sau <span>→</span>
+        </button>
+    </footer>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const progressBar = document.getElementById('progressBar');
+        const slideCounter = document.getElementById('slideCounter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const notesModal = document.getElementById('notesModal');
+        const notesContent = document.getElementById('notesContent');
+        const toggleNotesBtn = document.getElementById('toggleNotesBtn');
+        const closeNotesBtn = document.getElementById('closeNotesBtn');
+        const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
+        const copySlideBtn = document.getElementById('copySlideBtn');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+
+        function showToast(message) {
+            toastMsg.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentSlide = index;
+
+            slides.forEach((s, idx) => {
+                s.classList.toggle('active', idx === currentSlide);
+            });
+
+            // Update Progress Bar
+            const progressPercent = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+
+            // Update Counter
+            const curStr = String(currentSlide + 1).padStart(2, '0');
+            const totStr = String(totalSlides).padStart(2, '0');
+            slideCounter.textContent = `SLIDE ${curStr} / ${totStr}`;
+
+            // Update Buttons
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+
+            // Update Speaker Notes
+            const activeSlide = slides[currentSlide];
+            const notes = activeSlide.getAttribute('data-notes') || 'Không có ghi chú cho slide này.';
+            notesContent.textContent = notes;
+        }
+
+        // Copy current slide text for PowerPoint
+        copySlideBtn.addEventListener('click', () => {
+            const activeSlide = slides[currentSlide];
+            const titleElem = activeSlide.querySelector('.slide-title');
+            const subElem = activeSlide.querySelector('.slide-subtitle');
+            const tagElem = activeSlide.querySelector('.slide-tag');
+            const bodyElem = activeSlide.querySelector('.slide-body');
+            const notes = activeSlide.getAttribute('data-notes') || '';
+
+            let copyText = `==============================\n`;
+            copyText += `SLIDE ${currentSlide + 1}: ${titleElem ? titleElem.innerText.replace(/\n/g, ' ') : ''}\n`;
+            if (tagElem) copyText += `[Chuyên đề: ${tagElem.innerText}]\n`;
+            if (subElem) copyText += `Phụ đề: ${subElem.innerText}\n`;
+            copyText += `==============================\n\n`;
+
+            if (bodyElem) {
+                // Extract inner text cleanly
+                copyText += `--- NỘI DUNG CHÍNH (DÁN LÊN SLIDE) ---\n`;
+                copyText += bodyElem.innerText.trim() + `\n\n`;
+            }
+
+            if (notes) {
+                copyText += `--- LỜI THOẠI THUYẾT TRÌNH (SPEAKER NOTES) ---\n`;
+                copyText += notes + `\n`;
+            }
+
+            navigator.clipboard.writeText(copyText).then(() => {
+                showToast(`Đã copy nội dung Slide ${currentSlide + 1}! Bạn có thể nhấn Ctrl+V sang PowerPoint.`);
+            }).catch(() => {
+                showToast(`Đã sao chép! Hãy dùng Ctrl+V để dán sang PowerPoint.`);
+            });
+        });
+
+        prevBtn.addEventListener('click', () => updateSlide(currentSlide - 1));
+        nextBtn.addEventListener('click', () => updateSlide(currentSlide + 1));
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                updateSlide(currentSlide + 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                updateSlide(currentSlide - 1);
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                updateSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                updateSlide(totalSlides - 1);
+            } else if (e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                notesModal.classList.toggle('show');
+            } else if (e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                toggleFullscreen();
+            } else if (e.key === 'Escape') {
+                notesModal.classList.remove('show');
+            }
+        });
+
+        // Speaker Notes Modal
+        toggleNotesBtn.addEventListener('click', () => notesModal.classList.toggle('show'));
+        closeNotesBtn.addEventListener('click', () => notesModal.classList.remove('show'));
+
+        // Fullscreen Toggle
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+        }
+        toggleFullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        // Initialize
+        updateSlide(0);
+    </script>
+</body>
+</html>
