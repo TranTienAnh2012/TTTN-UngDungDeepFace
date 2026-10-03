@@ -58,6 +58,7 @@ app.use('/api/admin/students', studentRoutes);
 app.use('/api/admin/classes', classRoutes);
 app.use('/api/admin/exams', examRoutes);
 app.use('/api/admin/dashboard', dashboardRoutes);
+app.use('/api/admin/rooms', roomRoutes);
 
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);

@@ -39,7 +39,7 @@ const ClassStudentsModal = ({ isOpen, onClose, academicClass }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[85vh]">
                 {/* Header */}
-                <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between flex-shrink-0">
+                <div className="px-6 py-4 bg-[#175b9f] text-white flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-2.5">
                         <div className="p-2 bg-white/20 rounded-xl">
                             <Users size={20} />

@@ -22,28 +22,42 @@ const STATUS_CONFIG = {
 };
 
 /* ─── Export Flat Logs CSV ─────────────────────────────────────────────────── */
-function exportCSV(rows) {
-    const cols = [
-        'MSSV', 'Họ và tên', 'Lớp', 'Khoa',
-        'Mã môn', 'Tên môn', 'Phòng', 'Giảng viên',
-        'Ngày', 'Bắt đầu', 'Kết thúc',
-        'Check-in', 'Check-out', 'Trạng thái', 'Độ chính xác'
-    ];
+function exportCSV(rows, isExam = false) {
+    const cols = isExam
+        ? ['MSSV', 'Họ và tên', 'Lớp', 'Mã môn', 'Tên môn', 'Phòng thi', 'Số ghế', 'Ngày thi', 'Vào phòng thi', 'Ra phòng thi', 'Trạng thái', 'Độ chính xác']
+        : [
+            'MSSV', 'Họ và tên', 'Lớp', 'Khoa',
+            'Mã môn', 'Tên môn', 'Phòng', 'Giảng viên',
+            'Ngày', 'Bắt đầu', 'Kết thúc',
+            'Check-in', 'Check-out', 'Trạng thái', 'Độ chính xác'
+        ];
     const lines = [cols.join(',')];
     rows.forEach(r => {
-        lines.push([
-            r.student_code, `"${r.full_name}"`, `"${r.class_name || ''}"`, `"${r.faculty || ''}"`,
-            r.course_code, `"${r.course_name}"`, r.room_name || '', `"${r.teacher_name || ''}"`,
-            fmtDate(r.start_time), fmt(r.start_time), fmt(r.end_time),
-            fmt(r.check_in_time), fmt(r.check_out_time),
-            STATUS_CONFIG[r.status]?.label || r.status,
-            r.confidence_score ? (r.confidence_score * 100).toFixed(1) + '%' : ''
-        ].join(','));
+        if (isExam) {
+            const seatStr = (r.seat_row !== null && r.seat_col !== null) ? `Hàng ${r.seat_row + 1} - Cột ${r.seat_col + 1}` : 'Tự do';
+            lines.push([
+                r.student_code, `"${r.full_name}"`, `"${r.class_name || ''}"`,
+                r.course_code, `"${r.course_name}"`, r.room_name || '', `"${seatStr}"`,
+                fmtDate(r.start_time), fmt(r.check_in_time), fmt(r.check_out_time),
+                STATUS_CONFIG[r.status]?.label || (r.status === 'Completed' ? 'Đã thi & Ra phòng' : r.status === 'Checked-in' ? 'Đang dự thi' : r.status),
+                r.confidence_score ? (r.confidence_score * 100).toFixed(1) + '%' : ''
+            ].join(','));
+        } else {
+            lines.push([
+                r.student_code, `"${r.full_name}"`, `"${r.class_name || ''}"`, `"${r.faculty || ''}"`,
+                r.course_code, `"${r.course_name}"`, r.room_name || '', `"${r.teacher_name || ''}"`,
+                fmtDate(r.start_time), fmt(r.start_time), fmt(r.end_time),
+                fmt(r.check_in_time), fmt(r.check_out_time),
+                STATUS_CONFIG[r.status]?.label || r.status,
+                r.confidence_score ? (r.confidence_score * 100).toFixed(1) + '%' : ''
+            ].join(','));
+        }
     });
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
-    a.download = `bao-cao-diem-danh-${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.csv`;
+    const filename = isExam ? `bao-cao-diem-danh-thi-${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.csv` : `bao-cao-diem-danh-${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
 }
@@ -114,10 +128,12 @@ const AttendanceReport = () => {
         }
     };
 
+    const [logType, setLogType] = useState('class');
+
     const fetchLogReport = useCallback(async () => {
         setLoading(true);
         try {
-            const params = {};
+            const params = { type: logType };
             if (filters.date_from) params.date_from = filters.date_from;
             if (filters.date_to) params.date_to = filters.date_to;
             if (filters.course_id) params.course_id = filters.course_id;
@@ -128,7 +144,7 @@ const AttendanceReport = () => {
         } finally {
             setLoading(false);
         }
-    }, [filters]);
+    }, [filters, logType]);
 
     const handleRefreshAll = () => {
         setLoading(true);
@@ -189,7 +205,7 @@ const AttendanceReport = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                        <div className="w-10 h-10 rounded-2xl bg-[#175b9f] flex items-center justify-center text-white shadow-md">
                             <BarChart2 size={22} />
                         </div>
                         Báo Cáo Điểm Danh Từng Ca
@@ -438,7 +454,7 @@ const AttendanceReport = () => {
                                         className="bg-white rounded-3xl p-5 border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                                     >
                                         {/* Top accent line */}
-                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400"></div>
+                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#175b9f]"></div>
 
                                         <div className="space-y-3.5">
                                             {/* Course badge & status pill */}
@@ -605,7 +621,7 @@ const AttendanceReport = () => {
                                         className="bg-white rounded-3xl p-5 border border-slate-200/80 hover:border-purple-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                                     >
                                         {/* Top accent line */}
-                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-500"></div>
+                                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#175b9f]"></div>
 
                                         <div className="space-y-3.5">
                                             {/* Course badge & status pill */}
@@ -732,6 +748,29 @@ const AttendanceReport = () => {
                             Toàn Bộ Lịch Sử Điểm Danh
                             <span className="text-xs text-slate-400 font-normal">({filteredLogRows.length} lượt)</span>
                         </span>
+
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-200/60 rounded-xl">
+                            <button
+                                onClick={() => setLogType('class')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    logType === 'class'
+                                        ? 'bg-white text-indigo-700 shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                🎓 Ca Học Lớp
+                            </button>
+                            <button
+                                onClick={() => setLogType('exam')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    logType === 'exam'
+                                        ? 'bg-white text-purple-700 shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                🏆 Ca Thi Phòng Thi
+                            </button>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -748,23 +787,27 @@ const AttendanceReport = () => {
                             <table className="w-full text-xs text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-500 uppercase font-bold tracking-wider border-b border-slate-100">
-                                        <th className="py-3 px-4">Sinh Viên</th>
-                                        <th className="py-3 px-4">Môn Học</th>
+                                        <th className="py-3 px-4">Sinh Viên / Thí Sinh</th>
+                                        <th className="py-3 px-4">{logType === 'exam' ? 'Môn Thi & Phòng Thi' : 'Môn Học'}</th>
+                                        {logType === 'exam' && <th className="py-3 px-4 text-center">Vị Trí Ghế</th>}
                                         <th className="py-3 px-4 text-center">Ngày</th>
-                                        <th className="py-3 px-4 text-center">Check-in Vào</th>
-                                        <th className="py-3 px-4 text-center">Check-out Ra</th>
+                                        <th className="py-3 px-4 text-center">{logType === 'exam' ? 'Vào Phòng Thi' : 'Check-in Vào'}</th>
+                                        <th className="py-3 px-4 text-center">{logType === 'exam' ? 'Ra Phòng Thi' : 'Check-out Ra'}</th>
                                         <th className="py-3 px-4 text-center">Trạng Thái</th>
                                         <th className="py-3 px-4 text-center">Độ Chính Xác</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 font-medium">
                                     {filteredLogRows.map((r, i) => {
-                                        const st = STATUS_CONFIG[r.status] || { label: r.status, cls: 'bg-slate-100 text-slate-700' };
+                                        const st = STATUS_CONFIG[r.status] || {
+                                            label: r.status === 'Completed' ? (logType === 'exam' ? 'Đã thi & Ra phòng' : 'Hoàn thành') : r.status === 'Checked-in' ? (logType === 'exam' ? 'Đang dự thi' : 'Đầu giờ') : r.status,
+                                            cls: r.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700'
+                                        };
                                         return (
                                             <tr key={r.id || i} className="hover:bg-slate-50 transition-colors">
                                                 <td className="py-3 px-4">
                                                     <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                                        <div className={`w-8 h-8 rounded-full ${logType === 'exam' ? 'bg-purple-600' : 'bg-[#175b9f]'} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                                                             {r.full_name?.[0]?.toUpperCase() || 'S'}
                                                         </div>
                                                         <div>
@@ -775,9 +818,21 @@ const AttendanceReport = () => {
                                                 </td>
 
                                                 <td className="py-3 px-4">
-                                                    <div className="font-bold text-slate-900">{r.course_code}</div>
-                                                    <div className="text-[11px] text-slate-500">{r.room_name}</div>
+                                                    <div className="font-bold text-slate-900">{r.course_code} - {r.course_name}</div>
+                                                    <div className="text-[11px] text-slate-500">📍 {r.room_name}</div>
                                                 </td>
+
+                                                {logType === 'exam' && (
+                                                    <td className="py-3 px-4 text-center">
+                                                        {r.seat_row !== null && r.seat_col !== null ? (
+                                                            <span className="font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-[11px]">
+                                                                Hàng {r.seat_row + 1} - Cột {r.seat_col + 1}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-400 font-mono text-[11px]">Tự do</span>
+                                                        )}
+                                                    </td>
+                                                )}
 
                                                 <td className="py-3 px-4 text-center text-slate-700">{fmtDate(r.start_time)}</td>
 

@@ -317,6 +317,31 @@ const EditExamSchedule = ({ isOpen, onClose, onUpdated, schedule }) => {
                         </div>
                     </div>
 
+                    {/* Interactive Room Seating Diagram Editor */}
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between text-xs font-bold text-gray-800">
+                            <span className="flex items-center gap-1.5 text-indigo-700">
+                                <Armchair size={16} /> Chỉnh sửa sơ đồ chỗ ngồi ca thi
+                            </span>
+                            {formData.disabled_seats?.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, disabled_seats: [] })}
+                                    className="text-[11px] font-bold text-red-600 hover:underline"
+                                >
+                                    Mở lại tất cả ghế ({formData.disabled_seats.length} ghế đang khóa)
+                                </button>
+                            )}
+                        </div>
+                        <SeatMatrixEditor
+                            rows={formData.seating_rows}
+                            cols={formData.seating_cols}
+                            disabledSeats={formData.disabled_seats}
+                            onChange={(newDisabled) => setFormData({ ...formData, disabled_seats: newDisabled })}
+                            readOnly={false}
+                        />
+                    </div>
+
                     {/* Footer buttons */}
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                         <button 

@@ -5,7 +5,7 @@ exports.getExamSchedules = async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
-                es.id, es.exam_room, es.exam_time, es.end_time,
+                es.id, es.exam_room, es.exam_time, es.exam_end_time as end_time,
                 es.seating_rows, es.seating_cols,
                 c.course_code, c.course_name,
                 (SELECT COUNT(*) FROM students) as total_candidates,

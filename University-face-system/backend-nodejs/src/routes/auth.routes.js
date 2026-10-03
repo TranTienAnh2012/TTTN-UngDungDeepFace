@@ -8,6 +8,8 @@ router.post("/signup", controller.signup);
 router.post("/resend-verification-email", controller.resendVerificationEmail);
 router.post("/verify-email", controller.verifyEmail);
 router.post("/signin", controller.signin);
+router.get("/approve-teacher", controller.approveTeacher);
+router.get("/reject-teacher", controller.rejectTeacher);
 router.post("/face-login", controller.faceLogin);
 router.post("/refresh-token", controller.refreshToken);
 router.post("/forgot-password", controller.forgotPassword);

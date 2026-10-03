@@ -118,7 +118,7 @@ const TeacherDashboard = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
+        <div className="space-y-6 w-full pb-12 animate-in fade-in duration-300">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -269,7 +269,9 @@ const TeacherDashboard = () => {
                                             <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${
                                                 item.status === 'Active'
                                                     ? 'bg-emerald-100 text-emerald-700 animate-pulse'
-                                                    : 'bg-slate-200/70 text-slate-600'
+                                                    : item.status === 'Ended'
+                                                    ? 'bg-slate-200/70 text-slate-600'
+                                                    : 'bg-blue-100 text-blue-700'
                                             }`}>
                                                 {item.status === 'Active' ? '● Đang diễn ra' : item.status === 'Ended' ? 'Đã kết thúc' : 'Sắp tới'}
                                             </span>
@@ -288,7 +290,10 @@ const TeacherDashboard = () => {
                                 <p className="text-xs text-slate-400 mt-0.5">Cập nhật dữ liệu từ hệ thống</p>
                             </div>
                             <button 
-                                onClick={() => window.open('http://localhost:5000/api/reports/export', '_blank')}
+                                onClick={() => {
+                                    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+                                    window.open(`${apiBase}/api/reports/export`, '_blank');
+                                }}
                                 className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all"
                             >
                                 <Download size={14} />

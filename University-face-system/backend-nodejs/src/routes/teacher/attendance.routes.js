@@ -10,6 +10,8 @@ router.post('/auto-verify', attendanceController.autoIdentifyAndCheckIn);
 router.get('/session/:schedule_id', attendanceController.getSessionStatus);
 router.get('/list/:schedule_id', attendanceController.getAttendanceBySchedule);
 router.get('/report', attendanceController.getAttendanceReport);
+router.get('/sessions/recent', attendanceController.getRecentSessions);
+router.get('/export/:schedule_id', attendanceController.exportAttendanceExcel);
 
 // Face Registration
 router.post('/student/register-face', attendanceController.registerFace);

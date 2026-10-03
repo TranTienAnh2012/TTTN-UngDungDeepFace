@@ -14,3 +14,5 @@ temp_doc.txt
 dist/
 build/
 scratch/
+*.zip
+*.sql

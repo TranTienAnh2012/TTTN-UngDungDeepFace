@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Lock, ArrowLeft, Shield, Key, CheckCircle, FileText, Users, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, Shield, Key, CheckCircle, FileText, Users, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const ForgotPassword = () => {
     // Step: 'email' -> 'otp' -> 'reset' -> 'success'
@@ -370,7 +370,7 @@ const ForgotPassword = () => {
                                     </button>
                                 </div>
                                 {confirmPassword && newPassword !== confirmPassword && (
-                                    <p className="text-red-500 text-xs font-medium mt-1">⚠️ Mật khẩu không khớp</p>
+                                    <p className="text-red-500 text-xs font-medium mt-1 flex items-center gap-1"><AlertCircle size={14} /> Mật khẩu không khớp</p>
                                 )}
                             </div>
 
@@ -496,7 +496,7 @@ const ForgotPassword = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                         {error && (
                             <div className="mb-6 p-4 bg-red-50/80 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex items-start gap-2">
-                                <span className="mt-0.5 text-lg">⚠️</span>
+                                <AlertCircle size={18} className="mt-0.5 text-red-500 shrink-0" />
                                 {error}
                             </div>
                         )}

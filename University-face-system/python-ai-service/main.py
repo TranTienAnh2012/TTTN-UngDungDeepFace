@@ -78,7 +78,7 @@ async def identify_face(req: IdentifyRequest):
         status_text = detect_result.get("status_text") or f"Frame skipped: {reason}"
         return {
             "match": False,
-            "box": None,
+            "box": detect_result.get("box"),
             "image_size": detect_result.get("image_size"),
             "student_id": None,
             "confidence": 0,
@@ -163,6 +163,7 @@ async def identify_face(req: IdentifyRequest):
         "image_size": detect_result.get("image_size"),
         "student_id": best_student["id"] if is_match else None,
         "confidence": best_similarity if best_similarity > 0 else 0.0,
+        "is_live": detect_result.get("is_live", True),
         "from_cache": False
     }
 

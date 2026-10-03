@@ -5,12 +5,13 @@ const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
 router.use(authMiddleware);
-router.use(roleMiddleware('admin', 'manager'));
+router.use(roleMiddleware('admin', 'manager', 'teacher'));
 
 // --- Exam Schedules ---
 router.get('/schedules', examController.getAllExamSchedules);
 router.get('/schedules/:id', examController.getExamScheduleById);
 router.post('/schedules', examController.createExamSchedule);
+router.post('/schedules/:id/bulk-class', examController.bulkEnrollClassForExam);
 router.put('/schedules/:id', examController.updateExamSchedule);
 router.delete('/schedules/:id', examController.deleteExamSchedule);
 

@@ -14,17 +14,17 @@ import FaceRecognition from './components/admin/FaceRecognition';
 import AdminFaceRegistration from './components/admin/AdminFaceRegistration';
 
 import CourseManagement from './pages/admin/CourseManagement';
-import RoomManagement from './pages/admin/RoomManagement';
+import RoomManagement from './pages/admin/RoomManagement/index';
 import FacultyManagement from './pages/admin/FacultyManagement';
 import ClassManagement from './pages/admin/ClassManagement';
 import StudentManagement from './pages/admin/StudentManagement';
-import FacultyClassManagement from './pages/admin/FacultyClassManagement';
 
 import ClassSchedules from './pages/admin/ClassSchedules';
 import ClassAttendance from './pages/admin/ClassAttendance';
 import ExamSchedules from './pages/admin/ExamSchedules';
 import ExamAttendance from './pages/admin/ExamAttendance';
 import AttendanceReport from './pages/admin/AttendanceReport';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Teacher Components & Pages
 import TeacherLayout from './components/teacher/TeacherLayout';
@@ -87,17 +87,18 @@ function App() {
             <Route path="courses" element={<CourseManagement />} />
             <Route path="rooms" element={<RoomManagement />} />
             <Route path="students" element={<StudentManagement />} />
-            <Route path="faculties-classes" element={<FacultyClassManagement />} />
             <Route path="class-schedules" element={<ClassSchedules />} />
             <Route path="class-attendance" element={<ClassAttendance />} />
+            <Route path="attendance/class" element={<ClassAttendance />} />
             <Route path="exam-schedules" element={<ExamSchedules />} />
             <Route path="exam-attendance" element={<ExamAttendance />} />
+            <Route path="attendance/exam" element={<ExamAttendance />} />
 
             <Route path="face-registration-demo" element={<FaceRegistration />} />
             <Route path="face-recognition" element={<FaceRecognition />} />
             <Route path="admin-face-registration" element={<AdminFaceRegistration />} />
             <Route path="attendance-report" element={<AttendanceReport />} />
-            <Route path="settings" element={<div className="p-8 text-center text-gray-500">Trang Cài đặt (Đang phát triển)</div>} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Teacher Portal Routes */}

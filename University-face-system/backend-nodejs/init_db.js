@@ -342,8 +342,15 @@ async function initializeDatabase() {
         // Ensure columns in existing tables are up to date
         await ensureTableColumns(connection);
 
-        // Seed initial data
+        // Seed initial data & realistic data
         await seedInitialData(connection);
+        
+        try {
+            const seedRealisticData = require('./seed_realistic_data');
+            await seedRealisticData();
+        } catch (e) {
+            console.warn('[!] Cảnh báo khi nạp dữ liệu thực tế:', e.message);
+        }
 
         // Step 4: Verify tables
         const [tables] = await connection.query('SHOW TABLES;');

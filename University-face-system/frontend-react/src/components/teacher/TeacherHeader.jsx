@@ -26,7 +26,7 @@ const TeacherHeader = () => {
             <div>
                 <p className="text-xs font-semibold text-slate-400 capitalize">{formattedDate}</p>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mt-0.5">
-                    Chào buổi sáng, {displayName} <span className="animate-bounce">👋</span>
+                    Chào buổi sáng, {displayName}
                 </h2>
             </div>
 
@@ -59,12 +59,12 @@ const TeacherHeader = () => {
                             </div>
                             <div className="space-y-2 text-xs">
                                 <div className="p-2.5 bg-indigo-50/60 rounded-xl space-y-1">
-                                    <p className="font-bold text-slate-800">🔔 Ca học sắp bắt đầu</p>
+                                    <p className="font-bold text-slate-800">Ca học sắp bắt đầu</p>
                                     <p className="text-slate-600">Môn Nhập môn Khoa học máy tính lúc 08:00 (Phòng A-302).</p>
                                     <span className="text-[10px] text-slate-400">10 phút trước</span>
                                 </div>
                                 <div className="p-2.5 bg-slate-50 rounded-xl space-y-1">
-                                    <p className="font-bold text-slate-800">✅ Báo cáo tuần đã sẵn sàng</p>
+                                    <p className="font-bold text-slate-800">Báo cáo tuần đã sẵn sàng</p>
                                     <p className="text-slate-600">Tỷ lệ chuyên cần tuần này đạt 94.2%.</p>
                                     <span className="text-[10px] text-slate-400">1 giờ trước</span>
                                 </div>
@@ -82,7 +82,7 @@ const TeacherHeader = () => {
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
                         className="flex items-center gap-3 p-1.5 pr-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200/60"
                     >
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-200 to-orange-300 border-2 border-white shadow-sm flex items-center justify-center text-slate-800 font-extrabold text-sm shrink-0">
+                        <div className="w-10 h-10 rounded-2xl bg-[#175b9f] text-white border-2 border-white shadow-sm flex items-center justify-center font-extrabold text-sm shrink-0">
                             {displayName.charAt(0) || 'T'}
                         </div>
                         <div className="text-left hidden sm:block">

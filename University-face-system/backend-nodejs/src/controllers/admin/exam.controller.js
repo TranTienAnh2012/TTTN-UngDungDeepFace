@@ -3,34 +3,42 @@ const pool = require('../../config/db');
 exports.getAllExamSchedules = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+        const limit = parseInt(req.query.limit) || 100;
         const search = req.query.search || '';
         const offset = (page - 1) * limit;
 
         let query = `
-            SELECT es.*, c.course_code, c.course_name 
+            SELECT es.*, c.course_code, c.course_name, cl.class_code as academic_class_code,
+                COALESCE(
+                    NULLIF((SELECT COUNT(*) FROM exam_eligibility ee WHERE ee.exam_schedule_id = es.id), 0),
+                    NULLIF((SELECT COUNT(*) FROM students s WHERE es.class_id IS NOT NULL AND (s.class_id = es.class_id)), 0),
+                    (SELECT COUNT(*) FROM students)
+                ) AS total_candidates,
+                (SELECT COUNT(*) FROM exam_attendance ea WHERE ea.exam_schedule_id = es.id) AS checked_in_count
             FROM exam_schedules es 
             LEFT JOIN courses c ON es.course_id = c.id
+            LEFT JOIN classes cl ON es.class_id = cl.id
         `;
         let countQuery = `
             SELECT COUNT(*) as total 
             FROM exam_schedules es 
             LEFT JOIN courses c ON es.course_id = c.id
+            LEFT JOIN classes cl ON es.class_id = cl.id
         `;
         const queryParams = [];
 
         if (search) {
-            const searchCondition = ' WHERE es.exam_room LIKE ? OR c.course_code LIKE ? OR c.course_name LIKE ?';
+            const searchCondition = ' WHERE es.exam_room LIKE ? OR c.course_code LIKE ? OR c.course_name LIKE ? OR cl.class_code LIKE ?';
             query += searchCondition;
             countQuery += searchCondition;
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         query += ' ORDER BY es.exam_time DESC LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
         const [rows] = await pool.query(query, queryParams);
-        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [countResult] = await pool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : []);
         const total = countResult[0].total;
 
         res.json({
@@ -73,23 +81,39 @@ exports.getExamScheduleById = async (req, res) => {
 
 exports.createExamSchedule = async (req, res) => {
     try {
-        const { course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats } = req.body;
+        const { course_id, room_id, class_id, exam_room, exam_time, duration_minutes, seating_rows, seating_cols, disabled_seats } = req.body;
         
         if (!course_id || !exam_room || !exam_time) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc: Môn thi, Phòng thi, Giờ bắt đầu' });
         }
 
-        const finalEndTime = end_time || new Date(new Date(exam_time).getTime() + 90 * 60000);
+        const duration = parseInt(duration_minutes) || 90;
+        const startTimeDate = new Date(exam_time);
+        const finalEndTime = new Date(startTimeDate.getTime() + duration * 60000);
+        const disabledStr = typeof disabled_seats === 'string' ? disabled_seats : JSON.stringify(disabled_seats || []);
 
         const [result] = await pool.query(
-            'INSERT INTO exam_schedules (course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [course_id, exam_room, exam_time, finalEndTime, seating_rows || 0, seating_cols || 0, disabled_seats || '']
+            `INSERT INTO exam_schedules 
+            (course_id, room_id, class_id, exam_room, exam_time, end_time, duration_minutes, seating_rows, seating_cols, disabled_seats) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                course_id, 
+                room_id || null, 
+                class_id || null, 
+                exam_room, 
+                startTimeDate, 
+                finalEndTime, 
+                duration, 
+                seating_rows || 6, 
+                seating_cols || 8, 
+                disabledStr
+            ]
         );
         
         res.status(201).json({ 
             success: true, 
             message: 'Tạo lịch thi thành công',
-            data: { id: result.insertId, course_id, exam_room, exam_time, end_time: finalEndTime }
+            data: { id: result.insertId, course_id, exam_room, exam_time: startTimeDate, end_time: finalEndTime }
         });
     } catch (error) {
         console.error('Error in createExamSchedule:', error);
@@ -100,17 +124,34 @@ exports.createExamSchedule = async (req, res) => {
 exports.updateExamSchedule = async (req, res) => {
     try {
         const { id } = req.params;
-        const { course_id, exam_room, exam_time, end_time, seating_rows, seating_cols, disabled_seats } = req.body;
+        const { course_id, room_id, class_id, exam_room, exam_time, duration_minutes, seating_rows, seating_cols, disabled_seats } = req.body;
 
         if (!course_id || !exam_room || !exam_time) {
             return res.status(400).json({ success: false, message: 'Vui lòng điền thông tin bắt buộc' });
         }
 
-        const finalEndTime = end_time || new Date(new Date(exam_time).getTime() + 90 * 60000);
+        const duration = parseInt(duration_minutes) || 90;
+        const startTimeDate = new Date(exam_time);
+        const finalEndTime = new Date(startTimeDate.getTime() + duration * 60000);
+        const disabledStr = typeof disabled_seats === 'string' ? disabled_seats : JSON.stringify(disabled_seats || []);
 
         const [result] = await pool.query(
-            'UPDATE exam_schedules SET course_id = ?, exam_room = ?, exam_time = ?, end_time = ?, seating_rows = ?, seating_cols = ?, disabled_seats = ? WHERE id = ?',
-            [course_id, exam_room, exam_time, finalEndTime, seating_rows || 0, seating_cols || 0, disabled_seats || '', id]
+            `UPDATE exam_schedules 
+             SET course_id = ?, room_id = ?, class_id = ?, exam_room = ?, exam_time = ?, end_time = ?, duration_minutes = ?, seating_rows = ?, seating_cols = ?, disabled_seats = ? 
+             WHERE id = ?`,
+            [
+                course_id, 
+                room_id || null, 
+                class_id || null, 
+                exam_room, 
+                startTimeDate, 
+                finalEndTime, 
+                duration, 
+                seating_rows || 6, 
+                seating_cols || 8, 
+                disabledStr, 
+                id
+            ]
         );
 
         if (result.affectedRows === 0) {
@@ -121,6 +162,91 @@ exports.updateExamSchedule = async (req, res) => {
     } catch (error) {
         console.error('Error in updateExamSchedule:', error);
         res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật lịch thi' });
+    }
+};
+
+exports.bulkEnrollClassForExam = async (req, res) => {
+    try {
+        const { id } = req.params; // exam_schedule_id
+        const { class_id, student_type, notes } = req.body;
+
+        if (!class_id) {
+            return res.status(400).json({ success: false, message: 'Vui lòng chọn lớp sinh viên' });
+        }
+
+        const [schedules] = await pool.query('SELECT * FROM exam_schedules WHERE id = ?', [id]);
+        if (schedules.length === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lịch thi' });
+        }
+        const schedule = schedules[0];
+
+        const [classStudents] = await pool.query(
+            `SELECT id, student_code, full_name FROM students 
+             WHERE class_id = ? OR class_name = (SELECT class_code FROM academic_classes WHERE id = ?) OR class_name = (SELECT class_name FROM academic_classes WHERE id = ?)`,
+            [class_id, class_id, class_id]
+        );
+        if (classStudents.length === 0) {
+            return res.status(400).json({ success: false, message: 'Lớp này chưa có sinh viên nào' });
+        }
+
+        const [existing] = await pool.query('SELECT student_id, seat_row, seat_col FROM exam_eligibility WHERE exam_schedule_id = ?', [id]);
+        const existingIds = new Set(existing.map(e => e.student_id));
+        const occupiedSeats = new Set(existing.filter(e => e.seat_row !== null && e.seat_col !== null).map(e => `${e.seat_row}-${e.seat_col}`));
+
+        let disabledList = [];
+        try {
+            disabledList = typeof schedule.disabled_seats === 'string' ? JSON.parse(schedule.disabled_seats) : (schedule.disabled_seats || []);
+        } catch (e) {
+            disabledList = [];
+        }
+        disabledList.forEach(s => occupiedSeats.add(`${s.row || s.split('-')[0]}-${s.col || s.split('-')[1]}`));
+
+        const availableSeats = [];
+        const sRows = schedule.seating_rows || 6;
+        const sCols = schedule.seating_cols || 8;
+        for (let r = 0; r < sRows; r++) {
+            for (let c = 0; c < sCols; c++) {
+                if (!occupiedSeats.has(`${r}-${c}`)) {
+                    availableSeats.push({ row: r, col: c });
+                }
+            }
+        }
+
+        let addedCount = 0;
+        let seatIdx = 0;
+        const toInsert = [];
+
+        for (const student of classStudents) {
+            if (!existingIds.has(student.id)) {
+                const seat = seatIdx < availableSeats.length ? availableSeats[seatIdx++] : null;
+                toInsert.push([
+                    id,
+                    student.id,
+                    1,
+                    seat ? seat.row : null,
+                    seat ? seat.col : null,
+                    student_type || 'regular',
+                    notes || 'Nạp theo lớp'
+                ]);
+                addedCount++;
+            }
+        }
+
+        if (toInsert.length > 0) {
+            await pool.query(
+                'INSERT INTO exam_eligibility (exam_schedule_id, student_id, is_eligible, seat_row, seat_col, student_type, notes) VALUES ?',
+                [toInsert]
+            );
+        }
+
+        res.json({
+            success: true,
+            message: `Đã nạp ${addedCount} sinh viên vào danh sách dự thi (bỏ qua ${classStudents.length - addedCount} SV đã có sẵn).`,
+            data: { addedCount }
+        });
+    } catch (error) {
+        console.error('Error in bulkEnrollClassForExam:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server khi nạp lớp vào lịch thi' });
     }
 };
 
@@ -159,13 +285,50 @@ exports.getExamEligibility = async (req, res) => {
         }
 
         const query = `
-            SELECT ee.*, s.student_code, s.full_name, s.class_name 
+            SELECT ee.*, 
+                   s.student_code, s.full_name, s.class_name,
+                   cl.class_code as student_official_class,
+                   f.faculty_name,
+                   (s.face_embedding IS NOT NULL) as face_registered,
+                   ea.id as attendance_id,
+                   ea.check_in_time, ea.check_in_confidence, ea.check_in_status,
+                   ea.check_out_time, ea.check_out_confidence, ea.check_out_status,
+                   ea.status as attendance_status, ea.confidence_score, ea.notes
             FROM exam_eligibility ee
             JOIN students s ON ee.student_id = s.id
+            LEFT JOIN classes cl ON s.class_id = cl.id
+            LEFT JOIN faculties f ON s.faculty_id = f.id
+            LEFT JOIN exam_attendance ea ON ea.student_id = s.id AND ea.exam_schedule_id = ee.exam_schedule_id
             WHERE ee.exam_schedule_id = ?
+            ORDER BY s.student_code ASC
         `;
         
-        const [rows] = await pool.query(query, [schedule_id]);
+        let [rows] = await pool.query(query, [schedule_id]);
+
+        if (rows.length === 0) {
+            const [scheds] = await pool.query('SELECT class_id FROM exam_schedules WHERE id = ?', [schedule_id]);
+            const classId = scheds.length > 0 ? scheds[0].class_id : null;
+            const classFilter = classId ? 'WHERE s.class_id = ?' : '';
+            const queryParams = classId ? [schedule_id, classId] : [schedule_id];
+
+            [rows] = await pool.query(`
+                SELECT s.id as student_id, s.student_code, s.full_name, s.email, s.date_of_birth,
+                       s.class_id, cl.class_code as student_official_class, cl.class_name,
+                       f.faculty_name,
+                       (s.face_embedding IS NOT NULL) as face_registered,
+                       'regular' as student_type,
+                       ea.id as attendance_id,
+                       ea.check_in_time, ea.check_in_confidence, ea.check_in_status,
+                       ea.check_out_time, ea.check_out_confidence, ea.check_out_status,
+                       ea.status as attendance_status, ea.confidence_score, ea.notes
+                FROM students s
+                LEFT JOIN classes cl ON s.class_id = cl.id
+                LEFT JOIN faculties f ON s.faculty_id = f.id
+                LEFT JOIN exam_attendance ea ON ea.student_id = s.id AND ea.exam_schedule_id = ?
+                ${classFilter}
+                ORDER BY s.student_code ASC
+            `, queryParams);
+        }
 
         res.json({
             success: true,

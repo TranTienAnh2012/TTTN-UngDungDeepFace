@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Lock, Mail, User as UserIcon, CheckCircle, FileText, Users, ArrowRight, RefreshCw, AlertTriangle, Inbox, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, CheckCircle, FileText, Users, ArrowRight, RefreshCw, AlertTriangle, AlertCircle, Inbox, Eye, EyeOff } from 'lucide-react';
 
 const Register = () => {
     const [formData, setFormData] = useState({ email: '', password: '', full_name: '' });
@@ -33,10 +33,14 @@ const Register = () => {
         const result = await register(formData);
         
         if (result.success) {
-            setSuccessMessage(result.message);
-            setRegisteredEmail(formData.email);
-            setEmailSent(result.data?.emailSent ?? true);
-            setIsRegistered(true);
+            if (result.data && result.data.is_approved === 0) {
+                setSuccessMessage("🎉 Đăng ký thành công! Thông tin tài khoản của bạn đã được gửi tới Email Admin để phê duyệt. Hệ thống sẽ tự động thông báo qua Email khi tài khoản của bạn được phê duyệt.");
+            } else {
+                setSuccessMessage(result.message || "Đăng ký thành công!");
+                setRegisteredEmail(formData.email);
+                setEmailSent(result.data?.emailSent ?? true);
+                setIsRegistered(true);
+            }
         } else {
             setError(result.message);
         }
@@ -290,14 +294,14 @@ const Register = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                         {error && (
                             <div className="mb-6 p-4 bg-red-50/80 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex items-start gap-2">
-                                <span className="mt-0.5 text-lg">⚠️</span>
+                                <AlertCircle size={18} className="mt-0.5 text-red-500 shrink-0" />
                                 {error}
                             </div>
                         )}
                         
                         {successMessage && (
                             <div className="mb-6 p-4 bg-emerald-50/80 border border-emerald-100 text-emerald-600 rounded-xl text-sm font-medium flex items-start gap-2">
-                                <span className="mt-0.5 text-lg">✅</span>
+                                <CheckCircle size={18} className="mt-0.5 text-emerald-500 shrink-0" />
                                 {successMessage}
                             </div>
                         )}

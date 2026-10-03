@@ -26,7 +26,8 @@ const TeacherReports = () => {
     };
 
     const handleExport = () => {
-        window.open('http://localhost:5000/api/reports/export', '_blank');
+        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+        window.open(`${apiBase}/api/reports/export`, '_blank');
     };
 
     const reportCards = summaryData ? [
@@ -48,7 +49,7 @@ const TeacherReports = () => {
     ];
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
+        <div className="space-y-6 w-full pb-12 animate-in fade-in duration-300">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
