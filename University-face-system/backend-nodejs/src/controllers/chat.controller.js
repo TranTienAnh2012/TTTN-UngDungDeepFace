@@ -1,4 +1,4 @@
-﻿const chatService = require('../services/chat.service');
+const chatService = require('../services/chat.service');
 
 /**
  * POST /api/chat/stream  (Server-Sent Events)
@@ -11,6 +11,10 @@ async function sendMessageStream(req, res) {
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ success: false, message: 'Danh sach tin nhan khong hop le' });
+    }
+    // Giới hạn tối đa 20 tin nhắn trong 1 request
+    if (messages.length > 20) {
+        return res.status(400).json({ success: false, message: 'Qua nhieu tin nhan (toi da 20)' });
     }
     for (const msg of messages) {
         if (!msg.role || !msg.content || typeof msg.content !== 'string') {
@@ -51,6 +55,17 @@ async function sendMessage(req, res) {
         const { messages } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ success: false, message: 'Danh sach tin nhan khong hop le' });
+        }
+        if (messages.length > 20) {
+            return res.status(400).json({ success: false, message: 'Qua nhieu tin nhan (toi da 20)' });
+        }
+        for (const msg of messages) {
+            if (!msg.role || !msg.content || typeof msg.content !== 'string') {
+                return res.status(400).json({ success: false, message: 'Dinh dang tin nhan khong hop le' });
+            }
+            if (msg.content.length > 1000) {
+                return res.status(400).json({ success: false, message: 'Tin nhan qua dai (toi da 1000 ky tu)' });
+            }
         }
         const reply = await chatService.chat(messages);
         return res.json({ success: true, data: { reply } });

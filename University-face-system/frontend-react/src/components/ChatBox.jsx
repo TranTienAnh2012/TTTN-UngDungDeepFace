@@ -399,7 +399,6 @@ function ChatBox() {
               </button>
             </div>
           </div>
-        </div>
       )}
     </div>
   );
